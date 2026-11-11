@@ -131,3 +131,8 @@ main {
     padding: 2rem 0;
     text-align: center;
 }
+
+/* FocusOnNavigate focuses the page <h1> for screen readers; hide the visual outline. */
+h1:focus {
+  outline: none;
+}
