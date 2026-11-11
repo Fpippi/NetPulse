@@ -1,6 +1,6 @@
 // Static demo of the NetPulse dashboard for GitHub Pages.
 // The real app is Blazor Server and measures the network it runs on; here the samples are
-// simulated in the browser, but stats and chart follow the same rules as NetPulse.Core
+// simulated in the browser (at 5x real time, so the page visibly moves), but stats and chart follow the same rules as NetPulse.Core
 // (LatencyStats and ChartDownsampler).
 (() => {
   "use strict";
@@ -96,41 +96,143 @@
     return out;
   }
 
-  const ms = v => (v == null ? "–" : v.toFixed(1) + " ms");
-  const f = v => (Math.round(v * 100) / 100).toString();
-  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  // ---- Rendering --------------------------------------------------------------------------
+  // Cards are built once and then updated in place, so values can animate and the chart can
+  // scroll smoothly instead of being redrawn from scratch on every round.
 
-  function chart(samples) {
+  const TICK_MS = 1000;               // one simulated 5 s round per second: 5x real time
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const fmtMs = v => (v == null ? "–" : v.toFixed(1) + " ms");
+  const fmtPct = v => (Math.round(v * 10) / 10).toString() + " %";
+  const f = v => (Math.round(v * 100) / 100).toString();
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function svg(tag, attrs) {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // Tweens a number shown in an element, so stats glide to their new value.
+  function tween(node, to, fmt) {
+    const from = node._value;
+    node._value = to;
+    if (from == null || to == null || reducedMotion || from === to) {
+      node.textContent = fmt(to);
+      return;
+    }
+    const start = performance.now(), dur = 600;
+    cancelAnimationFrame(node._raf);
+    const step = now => {
+      const t = Math.min(1, (now - start) / dur), e = 1 - (1 - t) ** 3;
+      node.textContent = fmt(from + (to - from) * e);
+      if (t < 1) node._raf = requestAnimationFrame(step);
+    };
+    node._raf = requestAnimationFrame(step);
+  }
+
+  function buildCard(target) {
+    const card = el("section", "card");
+    const head = el("div", "card-head");
+    head.append(el("h2", null, target));
+    const right = el("div", "card-right");
+    const now = el("span", "now");
+    const badge = el("span", "badge");
+    right.append(now, badge);
+    head.append(right);
+
+    const dl = el("dl", "stats"), dd = {};
+    for (const [key, label] of [["avg", "Avg"], ["min", "Min"], ["max", "Max"], ["jitter", "Jitter"], ["loss", "Loss"], ["count", "Samples"]]) {
+      const div = el("div");
+      div.append(el("dt", null, label), dd[key] = el("dd"));
+      dl.append(div);
+    }
+
+    const wrap = el("div", "chart-wrap");
+    const scaleLabel = el("span", "chart-max");
+    const chart = svg("svg", { class: "chart", viewBox: `0 0 ${WIDTH} ${HEIGHT}`, preserveAspectRatio: "none", role: "img", "aria-label": "Latency over time" });
+    const scroll = svg("g", { class: "scroll" });
+    const losses = svg("g", {});
+    const line = svg("polyline", { class: "line" });
+    scroll.append(losses, line);
+    chart.append(scroll);
+    const dot = el("span", "live-dot");
+    wrap.append(scaleLabel, chart, dot);
+
+    card.append(head, dl, wrap);
+    return { card, now, badge, dd, scaleLabel, scroll, losses, line, dot };
+  }
+
+  function updateCard(c, samples, animateScroll) {
+    const s = stats(samples), q = quality(s);
+    c.badge.className = "badge " + q.toLowerCase();
+    c.badge.textContent = q;
+
+    const last = samples[samples.length - 1];
+    c.now.textContent = last.ok ? `${last.ms} ms` : "timeout";
+    c.now.classList.toggle("lost", !last.ok);
+    c.now.classList.remove("flash");
+    void c.now.offsetWidth;            // restart the flash animation
+    c.now.classList.add("flash");
+
+    tween(c.dd.avg, s.avg ?? null, fmtMs);
+    tween(c.dd.min, s.min ?? null, fmtMs);
+    tween(c.dd.max, s.max ?? null, fmtMs);
+    tween(c.dd.jitter, s.jitter ?? null, fmtMs);
+    tween(c.dd.loss, s.loss, fmtPct);
+    c.dd.count.textContent = s.count;
+
+    // Chart: same downsampling and scale as LatencyChart.razor.
     const pts = downsample(samples, MAX_POINTS);
-    if (pts.length < 2) return '<div class="chart-empty">Not enough data yet</div>';
     const peak = Math.max(0, ...pts.filter(p => p.max !== null).map(p => p.max));
     const scale = Math.max(10, peak * 1.1);
-    const x = i => i * WIDTH / (pts.length - 1);
-    const line = pts.filter(p => p.max !== null).map(p => `${f(x(p.index))},${f(HEIGHT - p.max / scale * HEIGHT)}`).join(" ");
-    const losses = pts.filter(p => p.hasLoss)
-      .map(p => `<line class="loss" x1="${f(x(p.index))}" x2="${f(x(p.index))}" y1="0" y2="${HEIGHT}" />`).join("");
-    return `<div class="chart-wrap"><span class="chart-max">${Math.round(scale)} ms</span>` +
-      `<svg class="chart" viewBox="0 0 ${WIDTH} ${HEIGHT}" preserveAspectRatio="none" role="img" aria-label="Latency over time">` +
-      `${losses}<polyline class="line" points="${line}" /></svg></div>`;
+    const dx = WIDTH / (pts.length - 1);
+    const y = v => HEIGHT - v / scale * HEIGHT;
+    c.scaleLabel.textContent = `${Math.round(scale)} ms`;
+    c.line.setAttribute("points", pts.filter(p => p.max !== null).map(p => `${f(p.index * dx)},${f(y(p.max))}`).join(" "));
+    c.losses.replaceChildren(...pts.filter(p => p.hasLoss)
+      .map(p => svg("line", { class: "loss", x1: f(p.index * dx), x2: f(p.index * dx), y1: 0, y2: HEIGHT })));
+
+    const lastPt = pts[pts.length - 1];
+    c.dot.style.top = `${(lastPt.max === null ? HEIGHT : y(lastPt.max)) / HEIGHT * 100}%`;
+    c.dot.classList.toggle("lost", !last.ok);
+
+    // When every sample is its own point (15m window), a new round shifts the series left by
+    // exactly one step: start one step to the right and slide into place for a seamless scroll.
+    c.scroll.style.transition = "none";
+    c.scroll.style.transform = animateScroll && !reducedMotion ? `translateX(${dx}px)` : "";
+    if (animateScroll && !reducedMotion) {
+      void c.scroll.getBoundingClientRect();
+      c.scroll.style.transition = `transform ${TICK_MS}ms linear`;
+      c.scroll.style.transform = "translateX(0)";
+    }
   }
 
   let windowMs = WINDOWS[0].ms;
   const main = document.getElementById("cards");
   const nav = document.getElementById("windows");
+  const ordered = [...series].sort((a, b) => a.p.target.localeCompare(b.p.target));
+  main.replaceChildren();
+  for (const s of ordered) {
+    s.view = buildCard(s.p.target);
+    main.append(s.view.card);
+  }
 
-  function render() {
+  function render(animateScroll) {
     const latest = series[0].samples[series[0].samples.length - 1].ts;
     const since = latest - windowMs;
-    main.innerHTML = [...series].sort((a, b) => a.p.target.localeCompare(b.p.target)).map(({ p, samples }) => {
-      const win = samples.filter(s => s.ts > since);
-      const s = stats(win), q = quality(s);
-      return `<section class="card"><div class="card-head"><h2>${esc(p.target)}</h2>` +
-        `<span class="badge ${q.toLowerCase()}">${q}</span></div><dl class="stats">` +
-        `<div><dt>Avg</dt><dd>${ms(s.avg)}</dd></div><div><dt>Min</dt><dd>${ms(s.min)}</dd></div>` +
-        `<div><dt>Max</dt><dd>${ms(s.max)}</dd></div><div><dt>Jitter</dt><dd>${ms(s.jitter)}</dd></div>` +
-        `<div><dt>Loss</dt><dd>${(Math.round(s.loss * 10) / 10).toString()} %</dd></div>` +
-        `<div><dt>Samples</dt><dd>${s.count}</dd></div></dl>${chart(win)}</section>`;
-    }).join("");
+    for (const s of ordered) {
+      const win = s.samples.filter(x => x.ts > since);
+      updateCard(s.view, win, animateScroll && win.length <= MAX_POINTS);
+    }
   }
 
   nav.innerHTML = WINDOWS.map((w, i) => `<button data-i="${i}"${i === 0 ? ' class="active"' : ""}>${w.label}</button>`).join("");
@@ -139,18 +241,18 @@
     if (!btn) return;
     windowMs = WINDOWS[+btn.dataset.i].ms;
     nav.querySelectorAll("button").forEach(b => b.classList.toggle("active", b === btn));
-    render();
+    render(false);
   });
 
-  // "Live" updates: one new round every 5 seconds, like PingMonitorService.
+  // A new ping round every tick, like PingMonitorService (sped up 5x so the demo feels alive).
   setInterval(() => {
     for (const s of series) {
       const ts = s.samples[s.samples.length - 1].ts + INTERVAL_MS;
       s.samples.push(makeSample(s.p, s.rnd, ts));
       s.samples.shift();
     }
-    render();
-  }, INTERVAL_MS);
+    render(true);
+  }, TICK_MS);
 
-  render();
+  render(false);
 })();
