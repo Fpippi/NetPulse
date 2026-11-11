@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetPulse</title>
+  <meta name="description" content="Free, open-source, self-hosted network quality monitor: latency, jitter and packet loss on a live dashboard. Built with C# / .NET 10 and Blazor.">
+  <meta property="og:title" content="NetPulse: is your connection really stable?">
+  <meta property="og:description" content="Self-hosted monitor that pings your router and the Internet and shows latency, jitter and packet loss on a live dashboard.">
+  <meta property="og:image" content="dashboard.png">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="./"><img src="favicon.svg" alt="" width="24" height="24"> NetPulse</a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#start">Quick start</a>
+      <a href="https://github.com/Fpippi/NetPulse">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Open source · Self-hosted · .NET 10</p>
+      <h1>Is your connection <em>really</em> stable?</h1>
+      <p class="lead">
+        NetPulse continuously pings your router and the Internet, stores every result and shows
+        latency, jitter and packet loss on a live dashboard. So when a call drops, you can tell
+        whether the culprit is your Wi-Fi, your router or your ISP.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="demo.html">Try the live demo</a>
+        <a class="btn" href="https://github.com/Fpippi/NetPulse">View on GitHub</a>
+      </div>
+      <a class="shot" href="demo.html" aria-label="Open the interactive demo">
+        <img src="dashboard.png" width="1200" height="760"
+             alt="NetPulse dashboard: one card per target with average, min, max, jitter, packet loss and a 24-hour latency chart">
+      </a>
+      <p class="caption">The dashboard, with simulated data. The demo runs in your browser; the real app measures the machine it runs on.</p>
+    </section>
+
+    <section id="features">
+      <h2>Features</h2>
+      <div class="grid">
+        <article>
+          <h3>Three vantage points</h3>
+          <p>Pings the <strong>default gateway</strong> (auto-detected), 1.1.1.1 and 8.8.8.8. If only the
+             public hosts suffer, the problem is past your router.</p>
+        </article>
+        <article>
+          <h3>Numbers that matter</h3>
+          <p>Average, min, max, <strong>jitter</strong> and <strong>packet loss</strong> per target, plus a
+             Good / Fair / Poor rating tuned for gaming and video calls.</p>
+        </article>
+        <article>
+          <h3>Spikes stay visible</h3>
+          <p>The chart keeps the <strong>maximum</strong> of each bucket, so a 200 ms spike is never averaged
+             away. Red lines mark every lost packet.</p>
+        </article>
+        <article>
+          <h3>Your data stays home</h3>
+          <p>Local <strong>SQLite</strong> storage with automatic retention. No cloud, no account, no tracking.</p>
+        </article>
+        <article>
+          <h3>REST API</h3>
+          <p><code>/api/samples</code> and <code>/api/stats</code> return JSON for scripts, alerts and
+             home-automation integrations.</p>
+        </article>
+        <article>
+          <h3>Runs anywhere</h3>
+          <p>Windows, Linux, macOS and Docker. A small always-on PC or a Raspberry Pi is ideal.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How it works</h2>
+      <ol class="flow">
+        <li><span>1</span><div><h3>Probe</h3><p>A background service sends an ICMP ping to every target every 5 seconds.</p></div></li>
+        <li><span>2</span><div><h3>Store</h3><p>Each sample goes into SQLite with a UTC timestamp; old rows are pruned after 30 days.</p></div></li>
+        <li><span>3</span><div><h3>Analyze</h3><p>Pure domain code computes stats and downsamples long series for the chart.</p></div></li>
+        <li><span>4</span><div><h3>Show</h3><p>A Blazor Server dashboard refreshes live, with a dependency-free SVG chart.</p></div></li>
+      </ol>
+
+      <h3 class="sub">Architecture</h3>
+      <div class="arch">
+        <div class="box">
+          <h4>NetPulse.Web</h4>
+          <p>ASP.NET Core host</p>
+          <ul>
+            <li>PingMonitorService</li>
+            <li>SqliteSampleStore</li>
+            <li>Minimal API</li>
+            <li>Blazor dashboard</li>
+          </ul>
+        </div>
+        <div class="arrow" aria-hidden="true">depends on</div>
+        <div class="box core">
+          <h4>NetPulse.Core</h4>
+          <p>Domain, zero dependencies</p>
+          <ul>
+            <li>IPingProbe, GatewayResolver</li>
+            <li>LatencyStats</li>
+            <li>ChartDownsampler</li>
+            <li>ISampleStore</li>
+          </ul>
+        </div>
+        <div class="arrow" aria-hidden="true">tested by</div>
+        <div class="box">
+          <h4>NetPulse.Tests</h4>
+          <p>NUnit 4</p>
+          <ul>
+            <li>Statistics</li>
+            <li>Downsampling</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="start">
+      <h2>Quick start</h2>
+      <div class="two">
+        <div>
+          <h3>With the .NET 10 SDK</h3>
+<pre><code>git clone https://github.com/Fpippi/NetPulse.git
+cd NetPulse
+dotnet run --project src/NetPulse.Web</code></pre>
+          <p>Then open <code>http://localhost:5080</code>.</p>
+        </div>
+        <div>
+          <h3>With Docker</h3>
+<pre><code>docker build -t netpulse .
+docker run -d --name netpulse \
+  -p 8080:8080 -v netpulse-data:/data netpulse</code></pre>
+          <p>On Linux, add <code>--network host</code> so the container sees your real router.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h2>Roadmap</h2>
+      <ul class="roadmap">
+        <li class="done"><strong>v0.1</strong> Ping monitor, SQLite storage, dashboard, API</li>
+        <li><strong>v0.2</strong> LAN device discovery (IP, MAC, vendor, hostname) and online/offline alerts</li>
+        <li><strong>v0.3</strong> Scheduled speed tests, outage detection and timeline</li>
+        <li><strong>v1.0</strong> Exportable reports (CSV/PDF) to send to your ISP</li>
+      </ul>
+    </section>
+
+    <section class="stack">
+      <h2>Built with</h2>
+      <p class="tags">
+        <span>C# / .NET 10</span><span>ASP.NET Core</span><span>Blazor Server</span>
+        <span>Microsoft.Data.Sqlite</span><span>NUnit 4</span><span>Docker</span><span>GitHub Actions</span>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>NetPulse is free software under the <a href="https://github.com/Fpippi/NetPulse/blob/main/LICENSE">MIT license</a>.
+       Made by <a href="https://github.com/Fpippi">Francesco Pippi</a>.</p>
+  </footer>
+</body>
+</html>

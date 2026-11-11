@@ -9,8 +9,9 @@ continuously pings your router and the Internet, stores the results and shows la
 packet loss on a live dashboard — so you can tell whether drops come from your Wi-Fi, your router
 or your ISP.
 
-<!-- TODO: add a screenshot or GIF of the dashboard -->
-<!-- ![Dashboard](docs/dashboard.png) -->
+**[Project page and live demo](https://fpippi.github.io/NetPulse/)** (the demo uses simulated data)
+
+![NetPulse dashboard](docs/dashboard.png)
 
 ## Features
 
@@ -77,6 +78,12 @@ tests/
 - [ ] **v0.2** — LAN device discovery (IP, MAC, vendor, hostname) and online/offline alerts
 - [ ] **v0.3** — Scheduled speed tests, outage detection and timeline
 - [ ] **v1.0** — Exportable reports (CSV/PDF) to send to your ISP
+
+## Project page
+
+The project page and the interactive demo live in [`docs/`](docs) (plain HTML, CSS and a small script
+that simulates samples in the browser). The `Pages` workflow publishes them to GitHub Pages on every
+push to `main` that touches `docs/`.
 
 ## Contributing
 
