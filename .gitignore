@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+publish/
+TestResults/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Local data
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db

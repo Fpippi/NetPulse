@@ -1,0 +1,57 @@
+@* Dependency-free SVG latency chart. Red vertical lines mark buckets with packet loss. *@
+
+@if (_points.Count < 2)
+{
+    <div class="chart-empty">Not enough data yet</div>
+}
+else
+{
+    <div class="chart-wrap">
+        <span class="chart-max">@_scaleMs.ToString("0", CultureInfo.InvariantCulture) ms</span>
+        <svg class="chart" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img"
+             aria-label="Latency over time">
+            @foreach (var x in _lossX)
+            {
+                <line class="loss" x1="@x" x2="@x" y1="0" y2="@Height" />
+            }
+            <polyline class="line" points="@_polyline" />
+        </svg>
+    </div>
+}
+
+@code {
+    private const int Width = 600;
+    private const int Height = 120;
+    private const int MaxPoints = 300;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PingSample> Samples { get; set; } = [];
+
+    private IReadOnlyList<ChartPoint> _points = [];
+    private List<string> _lossX = [];
+    private string _polyline = "";
+    private double _scaleMs;
+
+    protected override void OnParametersSet()
+    {
+        _points = ChartDownsampler.Downsample(Samples, MaxPoints);
+        if (_points.Count < 2)
+        {
+            return;
+        }
+
+        var max = _points.Where(p => p.MaxLatencyMs.HasValue).Select(p => p.MaxLatencyMs!.Value).DefaultIfEmpty(0).Max();
+        _scaleMs = Math.Max(10, max * 1.1);
+
+        double X(int index) => (double)index * Width / (_points.Count - 1);
+
+        // Invariant culture is required: SVG needs '.' as decimal separator (e.g. on it-IT machines).
+        static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+        _polyline = string.Join(' ', _points
+            .Where(p => p.MaxLatencyMs.HasValue)
+            .Select(p => $"{F(X(p.Index))},{F(Height - p.MaxLatencyMs!.Value / _scaleMs * Height)}"));
+
+        _lossX = _points.Where(p => p.HasLoss).Select(p => F(X(p.Index))).ToList();
+    }
+}
