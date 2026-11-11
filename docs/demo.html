@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetPulse demo</title>
+  <meta name="description" content="Interactive demo of the NetPulse dashboard with simulated ping data.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="dashboard.css">
+  <style>
+    .demo-bar {
+      display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: center;
+      padding: .5rem 1rem; font-size: .85rem; color: var(--muted);
+      background: #11263b; border-bottom: 1px solid var(--border); text-align: center;
+    }
+    .demo-bar a { color: var(--accent); text-decoration: none; }
+    .demo-bar a:hover { text-decoration: underline; }
+    .top a { color: inherit; text-decoration: none; }
+    @media (max-width: 520px) { .top { padding: 1rem; } main { padding: 1rem; } }
+  </style>
+</head>
+<body>
+  <div class="demo-bar">
+    <span>Demo with simulated data: the real app measures the network of the machine it runs on.</span>
+    <a href="./">← Back to the project page</a>
+  </div>
+  <header class="top">
+    <h1><a href="./">NetPulse</a></h1>
+    <nav class="windows" id="windows" aria-label="Time window"></nav>
+  </header>
+  <main id="cards">
+    <noscript><p class="empty">The demo needs JavaScript to simulate data. The real dashboard does not.</p></noscript>
+  </main>
+  <script src="demo.js"></script>
+</body>
+</html>
