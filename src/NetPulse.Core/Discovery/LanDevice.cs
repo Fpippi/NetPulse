@@ -12,6 +12,7 @@ namespace NetPulse.Core.Discovery;
 /// <param name="LastSeen">When the device last answered.</param>
 /// <param name="IsOnline">False once the device missed enough consecutive scans.</param>
 /// <param name="MissedScans">Consecutive scans in which the device did not answer.</param>
+/// <param name="Label">A name the user gave this device, kept across scans. Wins over the detected name.</param>
 public sealed record LanDevice(
     string Key,
     string Ip,
@@ -21,10 +22,11 @@ public sealed record LanDevice(
     DateTimeOffset FirstSeen,
     DateTimeOffset LastSeen,
     bool IsOnline,
-    int MissedScans)
+    int MissedScans,
+    string? Label = null)
 {
-    /// <summary>Best human readable name: host name, then vendor, then IP.</summary>
-    public string DisplayName => Hostname ?? Vendor ?? Ip;
+    /// <summary>Best human readable name: the user's label, then host name, then vendor, then IP.</summary>
+    public string DisplayName => Label ?? Hostname ?? Vendor ?? Ip;
 
     public static string KeyFor(string? mac, string ip) => mac ?? $"ip:{ip}";
 }
