@@ -16,17 +16,53 @@
     .demo-bar a { color: var(--accent); text-decoration: none; }
     .demo-bar a:hover { text-decoration: underline; }
     .top a { color: inherit; text-decoration: none; }
-    @media (max-width: 520px) { .top { padding: 1rem; } main { padding: 1rem; } }
+    .top-right { display: flex; align-items: center; gap: .75rem; }
+    .live { display: inline-flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+    .live::before {
+      content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: var(--good);
+      animation: pulse 1.6s ease-out infinite;
+    }
+    .card-right { display: flex; align-items: center; gap: .75rem; }
+    .now { font-size: .9rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .now.lost { color: var(--poor); }
+    .now.flash { animation: flash .8s ease-out; }
+    .live-dot {
+      position: absolute; right: 0; top: 100%; width: 8px; height: 8px; margin: -4px -4px 0 0;
+      border-radius: 50%; background: var(--accent); transition: top .4s ease-out;
+      animation: pulse 1s ease-out infinite;
+    }
+    .live-dot.lost { background: var(--poor); }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(74, 163, 255, .6); }
+      100% { box-shadow: 0 0 0 8px rgba(74, 163, 255, 0); }
+    }
+    .live::before { animation-name: pulse-good; }
+    @keyframes pulse-good {
+      0% { box-shadow: 0 0 0 0 rgba(63, 185, 80, .6); }
+      100% { box-shadow: 0 0 0 7px rgba(63, 185, 80, 0); }
+    }
+    @keyframes flash { from { color: var(--text); } }
+    @media (prefers-reduced-motion: reduce) {
+      .live::before, .live-dot, .now.flash { animation: none; }
+      .live-dot { transition: none; }
+    }
+    @media (max-width: 520px) {
+      .top { padding: 1rem; } main { padding: 1rem; }
+      .live span { display: none; }
+    }
   </style>
 </head>
 <body>
   <div class="demo-bar">
-    <span>Demo with simulated data: the real app measures the network of the machine it runs on.</span>
+    <span>Demo with simulated data, running 5× faster than real time. The real app measures the network of the machine it runs on.</span>
     <a href="./">← Back to the project page</a>
   </div>
   <header class="top">
     <h1><a href="./">NetPulse</a></h1>
-    <nav class="windows" id="windows" aria-label="Time window"></nav>
+    <div class="top-right">
+      <span class="live">Live <span>· 5× speed</span></span>
+      <nav class="windows" id="windows" aria-label="Time window"></nav>
+    </div>
   </header>
   <main id="cards">
     <noscript><p class="empty">The demo needs JavaScript to simulate data. The real dashboard does not.</p></noscript>
