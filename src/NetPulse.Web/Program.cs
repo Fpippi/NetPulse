@@ -46,7 +46,12 @@ builder.Services.AddSingleton(sp =>
     return OuiDatabase.Empty;
 });
 builder.Services.AddSingleton<IArpTableReader, SystemArpTableReader>();
-builder.Services.AddSingleton<IHostNameResolver>(_ => new DnsHostNameResolver(TimeSpan.FromSeconds(2)));
+// Reverse DNS first, then NetBIOS (Windows/Samba) and mDNS (Apple/Avahi/IoT) for the many devices
+// that have no DNS record. The first name found wins.
+builder.Services.AddSingleton<IHostNameResolver>(_ => new CompositeHostNameResolver(
+    new DnsHostNameResolver(TimeSpan.FromSeconds(2)),
+    new NetBiosNameResolver(TimeSpan.FromMilliseconds(600)),
+    new MdnsNameResolver(TimeSpan.FromMilliseconds(600))));
 builder.Services.AddSingleton<LanScanner>();
 builder.Services.AddSingleton<LanDiscovery>();
 builder.Services.AddHostedService<LanDiscoveryService>();
@@ -127,6 +132,14 @@ api.MapPost("/devices/scan", async (LanDiscovery discovery, CancellationToken ct
     return Results.Ok(discovery.Status);
 });
 
+api.MapPut("/devices/{key}/label", async (ILanDeviceStore devices, string key, SetLabelRequest request) =>
+{
+    var label = DeviceLabel.Normalize(request.Label);
+    return await devices.SetLabelAsync(key, label)
+        ? Results.Ok(new { key, label })
+        : Results.NotFound();
+});
+
 api.MapDelete("/devices/{key}", async (ILanDeviceStore devices, string key) =>
     await devices.DeleteDeviceAsync(key) ? Results.NoContent() : Results.NotFound());
 
@@ -156,3 +169,6 @@ app.Run();
 
 /// <summary>Body of <c>POST /api/targets</c>.</summary>
 internal sealed record AddTargetRequest(string? Target);
+
+/// <summary>Body of <c>PUT /api/devices/{key}/label</c>.</summary>
+internal sealed record SetLabelRequest(string? Label);

@@ -94,9 +94,14 @@ its history. Configured targets can only be changed in the configuration.
 ### LAN discovery
 
 The **Devices** page lists every device found on your local network: IP address, MAC address, vendor
-(looked up in a bundled copy of the IEEE OUI registry, no internet needed) and host name (reverse DNS).
+(looked up in a bundled copy of the IEEE OUI registry, no internet needed) and host name.
 Every 5 minutes NetPulse pings every address of the subnet, then reads the operating system's ARP table,
 which also reveals devices whose firewall ignores pings. Click **Scan now** to scan immediately.
+
+Host names come from three sources, so fewer devices stay unnamed: reverse **DNS**, **NetBIOS** (UDP 137,
+Windows and Samba) and **mDNS/Bonjour** (UDP 5353, Apple, Avahi and many IoT devices). You can also give
+any device your own **name**: hover a row and click the pencil, type a label and save. Your label is kept
+across scans and shown instead of the detected name (which stays visible underneath).
 
 - A device that was never seen before is marked **new** and shows up under *Recent activity*.
 - A device that misses `OfflineAfterMissedScans` scans in a row is reported **offline**, and **back online**
@@ -163,6 +168,7 @@ Settings live in the `LoadTest` section:
 | `GET /api/devices`                       | Scan status and all known LAN devices |
 | `GET /api/devices/events?limit=50`       | Latest device events (`New`, `Offline`, `Online`) |
 | `POST /api/devices/scan`                 | Scan the network now and return the new status |
+| `PUT /api/devices/{key}/label` `{"label":"NAS"}` | Set or clear a device's custom name |
 | `DELETE /api/devices/{key}`              | Forget a device (key = MAC address, or `ip:<address>`) |
 | `GET /api/loadtest`                      | Sender run state and receiver status |
 | `POST /api/loadtest/start` `{"protocol":"Tcp","host":"...","port":5201,"durationSeconds":10,"targetMbps":0,"parallelStreams":4}` | Start a load test |

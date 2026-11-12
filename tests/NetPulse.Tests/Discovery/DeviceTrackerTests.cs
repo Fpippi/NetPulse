@@ -120,6 +120,18 @@ public class DeviceTrackerTests
         Assert.That(DeviceTracker.Sort(devices).Select(d => d.Key), Is.EqualTo(new[] { "c", "a", "b" }));
     }
 
+    [Test]
+    public void A_user_label_survives_scans_and_wins_over_the_detected_name()
+    {
+        var labelled = _tracker.Apply([], [Pi("192.168.1.30")], T0).Devices.Single() with { Label = "Living room NAS" };
+
+        var update = _tracker.Apply([labelled], [Pi("192.168.1.30")], T0.AddMinutes(5));
+
+        var pi = update.Devices.Single();
+        Assert.That(pi.Label, Is.EqualTo("Living room NAS"));
+        Assert.That(pi.DisplayName, Is.EqualTo("Living room NAS"));
+    }
+
     private static DeviceObservation Pi(string ip) => new(ip, PiMac, "pi.lan");
 
     private static DeviceObservation Phone(string ip) => new(ip, PhoneMac, null);

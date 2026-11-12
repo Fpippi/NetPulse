@@ -459,3 +459,60 @@ code {
     border-radius: 4px;
     padding: .05rem .3rem;
 }
+
+/* --- Device name editing ------------------------------------------------ */
+
+.name-cell { white-space: normal; }
+
+.device-name { font-weight: 500; }
+
+.name-cell .edit {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: .85rem;
+    margin-left: .35rem;
+    opacity: 0;
+    transition: opacity .1s;
+}
+
+.devices tr:hover .edit,
+.name-cell .edit:focus-visible { opacity: 1; }
+
+.detected {
+    display: block;
+    font-size: .75rem;
+    margin-top: .1rem;
+}
+
+.rename {
+    display: inline-flex;
+    gap: .35rem;
+    align-items: center;
+}
+
+.rename input {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: .25rem .5rem;
+    font: inherit;
+    font-size: .9rem;
+    min-width: 12rem;
+}
+
+.rename input:focus { outline: none; }
+
+.rename .link {
+    background: transparent;
+    border: 0;
+    color: var(--accent);
+    cursor: pointer;
+    font: inherit;
+    font-size: .85rem;
+    padding: .1rem .2rem;
+}
+
+.rename .link:hover { text-decoration: underline; }

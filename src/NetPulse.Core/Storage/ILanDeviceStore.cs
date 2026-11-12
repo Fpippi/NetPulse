@@ -19,6 +19,12 @@ public interface ILanDeviceStore
     /// <summary>Deletes events older than the given time. Returns how many were deleted.</summary>
     Task<int> PurgeEventsOlderThanAsync(DateTimeOffset before, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Sets (or clears, when <paramref name="label"/> is null) the user's name for a device.
+    /// Returns false if the device does not exist.
+    /// </summary>
+    Task<bool> SetLabelAsync(string key, string? label, CancellationToken cancellationToken = default);
+
     /// <summary>Forgets a device. Returns false if it did not exist.</summary>
     Task<bool> DeleteDeviceAsync(string key, CancellationToken cancellationToken = default);
 }
