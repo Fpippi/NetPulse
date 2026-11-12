@@ -516,3 +516,53 @@ code {
 }
 
 .rename .link:hover { text-decoration: underline; }
+
+/* --- Outages ------------------------------------------------------------ */
+
+.card.alert {
+    border-color: var(--poor);
+    background: color-mix(in srgb, var(--poor) 10%, var(--card));
+    font-size: .9rem;
+    color: var(--muted);
+}
+
+.card.alert strong { color: var(--poor); }
+
+.timeline { margin: 1rem 0; }
+
+.timeline-row {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: .45rem;
+}
+
+.timeline-label {
+    font-size: .85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.timeline-track {
+    width: 100%;
+    height: 14px;
+    display: block;
+    border-radius: 3px;
+}
+
+.timeline-track .track { fill: color-mix(in srgb, var(--good) 22%, var(--card)); }
+.timeline-track .outage { fill: var(--poor); }
+.timeline-track .outage.ongoing { fill: var(--fair); }
+
+.timeline-row.axis .chart-axis { padding-top: 0; }
+
+.summary td:not(:first-child),
+.summary th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+
+.summary .good { color: var(--good); }
+.summary .fair { color: var(--fair); }
+.summary .poor { color: var(--poor); }
+
+.card.alert ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }

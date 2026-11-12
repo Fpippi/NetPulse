@@ -1,0 +1,224 @@
+@page "/outages"
+@implements IDisposable
+@using Microsoft.Extensions.Options
+@using NetPulse.Core.Outages
+@using NetPulse.Core.Targets
+@using NetPulse.Web.Monitoring
+@inject IOutageStore Store
+@inject TargetManager Targets
+@inject IOptions<OutageOptions> Options
+@inject IOptions<MonitorOptions> MonitorOptions
+
+<PageTitle>Outages · NetPulse</PageTitle>
+
+<header class="top">
+    <div class="brand">
+        <h1>NetPulse</h1>
+        <SiteNav />
+    </div>
+    <nav class="windows">
+        @foreach (var window in Windows)
+        {
+            <button class="@(window == _window ? "active" : null)" @onclick="() => SetWindowAsync(window)">
+                @Label(window)
+            </button>
+        }
+    </nav>
+</header>
+
+<main>
+    @if (_outages.Any(o => o.IsOngoing))
+    {
+        <section class="card alert" role="alert">
+            <ul>
+                @foreach (var outage in _outages.Where(o => o.IsOngoing))
+                {
+                    <li>
+                        <strong>@outage.Target is unreachable</strong>
+                        since @outage.Start.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)
+                        (@DurationFormat.Format(outage.Duration(_to)), @outage.LostSamples lost pings).
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    <section class="card">
+        <div class="card-head">
+            <h2>Timeline</h2>
+            <span class="hint">An outage is @Threshold lost pings in a row (about @DurationFormat.Format(ThresholdTime)).</span>
+        </div>
+
+        @if (_targets.Count == 0)
+        {
+            <p class="empty">No targets yet.</p>
+        }
+        else
+        {
+            <OutageTimeline Targets="_targets" Outages="_outages" From="_from" To="_to" WindowLabel="@Label(_window)" />
+        }
+
+        <div class="table-wrap">
+            <table class="devices summary">
+                <thead>
+                    <tr>
+                        <th scope="col">Target</th>
+                        <th scope="col">Outages</th>
+                        <th scope="col">Downtime</th>
+                        <th scope="col">Longest</th>
+                        <th scope="col">Availability</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var target in _targets)
+                    {
+                        var summary = Summary(target);
+                        <tr>
+                            <td>@target</td>
+                            <td>@summary.Count</td>
+                            <td>@(summary.Count == 0 ? "–" : DurationFormat.Format(summary.Downtime))</td>
+                            <td>@(summary.Longest is { } longest ? DurationFormat.Format(longest) : "–")</td>
+                            <td><span class="@AvailabilityClass(summary)">@Percent(summary.AvailabilityPercent)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-head">
+            <h2>History</h2>
+            <span class="hint">@_outages.Count in the last @Label(_window)</span>
+        </div>
+
+        @if (_outages.Count == 0)
+        {
+            <p class="empty">No outages in this period.</p>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="devices">
+                    <thead>
+                        <tr>
+                            <th scope="col">Target</th>
+                            <th scope="col">Started</th>
+                            <th scope="col">Ended</th>
+                            <th scope="col">Duration</th>
+                            <th scope="col">Lost pings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var outage in _outages.OrderByDescending(o => o.Start))
+                        {
+                            <tr>
+                                <td>@outage.Target</td>
+                                <td>@Time(outage.Start)</td>
+                                <td>
+                                    @if (outage.End is { } end)
+                                    {
+                                        @Time(end)
+                                    }
+                                    else
+                                    {
+                                        <span class="tag offline">ongoing</span>
+                                    }
+                                </td>
+                                <td>@DurationFormat.Format(outage.Duration(_to))</td>
+                                <td>@outage.LostSamples</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</main>
+
+@code {
+    private static readonly TimeSpan[] Windows =
+    [
+        TimeSpan.FromHours(24),
+        TimeSpan.FromDays(7),
+        TimeSpan.FromDays(30)
+    ];
+
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(5);
+
+    private readonly CancellationTokenSource _cts = new();
+    private TimeSpan _window = Windows[0];
+    private DateTimeOffset _from;
+    private DateTimeOffset _to;
+    private IReadOnlyList<Outage> _outages = [];
+    private List<string> _targets = [];
+
+    private int Threshold => Math.Max(1, Options.Value.ConsecutiveLosses);
+
+    private TimeSpan ThresholdTime => TimeSpan.FromSeconds(Threshold * Math.Max(1, MonitorOptions.Value.IntervalSeconds));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed.
+        }
+    }
+
+    private async Task SetWindowAsync(TimeSpan window)
+    {
+        _window = window;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _to = DateTimeOffset.UtcNow;
+        _from = _to - _window;
+        _outages = await Store.GetSinceAsync(_from);
+
+        // Monitored targets first, then targets that are gone but had outages in the window.
+        _targets = TargetList.Merge(
+            await Targets.GetEffectiveTargetsAsync(),
+            _outages.Select(o => o.Target).ToList()).ToList();
+    }
+
+    private OutageSummary Summary(string target) => OutageSummary.From(
+        _outages.Where(o => string.Equals(o.Target, target, StringComparison.OrdinalIgnoreCase)), _from, _to);
+
+    private static string AvailabilityClass(OutageSummary summary) => summary.AvailabilityPercent switch
+    {
+        >= 99.9 => "good",
+        >= 99 => "fair",
+        _ => "poor",
+    };
+
+    private static string Percent(double value) =>
+        value.ToString(value >= 99.995 ? "0" : "0.00", CultureInfo.InvariantCulture) + " %";
+
+    private static string Time(DateTimeOffset time) =>
+        time.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+    private static string Label(TimeSpan window) =>
+        window.TotalDays >= 1 && window.TotalHours > 24 ? $"{window.TotalDays:0}d" : $"{window.TotalHours:0}h";
+
+    public void Dispose() => _cts.Cancel();
+}
