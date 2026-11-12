@@ -38,8 +38,8 @@ or your ISP.
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
   when a new device joins or a known one goes offline
-- **Cooperative load testing** (iperf-style): measure real throughput and UDP loss between two of your own
-  machines — both ends opt in, with duration and bandwidth safety caps
+- **Cooperative throughput testing** (iperf-style): measure real throughput and UDP loss between two of your
+  own machines — both ends opt in, with duration and bandwidth safety caps
 - **REST API** (`/api/samples`, `/api/stats`, `/api/devices`, `/api/loadtest`) for scripts and integrations
 - Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
@@ -125,23 +125,23 @@ Settings live in the `Discovery` section, e.g. `NetPulse__Discovery__IntervalSec
 
 The vendor list is `src/NetPulse.Core/Data/oui.txt`; refresh it with `python3 tools/update-oui.py`.
 
-### Load testing
+### Throughput testing
 
-> ⚠️ **Only run a load test against devices you own or have explicit permission to test, on your own
-> network.** This generates heavy traffic that can saturate a link. It is a diagnostic tool, not a
-> stress weapon against someone else's machine.
+> ⚠️ **Only run a throughput test against devices you own or have explicit permission to test, on your
+> own network.** It sends real traffic that can saturate a link. It is a diagnostic tool, not a stress
+> weapon against someone else's machine.
 
-The **Load test** page measures how much real throughput a link between two of your machines can carry,
+The **Throughput** page measures how much real throughput a link between two of your machines can carry,
 in the spirit of `iperf`. It is **cooperative**: the target must be running NetPulse with the receiver
 enabled, so both ends opt in before any traffic flows.
 
-1. On the **target** machine (the one you want to stress), enable the receiver and restart NetPulse:
+1. On the **target** machine, enable the receiver and restart NetPulse:
    set `NetPulse:LoadTest:ReceiverEnabled` to `true` (e.g. `NetPulse__LoadTest__ReceiverEnabled=true`).
    It then listens on the configured port for TCP and UDP.
-2. On the **sender** machine, open **Load test**, enter the target's host/IP, pick TCP or UDP, a
+2. On the **sender** machine, open **Throughput**, enter the target's host/IP, pick TCP or UDP, a
    duration, an optional bandwidth cap and a number of parallel streams, then **Start test**.
 3. Watch throughput live. TCP reports achievable goodput; UDP also reports packet loss (the receiver
-   sends back how much it actually got). The target's own Load test page shows the incoming session.
+   sends back how much it actually got). The target's own Throughput page shows the incoming session.
 
 Safety caps are enforced on every run: at most `300 s`, `1000 Mbps` and `32` parallel streams; values
 above the limits are clamped. A bandwidth of `0` means "as fast as possible" (still bounded by the cap).

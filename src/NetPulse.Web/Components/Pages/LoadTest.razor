@@ -5,7 +5,7 @@
 @inject LoadTestManager Manager
 @inject LoadTestReceiver Receiver
 
-<PageTitle>Load test · NetPulse</PageTitle>
+<PageTitle>Throughput · NetPulse</PageTitle>
 
 <header class="top">
     <div class="brand">
@@ -25,9 +25,9 @@
 <main>
     <section class="card warn" role="note">
         <strong>Use responsibly.</strong>
-        This generates heavy traffic. Only run it against devices you own or have explicit permission
-        to test, on your own network. The target must be running NetPulse with the load-test receiver
-        enabled — so both ends opt in. Safety caps apply:
+        This measures maximum throughput by sending real traffic, so only run it against devices you
+        own or have explicit permission to test, on your own network. The target must be running
+        NetPulse with the throughput receiver enabled — so both ends opt in. Safety caps apply:
         max @LoadTestLimits.MaxDurationSeconds s, max @LoadTestLimits.MaxMbps.ToString("0", CultureInfo.InvariantCulture) Mbps,
         max @LoadTestLimits.MaxParallelStreams streams.
     </section>
@@ -133,7 +133,7 @@
         @if (!_receiver.Enabled)
         {
             <p class="hint">
-                This machine does not accept load tests. To use it as a target, set
+                This machine does not accept throughput tests. To use it as a target, set
                 <code>NetPulse:LoadTest:ReceiverEnabled</code> to <code>true</code> and restart.
             </p>
         }
