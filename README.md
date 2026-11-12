@@ -38,9 +38,7 @@ or your ISP.
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
   when a new device joins or a known one goes offline
-- **Cooperative throughput testing** (iperf-style): measure real throughput and UDP loss between two of your
-  own machines — both ends opt in, with duration and bandwidth safety caps
-- **REST API** (`/api/samples`, `/api/stats`, `/api/devices`, `/api/loadtest`) for scripts and integrations
+- **REST API** (`/api/samples`, `/api/stats`, `/api/devices`) for scripts and integrations
 - Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
 
@@ -125,37 +123,6 @@ Settings live in the `Discovery` section, e.g. `NetPulse__Discovery__IntervalSec
 
 The vendor list is `src/NetPulse.Core/Data/oui.txt`; refresh it with `python3 tools/update-oui.py`.
 
-### Throughput testing
-
-> ⚠️ **Only run a throughput test against devices you own or have explicit permission to test, on your
-> own network.** It sends real traffic that can saturate a link. It is a diagnostic tool, not a stress
-> weapon against someone else's machine.
-
-The **Throughput** page measures how much real throughput a link between two of your machines can carry,
-in the spirit of `iperf`. It is **cooperative**: the target must be running NetPulse with the receiver
-enabled, so both ends opt in before any traffic flows.
-
-1. On the **target** machine, enable the receiver and restart NetPulse:
-   set `NetPulse:LoadTest:ReceiverEnabled` to `true` (e.g. `NetPulse__LoadTest__ReceiverEnabled=true`).
-   It then listens on the configured port for TCP and UDP.
-2. On the **sender** machine, open **Throughput**, enter the target's host/IP, pick TCP or UDP, a
-   duration, an optional bandwidth cap and a number of parallel streams, then **Start test**.
-3. Watch throughput live. TCP reports achievable goodput; UDP also reports packet loss (the receiver
-   sends back how much it actually got). The target's own Throughput page shows the incoming session.
-
-Safety caps are enforced on every run: at most `300 s`, `1000 Mbps` and `32` parallel streams; values
-above the limits are clamped. A bandwidth of `0` means "as fast as possible" (still bounded by the cap).
-
-Settings live in the `LoadTest` section:
-
-| Key               | Default | Description                                                          |
-|-------------------|---------|----------------------------------------------------------------------|
-| `ReceiverEnabled` | `false` | When `true`, this host accepts load tests (the opt-in target/agent)  |
-| `Port`            | `5201`  | TCP + UDP port the receiver listens on                               |
-
-> In Docker, publish the port (e.g. `-p 5201:5201/tcp -p 5201:5201/udp`) or use `--network host` on the
-> target so the sender can reach the receiver.
-
 ## API
 
 | Endpoint                                 | Description                       |
@@ -170,9 +137,6 @@ Settings live in the `LoadTest` section:
 | `POST /api/devices/scan`                 | Scan the network now and return the new status |
 | `PUT /api/devices/{key}/label` `{"label":"NAS"}` | Set or clear a device's custom name |
 | `DELETE /api/devices/{key}`              | Forget a device (key = MAC address, or `ip:<address>`) |
-| `GET /api/loadtest`                      | Sender run state and receiver status |
-| `POST /api/loadtest/start` `{"protocol":"Tcp","host":"...","port":5201,"durationSeconds":10,"targetMbps":0,"parallelStreams":4}` | Start a load test |
-| `POST /api/loadtest/stop`                | Stop the current load test |
 
 `minutes` defaults to 15 and is clamped between 1 minute and 7 days.
 
@@ -180,8 +144,8 @@ Settings live in the `LoadTest` section:
 
 ```
 src/
-  NetPulse.Core   Domain: models, ping probe, statistics, LAN discovery, load-test logic, storage abstraction (no dependencies)
-  NetPulse.Web    ASP.NET Core host: background monitor, scanner and load-test receiver, SQLite store, REST API, Blazor dashboard
+  NetPulse.Core   Domain: models, ping probe, statistics, LAN discovery, storage abstraction (no dependencies)
+  NetPulse.Web    ASP.NET Core host: background monitor and scanner, SQLite store, REST API, Blazor dashboard
 tests/
   NetPulse.Tests  NUnit tests for the Core logic
 tools/            Maintenance scripts (vendor database update)
