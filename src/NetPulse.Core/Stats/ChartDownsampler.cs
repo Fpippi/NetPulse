@@ -5,7 +5,8 @@ namespace NetPulse.Core.Stats;
 /// <param name="Index">Bucket index, 0-based.</param>
 /// <param name="MaxLatencyMs">Highest latency in the bucket (keeps spikes visible), null if every sample was lost.</param>
 /// <param name="HasLoss">True if at least one sample in the bucket was lost.</param>
-public sealed record ChartPoint(int Index, double? MaxLatencyMs, bool HasLoss);
+/// <param name="Time">Midpoint between the first and last sample of the bucket, used to place it on a time axis.</param>
+public sealed record ChartPoint(int Index, double? MaxLatencyMs, bool HasLoss, DateTimeOffset Time);
 
 public static class ChartDownsampler
 {
@@ -46,7 +47,11 @@ public static class ChartDownsampler
                 }
             }
 
-            result.Add(new ChartPoint(b, max, hasLoss));
+            var first = samples[start].Timestamp;
+            var last = samples[end - 1].Timestamp;
+            var time = first + (last - first) / 2;
+
+            result.Add(new ChartPoint(b, max, hasLoss, time));
         }
 
         return result;

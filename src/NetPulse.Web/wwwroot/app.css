@@ -117,12 +117,35 @@ main {
     vector-effect: non-scaling-stroke;
 }
 
+.chart .hover rect {
+    fill: transparent;
+}
+
+.chart .hover line {
+    stroke: var(--muted);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    opacity: 0;
+}
+
+.chart .hover:hover line {
+    opacity: .8;
+}
+
 .chart-max {
     position: absolute;
     top: 2px;
     left: 4px;
     font-size: .7rem;
     color: var(--muted);
+}
+
+.chart-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: .7rem;
+    color: var(--muted);
+    padding-top: 2px;
 }
 
 .chart-empty {
