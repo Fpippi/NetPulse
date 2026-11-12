@@ -77,6 +77,6 @@ public class LanScannerTests
     private sealed class FakeResolver(params (string Ip, string Name)[] names) : IHostNameResolver
     {
         public Task<string?> ResolveAsync(IPAddress address, CancellationToken cancellationToken = default) =>
-            Task.FromResult(names.FirstOrDefault(n => n.Ip == address.ToString()).Name);
+            Task.FromResult<string?>(names.FirstOrDefault(n => n.Ip == address.ToString()).Name);
     }
 }
