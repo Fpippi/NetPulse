@@ -16,6 +16,10 @@ else
             }
             <polyline class="line" points="@_polyline" />
         </svg>
+        <div class="chart-axis">
+            <span>−@WindowLabel</span>
+            <span>now</span>
+        </div>
     </div>
 }
 
@@ -26,6 +30,18 @@ else
 
     [Parameter, EditorRequired]
     public IReadOnlyList<PingSample> Samples { get; set; } = [];
+
+    /// <summary>Start of the time window shown on the x axis.</summary>
+    [Parameter, EditorRequired]
+    public DateTimeOffset From { get; set; }
+
+    /// <summary>End of the time window shown on the x axis (usually "now").</summary>
+    [Parameter, EditorRequired]
+    public DateTimeOffset To { get; set; }
+
+    /// <summary>Short label for the window length, e.g. "15m".</summary>
+    [Parameter]
+    public string WindowLabel { get; set; } = "";
 
     private IReadOnlyList<ChartPoint> _points = [];
     private List<string> _lossX = [];
@@ -43,15 +59,16 @@ else
         var max = _points.Where(p => p.MaxLatencyMs.HasValue).Select(p => p.MaxLatencyMs!.Value).DefaultIfEmpty(0).Max();
         _scaleMs = Math.Max(10, max * 1.1);
 
-        double X(int index) => (double)index * Width / (_points.Count - 1);
+        // The x axis spans the selected window, not the data extent, so different windows look different.
+        double X(ChartPoint p) => ChartTimeAxis.ToX(p.Time, From, To, Width);
 
         // Invariant culture is required: SVG needs '.' as decimal separator (e.g. on it-IT machines).
         static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
         _polyline = string.Join(' ', _points
             .Where(p => p.MaxLatencyMs.HasValue)
-            .Select(p => $"{F(X(p.Index))},{F(Height - p.MaxLatencyMs!.Value / _scaleMs * Height)}"));
+            .Select(p => $"{F(X(p))},{F(Height - p.MaxLatencyMs!.Value / _scaleMs * Height)}"));
 
-        _lossX = _points.Where(p => p.HasLoss).Select(p => F(X(p.Index))).ToList();
+        _lossX = _points.Where(p => p.HasLoss).Select(p => F(X(p))).ToList();
     }
 }

@@ -125,6 +125,14 @@ main {
     color: var(--muted);
 }
 
+.chart-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: .7rem;
+    color: var(--muted);
+    padding-top: 2px;
+}
+
 .chart-empty {
     color: var(--muted);
     font-size: .9rem;
