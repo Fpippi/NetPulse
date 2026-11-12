@@ -76,6 +76,14 @@ or, for lists, `NetPulse__Targets__0=gateway` and `NetPulse__Targets__1=192.168.
 | `RetentionDays`   | `30`                              | Older samples are deleted automatically       |
 | `DatabasePath`    | `data/netpulse.db`                | SQLite file                                   |
 | `Targets`         | `gateway`, `1.1.1.1`, `8.8.8.8`   | Hosts to monitor (`gateway` = default router) |
+| `MaxCustomTargets`| `20`                              | How many extra hosts can be added from the dashboard |
+
+### Custom targets
+
+Besides the configured targets, you can add your own IP addresses or host names (e.g. your NAS,
+a game server, a website) from the **Targets** card on the dashboard. They are saved in the SQLite
+database, so they survive restarts. Click **×** on a custom target to stop monitoring it and delete
+its history. Configured targets can only be changed in the configuration.
 
 ## API
 
@@ -83,6 +91,9 @@ or, for lists, `NetPulse__Targets__0=gateway` and `NetPulse__Targets__1=192.168.
 |------------------------------------------|-----------------------------------|
 | `GET /api/samples?minutes=15&target=...` | Raw samples, optionally for one target |
 | `GET /api/stats?minutes=60`              | Aggregated stats and quality per target |
+| `GET /api/targets`                       | Monitored targets (`isCustom` marks the removable ones) |
+| `POST /api/targets` `{"target":"example.com"}` | Add a custom target |
+| `DELETE /api/targets/{target}`           | Remove a custom target and its samples |
 
 `minutes` defaults to 15 and is clamped between 1 minute and 7 days.
 
