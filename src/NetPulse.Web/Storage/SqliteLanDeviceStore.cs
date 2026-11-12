@@ -46,6 +46,25 @@ public sealed class SqliteLanDeviceStore(string databasePath) : ILanDeviceStore
             CREATE INDEX IF NOT EXISTS ix_device_events_ts ON device_events (ts);
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        await AddColumnIfMissingAsync(connection, "lan_devices", "label", "TEXT", cancellationToken);
+    }
+
+    // Lightweight migration: SQLite has no "ADD COLUMN IF NOT EXISTS".
+    private static async Task AddColumnIfMissingAsync(
+        SqliteConnection connection, string table, string column, string type, CancellationToken cancellationToken)
+    {
+        await using var columns = connection.CreateCommand();
+        columns.CommandText = $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = $name";
+        columns.Parameters.AddWithValue("$name", column);
+        if (await columns.ExecuteScalarAsync(cancellationToken) is not null)
+        {
+            return;
+        }
+
+        await using var alter = connection.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
+        await alter.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<LanDevice>> GetDevicesAsync(CancellationToken cancellationToken = default)
@@ -53,7 +72,7 @@ public sealed class SqliteLanDeviceStore(string databasePath) : ILanDeviceStore
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT key, ip, mac, vendor, hostname, first_seen, last_seen, is_online, missed_scans
+            SELECT key, ip, mac, vendor, hostname, first_seen, last_seen, is_online, missed_scans, label
             FROM lan_devices
             """;
 
@@ -70,7 +89,8 @@ public sealed class SqliteLanDeviceStore(string databasePath) : ILanDeviceStore
                 DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(5)),
                 DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(6)),
                 reader.GetInt64(7) != 0,
-                reader.GetInt32(8)));
+                reader.GetInt32(8),
+                reader.IsDBNull(9) ? null : reader.GetString(9)));
         }
 
         return DeviceTracker.Sort(result);
@@ -187,6 +207,16 @@ public sealed class SqliteLanDeviceStore(string databasePath) : ILanDeviceStore
         command.CommandText = "DELETE FROM device_events WHERE ts < $before";
         command.Parameters.AddWithValue("$before", before.ToUnixTimeMilliseconds());
         return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<bool> SetLabelAsync(string key, string? label, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE lan_devices SET label = $label WHERE key = $key";
+        command.Parameters.AddWithValue("$label", (object?)label ?? DBNull.Value);
+        command.Parameters.AddWithValue("$key", key);
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
     public async Task<bool> DeleteDeviceAsync(string key, CancellationToken cancellationToken = default)
