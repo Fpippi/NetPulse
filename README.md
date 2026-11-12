@@ -11,7 +11,7 @@ or your ISP.
 
 <p align="center">
   <a href="https://fpippi.github.io/NetPulse/demo.html">
-    <img src="docs/demo.gif" width="800" alt="NetPulse dashboard: per-target latency, jitter and packet loss with a live scrolling chart">
+    <img src="docs/demo.gif" width="760" alt="NetPulse dashboard: per-target latency, jitter and packet loss with a live scrolling chart">
   </a>
 </p>
 
