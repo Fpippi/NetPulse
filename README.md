@@ -36,11 +36,14 @@ or your ISP.
 - Continuous ping to the **default gateway** (auto-detected) and to public hosts (1.1.1.1, 8.8.8.8)
 - **Latency, jitter, packet loss** and a simple quality rating (Good / Fair / Poor) per target
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
+- **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
+  downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
+- **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
   when a new device joins or a known one goes offline
 - **Cooperative throughput testing** (iperf-style): measure real throughput and UDP loss between two of your
   own machines — both ends opt in, with duration and bandwidth safety caps
-- **REST API** (`/api/samples`, `/api/stats`, `/api/devices`, `/api/loadtest`) for scripts and integrations
+- **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/devices`, `/api/loadtest`) for scripts and integrations
 - Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
 
@@ -90,6 +93,50 @@ Besides the configured targets, you can add your own IP addresses or host names 
 a game server, a website) from the **Targets** card on the dashboard. They are saved in the SQLite
 database, so they survive restarts. Click **×** on a custom target to stop monitoring it and delete
 its history. Configured targets can only be changed in the configuration.
+
+### Outages
+
+NetPulse counts an **outage** when a target misses `ConsecutiveLosses` pings in a row (3 by default, about
+15 seconds at the default interval); shorter runs are ordinary packet loss. The outage starts at the first
+lost ping and ends at the next reply. The **Outages** page shows them on a timeline with one row per
+target (24h, 7d or 30d), the downtime, longest outage and availability of each target, and the full history.
+An outage in progress is highlighted at the top of the page.
+
+Comparing rows tells you where the problem is: if `gateway` is down too, the problem is your Wi-Fi or
+router; if only the public hosts are down, it is your ISP. Outages are kept for a year by default (longer
+than raw samples), so the history is there when you need to complain. If NetPulse stops during an outage,
+the outage is closed at its last lost ping on the next start, since nobody watched in between.
+
+Settings live in the `Outages` section, e.g. `NetPulse__Outages__ConsecutiveLosses=5`:
+
+| Key                 | Default | Description                                         |
+|---------------------|---------|-----------------------------------------------------|
+| `ConsecutiveLosses` | `3`     | Lost pings in a row that make an outage             |
+| `RetentionDays`     | `365`   | Older outages are deleted automatically             |
+
+### Speed tests
+
+The **Speed** page shows the latest download, upload and latency, plus the history of all tests (7d or
+30d) with averages and minimums. Tests run every 6 hours and on demand with **Run now**; only one test runs
+at a time. By default they use Cloudflare's free speed-test endpoint (`speed.cloudflare.com`), over plain
+HTTPS: latency is the median of a few empty requests, and the first 20% of each transfer is ignored as TCP
+warm-up.
+
+> Each test transfers about **35 MB** (25 MB down, 10 MB up), so the default schedule uses about 140 MB a
+> day. On a metered connection, lower the sizes, raise the interval or set `Enabled` to `false`.
+
+Settings live in the `SpeedTest` section, e.g. `NetPulse__SpeedTest__IntervalMinutes=720`:
+
+| Key               | Default                                            | Description                               |
+|-------------------|----------------------------------------------------|-------------------------------------------|
+| `Enabled`         | `true`                                             | Scheduled tests ("Run now" always works)  |
+| `IntervalMinutes` | `360`                                              | Time between scheduled tests (minimum 15) |
+| `DownloadBytes`   | `25000000`                                         | Download size (`0` skips the download)    |
+| `UploadBytes`     | `10000000`                                         | Upload size (`0` skips the upload)        |
+| `DownloadUrl`     | `https://speed.cloudflare.com/__down?bytes={bytes}` | Download endpoint; `{bytes}` is replaced with the size |
+| `UploadUrl`       | `https://speed.cloudflare.com/__up`                | Endpoint that accepts the upload as a POST body |
+| `TimeoutSeconds`  | `120`                                              | A slower test is recorded as failed       |
+| `RetentionDays`   | `365`                                              | Older results are deleted automatically   |
 
 ### LAN discovery
 
@@ -162,6 +209,9 @@ Settings live in the `LoadTest` section:
 |------------------------------------------|-----------------------------------|
 | `GET /api/samples?minutes=15&target=...` | Raw samples, optionally for one target |
 | `GET /api/stats?minutes=60`              | Aggregated stats and quality per target |
+| `GET /api/outages?hours=24`              | Outages in the period, with a downtime/availability summary per target |
+| `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
+| `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
 | `GET /api/targets`                       | Monitored targets (`isCustom` marks the removable ones) |
 | `POST /api/targets` `{"target":"example.com"}` | Add a custom target |
 | `DELETE /api/targets/{target}`           | Remove a custom target and its samples |
@@ -180,8 +230,10 @@ Settings live in the `LoadTest` section:
 
 ```
 src/
-  NetPulse.Core   Domain: models, ping probe, statistics, LAN discovery, load-test logic, storage abstraction (no dependencies)
-  NetPulse.Web    ASP.NET Core host: background monitor, scanner and load-test receiver, SQLite store, REST API, Blazor dashboard
+  NetPulse.Core   Domain: models, ping probe, statistics, outage detection, speed test, LAN discovery, load-test logic,
+                  storage abstraction (no dependencies)
+  NetPulse.Web    ASP.NET Core host: background monitor, speed-test scheduler, scanner and load-test receiver,
+                  SQLite store, REST API, Blazor dashboard
 tests/
   NetPulse.Tests  NUnit tests for the Core logic
 tools/            Maintenance scripts (vendor database update)
@@ -201,7 +253,7 @@ CI builds and tests every pull request and every push to `main` and `develop`, o
 
 - [x] **v0.1** — Ping monitor, SQLite storage, dashboard, API
 - [x] **v0.2** — LAN device discovery (IP, MAC, vendor, hostname) and online/offline alerts
-- [ ] **v0.3** — Scheduled speed tests, outage detection and timeline
+- [x] **v0.3** — Scheduled speed tests, outage detection and timeline
 - [ ] **v1.0** — Exportable reports (CSV/PDF) to send to your ISP
 
 ## Project page
