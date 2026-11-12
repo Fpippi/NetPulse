@@ -2,15 +2,17 @@ using Microsoft.Extensions.Options;
 using NetPulse.Core.Models;
 using NetPulse.Core.Probing;
 using NetPulse.Core.Storage;
+using NetPulse.Core.Targets;
 
 namespace NetPulse.Web.Monitoring;
 
 /// <summary>
-/// Pings every configured target at a fixed interval and stores the results.
+/// Pings every configured and custom target at a fixed interval and stores the results.
 /// </summary>
 public sealed class PingMonitorService(
     IPingProbe probe,
     ISampleStore store,
+    TargetManager targets,
     IOptions<MonitorOptions> options,
     ILogger<PingMonitorService> logger) : BackgroundService
 {
@@ -24,7 +26,7 @@ public sealed class PingMonitorService(
 
         logger.LogInformation(
             "Monitoring {Targets} every {Interval}s",
-            string.Join(", ", opt.EffectiveTargets),
+            string.Join(", ", await targets.GetEffectiveTargetsAsync(stoppingToken)),
             opt.IntervalSeconds);
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(Math.Max(1, opt.IntervalSeconds)));
@@ -33,7 +35,7 @@ public sealed class PingMonitorService(
         {
             try
             {
-                await RunCycleAsync(opt, timeout, stoppingToken);
+                await RunCycleAsync(timeout, stoppingToken);
 
                 if (DateTimeOffset.UtcNow - lastPurge >= PurgeInterval)
                 {
@@ -55,11 +57,12 @@ public sealed class PingMonitorService(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    private async Task RunCycleAsync(MonitorOptions opt, TimeSpan timeout, CancellationToken ct)
+    private async Task RunCycleAsync(TimeSpan timeout, CancellationToken ct)
     {
         var timestamp = DateTimeOffset.UtcNow;
 
-        var tasks = opt.EffectiveTargets
+        // Read the list every cycle so targets added or removed from the dashboard apply immediately.
+        var tasks = (await targets.GetEffectiveTargetsAsync(ct))
             .Select(target => (Target: target, Host: ResolveHost(target)))
             .Where(t => t.Host is not null)
             .Select(async t =>

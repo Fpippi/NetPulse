@@ -1,0 +1,91 @@
+@using NetPulse.Core.Targets
+@inject TargetManager Targets
+
+@* Lets users add their own hosts to monitor and remove them again. *@
+<section class="card targets">
+    <div class="card-head">
+        <h2>Targets</h2>
+        <span class="hint">@CustomCount / @Targets.MaxCustomTargets custom</span>
+    </div>
+
+    <ul class="target-list">
+        @foreach (var target in _targets)
+        {
+            <li class="target @(target.IsCustom ? "custom" : null)">
+                <span>@target.Name</span>
+                @if (target.IsCustom)
+                {
+                    <button type="button" class="remove" title="Stop monitoring @target.Name"
+                            aria-label="Remove @target.Name" disabled="@_busy"
+                            @onclick="() => RemoveAsync(target.Name)">×</button>
+                }
+            </li>
+        }
+    </ul>
+
+    <form class="add-target" @onsubmit="AddAsync">
+        <input type="text" @bind="_input" @bind:event="oninput" maxlength="@TargetName.MaxLength"
+               placeholder="IP address or host name, e.g. 192.168.1.10 or example.com"
+               aria-label="New target" autocomplete="off" spellcheck="false" />
+        <button type="submit" disabled="@(_busy || string.IsNullOrWhiteSpace(_input))">Add</button>
+    </form>
+
+    @if (_error is not null)
+    {
+        <p class="error" role="alert">@_error</p>
+    }
+</section>
+
+@code {
+    /// <summary>Invoked after a target has been added or removed.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private IReadOnlyList<MonitoredTarget> _targets = [];
+    private string _input = string.Empty;
+    private string? _error;
+    private bool _busy;
+
+    private int CustomCount => _targets.Count(t => t.IsCustom);
+
+    protected override async Task OnInitializedAsync() => _targets = await Targets.GetTargetsAsync();
+
+    private async Task AddAsync()
+    {
+        _busy = true;
+        try
+        {
+            var result = await Targets.AddAsync(_input);
+            _error = result.Error;
+            if (result.Success)
+            {
+                _input = string.Empty;
+                await ReloadAsync();
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RemoveAsync(string target)
+    {
+        _busy = true;
+        try
+        {
+            _error = null;
+            await Targets.RemoveAsync(target);
+            await ReloadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _targets = await Targets.GetTargetsAsync();
+        await OnChanged.InvokeAsync();
+    }
+}
