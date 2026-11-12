@@ -34,12 +34,15 @@ docker build -t netpulse .                 # container image
   - `Models/PingSample` — one measurement.
   - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver`.
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
-  - `Storage/ISampleStore` — persistence abstraction.
+  - `Storage/ISampleStore`, `Storage/ITargetStore` — persistence abstractions.
+  - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
 - `src/NetPulse.Web` — ASP.NET Core host.
   - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds.
   - `Storage/SqliteSampleStore` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
-  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`), Blazor (Interactive Server).
-  - `Components/` — dashboard; `LatencyChart` is a dependency-free SVG chart.
+  - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
+  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/targets`), Blazor (Interactive Server).
+  - `Components/` — dashboard; `LatencyChart` is a dependency-free SVG chart;
+    `TargetEditor` adds/removes custom targets.
 - `tests/NetPulse.Tests` — NUnit 4, constraint model (`Assert.That`).
 
 ## Conventions

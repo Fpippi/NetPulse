@@ -1,6 +1,8 @@
 @page "/"
 @implements IDisposable
+@using NetPulse.Core.Targets
 @inject ISampleStore Store
+@inject TargetManager Targets
 
 <PageTitle>NetPulse</PageTitle>
 
@@ -17,6 +19,8 @@
 </header>
 
 <main>
+    <TargetEditor OnChanged="LoadAsync" />
+
     @if (_series.Count == 0)
     {
         <p class="empty">Waiting for the first samples…</p>
@@ -99,8 +103,11 @@
         _to = DateTimeOffset.UtcNow;
         _from = _to - _window;
         var samples = await Store.GetSinceAsync(_from);
+        var monitored = new HashSet<string>(await Targets.GetEffectiveTargetsAsync(), StringComparer.OrdinalIgnoreCase);
 
+        // Only show targets that are still monitored (a removed target may have a last in-flight sample).
         _series = samples
+            .Where(s => monitored.Contains(s.Target))
             .GroupBy(s => s.Target)
             .OrderBy(g => g.Key)
             .Select(g =>

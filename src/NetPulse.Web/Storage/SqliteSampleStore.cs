@@ -104,6 +104,15 @@ public sealed class SqliteSampleStore(string databasePath) : ISampleStore
         return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<int> DeleteTargetAsync(string target, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM samples WHERE target = $target";
+        command.Parameters.AddWithValue("$target", target);
+        return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
     {
         var connection = new SqliteConnection(_connectionString);

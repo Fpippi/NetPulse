@@ -24,5 +24,8 @@ public sealed class MonitorOptions
     /// </summary>
     public List<string> Targets { get; set; } = [];
 
+    /// <summary>How many extra targets users may add from the dashboard.</summary>
+    public int MaxCustomTargets { get; set; } = 20;
+
     public IReadOnlyList<string> EffectiveTargets => Targets.Count > 0 ? Targets : DefaultTargets;
 }
