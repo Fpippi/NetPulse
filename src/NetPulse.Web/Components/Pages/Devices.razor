@@ -1,0 +1,235 @@
+@page "/devices"
+@implements IDisposable
+@using NetPulse.Core.Discovery
+@using NetPulse.Web.Discovery
+@inject ILanDeviceStore Store
+@inject LanDiscovery Discovery
+
+<PageTitle>Devices · NetPulse</PageTitle>
+
+<header class="top">
+    <div class="brand">
+        <h1>NetPulse</h1>
+        <SiteNav />
+    </div>
+    <button type="button" class="primary" disabled="@_status.IsScanning" @onclick="ScanNowAsync">
+        @(_status.IsScanning ? "Scanning…" : "Scan now")
+    </button>
+</header>
+
+<main>
+    <section class="card">
+        <div class="card-head">
+            <h2>Local network</h2>
+            <span class="hint">@_devices.Count(d => d.IsOnline) online · @_devices.Count known</span>
+        </div>
+
+        <p class="scan-status">
+            @if (_status.Subnet is not null)
+            {
+                <span>Subnet <strong>@_status.Subnet</strong></span>
+            }
+            @if (_status.LastScan is { } last)
+            {
+                <span>Last scan @RelativeTime.Format(last, _now)@Duration(_status.LastDuration)</span>
+            }
+            else if (!_status.IsScanning)
+            {
+                <span>No scan yet.</span>
+            }
+            @if (_status.IsScanning)
+            {
+                <span class="scanning">Scanning the network…</span>
+            }
+        </p>
+
+        @if (_status.Error is not null)
+        {
+            <p class="error" role="alert">Last scan failed: @_status.Error</p>
+        }
+
+        @if (_devices.Count == 0)
+        {
+            <p class="empty">No devices found yet. The first scan starts a few seconds after launch.</p>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="devices">
+                    <thead>
+                        <tr>
+                            <th scope="col"><span class="visually-hidden">Status</span></th>
+                            <th scope="col">Name</th>
+                            <th scope="col">IP</th>
+                            <th scope="col">MAC</th>
+                            <th scope="col">Vendor</th>
+                            <th scope="col">Last seen</th>
+                            <th scope="col"><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var device in _devices)
+                        {
+                            <tr class="@(device.IsOnline ? null : "offline")">
+                                <td>
+                                    <span class="dot @(device.IsOnline ? "online" : "offline")"
+                                          title="@(device.IsOnline ? "Online" : "Offline")"></span>
+                                </td>
+                                <td>
+                                    @(device.Hostname ?? "–")
+                                    @if (device.Ip == _status.LocalAddress)
+                                    {
+                                        <span class="tag self">this device</span>
+                                    }
+                                    else if (device.Ip == _status.Gateway)
+                                    {
+                                        <span class="tag router">router</span>
+                                    }
+                                    @if (IsNew(device))
+                                    {
+                                        <span class="tag new">new</span>
+                                    }
+                                </td>
+                                <td class="mono">@device.Ip</td>
+                                <td class="mono">@(device.Mac ?? "–")</td>
+                                <td>@VendorLabel(device)</td>
+                                <td title="@device.LastSeen.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)">
+                                    @(device.IsOnline ? "now" : RelativeTime.Format(device.LastSeen, _now))
+                                </td>
+                                <td>
+                                    @if (!device.IsOnline)
+                                    {
+                                        <button type="button" class="remove" title="Forget @device.DisplayName"
+                                                aria-label="Forget @device.DisplayName"
+                                                @onclick="() => ForgetAsync(device.Key)">×</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="card">
+        <div class="card-head">
+            <h2>Recent activity</h2>
+        </div>
+
+        @if (_events.Count == 0)
+        {
+            <p class="empty">No changes yet. New devices and devices going offline will show up here.</p>
+        }
+        else
+        {
+            <ul class="events">
+                @foreach (var e in _events)
+                {
+                    <li>
+                        <span class="tag @e.Kind.ToString().ToLowerInvariant()">@KindLabel(e.Kind)</span>
+                        <span>@e.Name <span class="mono hint">@e.Ip</span></span>
+                        <time class="hint" datetime="@e.Timestamp.ToString("O", CultureInfo.InvariantCulture)">
+                            @RelativeTime.Format(e.Timestamp, _now)
+                        </time>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</main>
+
+@code {
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan NewDeviceWindow = TimeSpan.FromHours(24);
+    private const int EventLimit = 20;
+
+    private readonly CancellationTokenSource _cts = new();
+    private IReadOnlyList<LanDevice> _devices = [];
+    private IReadOnlyList<DeviceEvent> _events = [];
+    private DiscoveryStatus _status = DiscoveryStatus.Initial;
+    private DateTimeOffset _now = DateTimeOffset.UtcNow;
+    private DateTimeOffset? _baseline;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Discovery.Changed += OnDiscoveryChanged;
+        await LoadAsync();
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed.
+        }
+    }
+
+    private void OnDiscoveryChanged() =>
+        _ = InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    private async Task LoadAsync()
+    {
+        _now = DateTimeOffset.UtcNow;
+        _status = Discovery.Status;
+        _devices = await Store.GetDevicesAsync();
+        _events = await Store.GetEventsAsync(EventLimit);
+
+        // Devices found by the first scan are the baseline, not "new".
+        _baseline = _devices.Count == 0 ? null : _devices.Min(d => d.FirstSeen);
+    }
+
+    private async Task ScanNowAsync()
+    {
+        // The scan raises Changed when it starts and ends, which refreshes the page.
+        // It is not tied to this page: leaving the page must not cancel a scan other pages wait for.
+        await Discovery.ScanAsync(CancellationToken.None);
+    }
+
+    private async Task ForgetAsync(string key)
+    {
+        await Store.DeleteDeviceAsync(key);
+        await LoadAsync();
+    }
+
+    private bool IsNew(LanDevice device) =>
+        device.FirstSeen != _baseline && _now - device.FirstSeen < NewDeviceWindow;
+
+    private static string VendorLabel(LanDevice device) =>
+        device.Vendor
+        ?? (device.Mac is not null && MacAddress.IsLocallyAdministered(device.Mac) ? "Private (random) address" : "–");
+
+    private static string KindLabel(DeviceEventKind kind) => kind switch
+    {
+        DeviceEventKind.New => "New",
+        DeviceEventKind.Offline => "Offline",
+        DeviceEventKind.Online => "Back online",
+        _ => kind.ToString(),
+    };
+
+    private static string Duration(TimeSpan? duration) =>
+        duration is { } d ? $" (took {d.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)} s)" : string.Empty;
+
+    public void Dispose()
+    {
+        Discovery.Changed -= OnDiscoveryChanged;
+        _cts.Cancel();
+    }
+}
