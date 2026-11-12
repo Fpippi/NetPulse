@@ -14,4 +14,7 @@ public interface ISampleStore
 
     /// <summary>Deletes samples older than <paramref name="before"/>. Returns the number of deleted rows.</summary>
     Task<int> PurgeOlderThanAsync(DateTimeOffset before, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes every sample of <paramref name="target"/>. Returns the number of deleted rows.</summary>
+    Task<int> DeleteTargetAsync(string target, CancellationToken cancellationToken = default);
 }
