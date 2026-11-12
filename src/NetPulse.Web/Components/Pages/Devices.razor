@@ -75,19 +75,41 @@
                                     <span class="dot @(device.IsOnline ? "online" : "offline")"
                                           title="@(device.IsOnline ? "Online" : "Offline")"></span>
                                 </td>
-                                <td>
-                                    @(device.Hostname ?? "–")
-                                    @if (device.Ip == _status.LocalAddress)
+                                <td class="name-cell">
+                                    @if (_editingKey == device.Key)
                                     {
-                                        <span class="tag self">this device</span>
+                                        <form class="rename" @onsubmit="() => SaveLabelAsync(device.Key)">
+                                            <input type="text" @bind="_labelDraft" @bind:event="oninput"
+                                                   maxlength="@DeviceLabel.MaxLength"
+                                                   placeholder="@(device.Hostname ?? device.Vendor ?? device.Ip)"
+                                                   aria-label="Name for @device.Ip" autocomplete="off" />
+                                            <button type="submit" class="link">Save</button>
+                                            <button type="button" class="link" @onclick="CancelEdit">Cancel</button>
+                                        </form>
                                     }
-                                    else if (device.Ip == _status.Gateway)
+                                    else
                                     {
-                                        <span class="tag router">router</span>
-                                    }
-                                    @if (IsNew(device))
-                                    {
-                                        <span class="tag new">new</span>
+                                        <span class="device-name">@device.DisplayName</span>
+                                        <button type="button" class="edit" title="Rename @device.DisplayName"
+                                                aria-label="Rename @device.DisplayName"
+                                                @onclick="() => StartEdit(device)">✎</button>
+                                        @if (device.Label is not null && device.Hostname is not null
+                                             && !string.Equals(device.Hostname, device.Label, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="hint detected">@device.Hostname</span>
+                                        }
+                                        @if (device.Ip == _status.LocalAddress)
+                                        {
+                                            <span class="tag self">this device</span>
+                                        }
+                                        else if (device.Ip == _status.Gateway)
+                                        {
+                                            <span class="tag router">router</span>
+                                        }
+                                        @if (IsNew(device))
+                                        {
+                                            <span class="tag new">new</span>
+                                        }
                                     }
                                 </td>
                                 <td class="mono">@device.Ip</td>
@@ -150,6 +172,8 @@
     private DiscoveryStatus _status = DiscoveryStatus.Initial;
     private DateTimeOffset _now = DateTimeOffset.UtcNow;
     private DateTimeOffset? _baseline;
+    private string? _editingKey;
+    private string _labelDraft = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,6 +230,26 @@
     private async Task ForgetAsync(string key)
     {
         await Store.DeleteDeviceAsync(key);
+        await LoadAsync();
+    }
+
+    private void StartEdit(LanDevice device)
+    {
+        _editingKey = device.Key;
+        _labelDraft = device.Label ?? string.Empty;
+    }
+
+    private void CancelEdit()
+    {
+        _editingKey = null;
+        _labelDraft = string.Empty;
+    }
+
+    private async Task SaveLabelAsync(string key)
+    {
+        await Store.SetLabelAsync(key, DeviceLabel.Normalize(_labelDraft));
+        _editingKey = null;
+        _labelDraft = string.Empty;
         await LoadAsync();
     }
 
