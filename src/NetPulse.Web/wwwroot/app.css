@@ -392,3 +392,70 @@ table.devices {
     clip: rect(0 0 0 0);
     white-space: nowrap;
 }
+
+/* --- Load test ---------------------------------------------------------- */
+
+.badge.muted { color: var(--muted); }
+
+.card.warn {
+    border-color: var(--fair);
+    background: color-mix(in srgb, var(--fair) 8%, var(--card));
+    font-size: .9rem;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+.card.warn strong { color: var(--text); }
+
+button.primary.stop { background: var(--poor); color: #1a0d0d; }
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: .85rem 1rem;
+    margin-top: .5rem;
+}
+
+.form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    font-size: .8rem;
+    color: var(--muted);
+}
+
+.form-grid input,
+.form-grid select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .4rem .55rem;
+    font: inherit;
+}
+
+.form-grid input:focus,
+.form-grid select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.form-grid input:disabled,
+.form-grid select:disabled { opacity: .55; }
+
+ul.error,
+ul.warnings {
+    margin: .6rem 0 0;
+    padding-left: 1.1rem;
+}
+
+ul.error li { color: var(--poor); }
+
+code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: .85em;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: .05rem .3rem;
+}

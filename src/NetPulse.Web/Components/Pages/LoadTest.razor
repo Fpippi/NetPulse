@@ -1,0 +1,283 @@
+@page "/loadtest"
+@implements IDisposable
+@using NetPulse.Core.LoadTest
+@using NetPulse.Web.LoadTest
+@inject LoadTestManager Manager
+@inject LoadTestReceiver Receiver
+
+<PageTitle>Load test · NetPulse</PageTitle>
+
+<header class="top">
+    <div class="brand">
+        <h1>NetPulse</h1>
+        <SiteNav />
+    </div>
+    @if (_status.IsRunning)
+    {
+        <button type="button" class="primary stop" @onclick="Stop">Stop test</button>
+    }
+    else
+    {
+        <button type="button" class="primary" @onclick="Start">Start test</button>
+    }
+</header>
+
+<main>
+    <section class="card warn" role="note">
+        <strong>Use responsibly.</strong>
+        This generates heavy traffic. Only run it against devices you own or have explicit permission
+        to test, on your own network. The target must be running NetPulse with the load-test receiver
+        enabled — so both ends opt in. Safety caps apply:
+        max @LoadTestLimits.MaxDurationSeconds s, max @LoadTestLimits.MaxMbps.ToString("0", CultureInfo.InvariantCulture) Mbps,
+        max @LoadTestLimits.MaxParallelStreams streams.
+    </section>
+
+    <section class="card">
+        <div class="card-head">
+            <h2>Sender</h2>
+            <span class="badge @StateClass">@StateLabel</span>
+        </div>
+
+        <div class="form-grid">
+            <label>Protocol
+                <select @bind="_protocol" disabled="@_status.IsRunning">
+                    <option value="@LoadProtocol.Tcp">TCP (goodput)</option>
+                    <option value="@LoadProtocol.Udp">UDP (throughput + loss)</option>
+                </select>
+            </label>
+            <label>Receiver host
+                <input type="text" @bind="_host" placeholder="e.g. 192.168.1.50 or j06.local"
+                       disabled="@_status.IsRunning" />
+            </label>
+            <label>Port
+                <input type="number" min="1" max="65535" @bind="_port" disabled="@_status.IsRunning" />
+            </label>
+            <label>Duration (s)
+                <input type="number" min="@LoadTestLimits.MinDurationSeconds" max="@LoadTestLimits.MaxDurationSeconds"
+                       @bind="_duration" disabled="@_status.IsRunning" />
+            </label>
+            <label>Bandwidth (Mbps, 0 = max)
+                <input type="number" min="0" max="@LoadTestLimits.MaxMbps" @bind="_mbps" disabled="@_status.IsRunning" />
+            </label>
+            <label>Parallel streams
+                <input type="number" min="@LoadTestLimits.MinParallelStreams" max="@LoadTestLimits.MaxParallelStreams"
+                       @bind="_streams" disabled="@_status.IsRunning" />
+            </label>
+        </div>
+
+        @if (_errors.Count > 0)
+        {
+            <ul class="error" role="alert">
+                @foreach (var error in _errors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        }
+
+        @if (_warnings.Count > 0)
+        {
+            <ul class="hint warnings">
+                @foreach (var warning in _warnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        }
+
+        @if (_status.Error is not null)
+        {
+            <p class="error" role="alert">@_status.Error</p>
+        }
+    </section>
+
+    @if (_status.Samples.Count > 0 || _status.IsRunning)
+    {
+        <section class="card">
+            <div class="card-head">
+                <h2>Throughput</h2>
+                @if (_status.IsRunning)
+                {
+                    <span class="hint">@Elapsed s / @(_status.Request?.DurationSeconds) s · @Current.ToString("0.0", CultureInfo.InvariantCulture) Mbps</span>
+                }
+            </div>
+
+            <dl class="stats">
+                <div><dt>Avg sent</dt><dd>@Mbps(_status.Stats.AvgMbps)</dd></div>
+                <div><dt>Peak</dt><dd>@Mbps(_status.Stats.PeakMbps)</dd></div>
+                @if (_status.Stats.ReceivedBytes > 0)
+                {
+                    <div><dt>Avg received</dt><dd>@Mbps(_status.Stats.ReceivedMbps)</dd></div>
+                }
+                <div><dt>Data sent</dt><dd>@Bytes(_status.Stats.TotalBytes)</dd></div>
+                @if (_status.Stats.LossPercent is { } loss)
+                {
+                    <div><dt>Packet loss</dt><dd>@loss.ToString("0.##", CultureInfo.InvariantCulture) %</dd></div>
+                }
+                @if (_status.Stats.PacketsSent > 0)
+                {
+                    <div><dt>Packets</dt><dd>@_status.Stats.PacketsReceived / @_status.Stats.PacketsSent</dd></div>
+                }
+            </dl>
+
+            <ThroughputChart Samples="_status.Samples" />
+        </section>
+    }
+
+    <section class="card">
+        <div class="card-head">
+            <h2>Receiver (this machine)</h2>
+            <span class="badge @(_receiver.Enabled ? "good" : "muted")">@(_receiver.Enabled ? "Enabled" : "Disabled")</span>
+        </div>
+
+        @if (!_receiver.Enabled)
+        {
+            <p class="hint">
+                This machine does not accept load tests. To use it as a target, set
+                <code>NetPulse:LoadTest:ReceiverEnabled</code> to <code>true</code> and restart.
+            </p>
+        }
+        else
+        {
+            <p class="scan-status">
+                <span>Listening on port <strong>@_receiver.Port</strong> (TCP + UDP).</span>
+                @if (_receiver.IsReceiving)
+                {
+                    <span class="scanning">Receiving a test from @_receiver.ActivePeer…</span>
+                }
+            </p>
+
+            @if (_receiver.LastSession is { } last)
+            {
+                <dl class="stats">
+                    <div><dt>From</dt><dd class="mono">@last.Peer</dd></div>
+                    <div><dt>Protocol</dt><dd>@last.Protocol.ToString().ToUpperInvariant()</dd></div>
+                    <div><dt>Received</dt><dd>@Mbps(last.Mbps)</dd></div>
+                    <div><dt>Data</dt><dd>@Bytes(last.BytesReceived)</dd></div>
+                    @if (last.PacketsReceived > 0)
+                    {
+                        <div><dt>Packets</dt><dd>@last.PacketsReceived</dd></div>
+                    }
+                </dl>
+            }
+        }
+    </section>
+</main>
+
+@code {
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(1);
+
+    private readonly CancellationTokenSource _cts = new();
+
+    private LoadProtocol _protocol = LoadProtocol.Tcp;
+    private string _host = "";
+    private int _port = LoadTestLimits.DefaultPort;
+    private int _duration = LoadTestLimits.DefaultDurationSeconds;
+    private double _mbps;
+    private int _streams = LoadTestLimits.DefaultParallelStreams;
+
+    private LoadTestRunStatus _status = LoadTestRunStatus.Idle;
+    private ReceiverStatus _receiver = ReceiverStatus.Disabled(LoadTestLimits.DefaultPort);
+    private IReadOnlyList<string> _errors = [];
+    private IReadOnlyList<string> _warnings = [];
+
+    protected override void OnInitialized()
+    {
+        Manager.Changed += OnChanged;
+        Receiver.Changed += OnChanged;
+        Load();
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private double Current => _status.Samples.Count > 0 ? _status.Samples[^1].Mbps : 0;
+
+    private int Elapsed => _status.StartedAt is { } start
+        ? (int)Math.Min(_status.Request?.DurationSeconds ?? 0, (DateTimeOffset.UtcNow - start).TotalSeconds)
+        : 0;
+
+    private string StateLabel => _status.State switch
+    {
+        LoadTestState.Running => "Running",
+        LoadTestState.Completed => "Completed",
+        LoadTestState.Stopped => "Stopped",
+        LoadTestState.Failed => "Failed",
+        _ => "Idle",
+    };
+
+    private string StateClass => _status.State switch
+    {
+        LoadTestState.Running => "good",
+        LoadTestState.Completed => "good",
+        LoadTestState.Failed => "poor",
+        LoadTestState.Stopped => "fair",
+        _ => "muted",
+    };
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(() =>
+                {
+                    Load();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed.
+        }
+    }
+
+    private void OnChanged() =>
+        _ = InvokeAsync(() =>
+        {
+            Load();
+            StateHasChanged();
+        });
+
+    private void Load()
+    {
+        _status = Manager.Status;
+        _receiver = Receiver.Status;
+    }
+
+    private void Start()
+    {
+        var request = new LoadTestRequest(_protocol, _host, _port, _duration, _mbps, _streams);
+        var validation = Manager.Start(request);
+        _errors = validation.Errors;
+        _warnings = validation.Warnings;
+        Load();
+    }
+
+    private void Stop() => Manager.Stop();
+
+    private static string Mbps(double value) =>
+        value.ToString("0.0", CultureInfo.InvariantCulture) + " Mbps";
+
+    private static string Bytes(long value)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = value;
+        var unit = 0;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+
+        return size.ToString(unit == 0 ? "0" : "0.0", CultureInfo.InvariantCulture) + " " + units[unit];
+    }
+
+    public void Dispose()
+    {
+        Manager.Changed -= OnChanged;
+        Receiver.Changed -= OnChanged;
+        _cts.Cancel();
+    }
+}

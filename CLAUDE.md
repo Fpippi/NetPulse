@@ -36,13 +36,18 @@ docker build -t netpulse .                 # container image
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
   - `Storage/ISampleStore`, `Storage/ITargetStore` — persistence abstractions.
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
-- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/devices` (LAN devices).
+  - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
+    `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
+    (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
+- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/devices` (LAN devices), `/loadtest`.
   - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds.
   - `Discovery/LanDiscovery` + `LanDiscoveryService` — runs scans (periodic and "Scan now").
+  - `LoadTest/` — `LoadTestReceiver` (opt-in `BackgroundService`, disabled by default; the target/agent),
+    `LoadTestClient` (sender), `LoadTestManager` (orchestrates one run, live samples + `Changed` event).
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
-  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/targets`), Blazor (Interactive Server).
-  - `Components/` — dashboard; `LatencyChart` is a dependency-free SVG chart;
+  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/targets`, `/api/loadtest`), Blazor (Interactive Server).
+  - `Components/` — dashboard; `LatencyChart`/`ThroughputChart` are dependency-free SVG charts;
     `TargetEditor` adds/removes custom targets.
 - `tests/NetPulse.Tests` — NUnit 4, constraint model (`Assert.That`).
 
