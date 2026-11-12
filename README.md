@@ -36,7 +36,9 @@ or your ISP.
 - Continuous ping to the **default gateway** (auto-detected) and to public hosts (1.1.1.1, 8.8.8.8)
 - **Latency, jitter, packet loss** and a simple quality rating (Good / Fair / Poor) per target
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
-- **REST API** (`/api/samples`, `/api/stats`) for scripts and integrations
+- **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
+  when a new device joins or a known one goes offline
+- **REST API** (`/api/samples`, `/api/stats`, `/api/devices`) for scripts and integrations
 - Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
 
@@ -63,6 +65,8 @@ Open <http://localhost:8080>.
 
 > On Linux, use `--network host` if you want the gateway seen by the container to be your real router.
 > If pings always time out, the container may not be allowed to send ICMP: add `--cap-add NET_RAW`.
+> LAN discovery needs `--network host` too: on the default bridge network the container only sees Docker's
+> own virtual network.
 
 ## Configuration
 
@@ -85,6 +89,35 @@ a game server, a website) from the **Targets** card on the dashboard. They are s
 database, so they survive restarts. Click **×** on a custom target to stop monitoring it and delete
 its history. Configured targets can only be changed in the configuration.
 
+### LAN discovery
+
+The **Devices** page lists every device found on your local network: IP address, MAC address, vendor
+(looked up in a bundled copy of the IEEE OUI registry, no internet needed) and host name (reverse DNS).
+Every 5 minutes NetPulse pings every address of the subnet, then reads the operating system's ARP table,
+which also reveals devices whose firewall ignores pings. Click **Scan now** to scan immediately.
+
+- A device that was never seen before is marked **new** and shows up under *Recent activity*.
+- A device that misses `OfflineAfterMissedScans` scans in a row is reported **offline**, and **back online**
+  when it answers again. Click **×** on an offline device to forget it.
+- The first scan only builds the inventory, so you do not get an alert for every device you already own.
+- Phones and laptops often use a random ("private") MAC address per network: they have no vendor, and if
+  the address changes they appear as a new device.
+
+Settings live in the `Discovery` section, e.g. `NetPulse__Discovery__IntervalSeconds=600`:
+
+| Key                       | Default | Description                                              |
+|---------------------------|---------|----------------------------------------------------------|
+| `Enabled`                 | `true`  | Periodic scans (manual scans always work)                |
+| `IntervalSeconds`         | `300`   | Time between scans (minimum 30)                          |
+| `Subnet`                  | empty   | Subnet to scan, e.g. `192.168.1.0/24`; empty = auto-detect |
+| `MaxPrefixLength`         | `24`    | An auto-detected subnet larger than this is reduced to the /24 around this machine |
+| `PingTimeoutMs`           | `500`   | Ping timeout during the sweep                            |
+| `MaxParallelism`          | `64`    | Pings and DNS lookups in flight at the same time         |
+| `OfflineAfterMissedScans` | `2`     | Missed scans before a device is reported offline         |
+| `EventRetentionDays`      | `90`    | Older device events are deleted automatically            |
+
+The vendor list is `src/NetPulse.Core/Data/oui.txt`; refresh it with `python3 tools/update-oui.py`.
+
 ## API
 
 | Endpoint                                 | Description                       |
@@ -94,6 +127,10 @@ its history. Configured targets can only be changed in the configuration.
 | `GET /api/targets`                       | Monitored targets (`isCustom` marks the removable ones) |
 | `POST /api/targets` `{"target":"example.com"}` | Add a custom target |
 | `DELETE /api/targets/{target}`           | Remove a custom target and its samples |
+| `GET /api/devices`                       | Scan status and all known LAN devices |
+| `GET /api/devices/events?limit=50`       | Latest device events (`New`, `Offline`, `Online`) |
+| `POST /api/devices/scan`                 | Scan the network now and return the new status |
+| `DELETE /api/devices/{key}`              | Forget a device (key = MAC address, or `ip:<address>`) |
 
 `minutes` defaults to 15 and is clamped between 1 minute and 7 days.
 
@@ -101,10 +138,11 @@ its history. Configured targets can only be changed in the configuration.
 
 ```
 src/
-  NetPulse.Core   Domain: models, ping probe, statistics, storage abstraction (no dependencies)
-  NetPulse.Web    ASP.NET Core host: background monitor, SQLite store, REST API, Blazor dashboard
+  NetPulse.Core   Domain: models, ping probe, statistics, LAN discovery, storage abstraction (no dependencies)
+  NetPulse.Web    ASP.NET Core host: background monitor and scanner, SQLite store, REST API, Blazor dashboard
 tests/
-  NetPulse.Tests  NUnit tests for statistics and chart downsampling
+  NetPulse.Tests  NUnit tests for the Core logic
+tools/            Maintenance scripts (vendor database update)
 docs/             Project page and interactive demo (GitHub Pages)
 ```
 
@@ -120,7 +158,7 @@ CI builds and tests every pull request and every push to `main` and `develop`, o
 ## Roadmap
 
 - [x] **v0.1** — Ping monitor, SQLite storage, dashboard, API
-- [ ] **v0.2** — LAN device discovery (IP, MAC, vendor, hostname) and online/offline alerts
+- [x] **v0.2** — LAN device discovery (IP, MAC, vendor, hostname) and online/offline alerts
 - [ ] **v0.3** — Scheduled speed tests, outage detection and timeline
 - [ ] **v1.0** — Exportable reports (CSV/PDF) to send to your ISP
 

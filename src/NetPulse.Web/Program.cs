@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Options;
+using NetPulse.Core.Discovery;
 using NetPulse.Core.Probing;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
 using NetPulse.Web.Components;
+using NetPulse.Web.Discovery;
 using NetPulse.Web.Monitoring;
 using NetPulse.Web.Storage;
 
@@ -26,6 +28,31 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddHostedService<PingMonitorService>();
 
+// LAN discovery
+builder.Services.Configure<DiscoveryOptions>(builder.Configuration.GetSection(DiscoveryOptions.SectionName));
+builder.Services.AddSingleton<ILanDeviceStore>(sp =>
+    new SqliteLanDeviceStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton(sp =>
+{
+    var path = Path.Combine(AppContext.BaseDirectory, "Data", "oui.txt");
+    if (File.Exists(path))
+    {
+        return OuiDatabase.LoadFile(path);
+    }
+
+    sp.GetRequiredService<ILogger<OuiDatabase>>().LogWarning("Vendor database not found at {Path}", path);
+    return OuiDatabase.Empty;
+});
+builder.Services.AddSingleton<IArpTableReader, SystemArpTableReader>();
+builder.Services.AddSingleton<IHostNameResolver>(_ => new DnsHostNameResolver(TimeSpan.FromSeconds(2)));
+builder.Services.AddSingleton<LanScanner>();
+builder.Services.AddSingleton<LanDiscovery>();
+builder.Services.AddHostedService<LanDiscoveryService>();
+
+// Enums (e.g. device event kinds) as strings in the API.
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -33,6 +60,7 @@ var app = builder.Build();
 
 await app.Services.GetRequiredService<ISampleStore>().InitializeAsync();
 await app.Services.GetRequiredService<ITargetStore>().InitializeAsync();
+await app.Services.GetRequiredService<ILanDeviceStore>().InitializeAsync();
 
 app.UseAntiforgery();
 app.MapStaticAssets();
@@ -77,6 +105,21 @@ api.MapPost("/targets", async (TargetManager targets, AddTargetRequest request) 
 
 api.MapDelete("/targets/{target}", async (TargetManager targets, string target) =>
     await targets.RemoveAsync(target) ? Results.NoContent() : Results.NotFound());
+
+api.MapGet("/devices", async (ILanDeviceStore devices, LanDiscovery discovery) =>
+    Results.Ok(new { status = discovery.Status, devices = await devices.GetDevicesAsync() }));
+
+api.MapGet("/devices/events", async (ILanDeviceStore devices, int limit = 50) =>
+    Results.Ok(await devices.GetEventsAsync(Math.Clamp(limit, 1, 1000))));
+
+api.MapPost("/devices/scan", async (LanDiscovery discovery, CancellationToken ct) =>
+{
+    await discovery.ScanAsync(ct);
+    return Results.Ok(discovery.Status);
+});
+
+api.MapDelete("/devices/{key}", async (ILanDeviceStore devices, string key) =>
+    await devices.DeleteDeviceAsync(key) ? Results.NoContent() : Results.NotFound());
 
 // --- Dashboard ------------------------------------------------------------
 
