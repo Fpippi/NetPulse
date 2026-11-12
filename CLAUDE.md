@@ -34,20 +34,26 @@ docker build -t netpulse .                 # container image
   - `Models/PingSample` — one measurement.
   - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver`.
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
-  - `Storage/ISampleStore`, `Storage/ITargetStore` — persistence abstractions.
+  - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices).
+  - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
+    `OutageSummary` (downtime/availability over a window), `DurationFormat`.
+  - `SpeedTest/` — `HttpSpeedTest` (latency/download/upload over `HttpClient`), `SpeedTestPlan`
+    (validation), `TransferMeter` (Mbps with TCP warm-up skipped), `SpeedTestSchedule`, `SpeedTestSummary`.
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
     (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
-- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/devices` (LAN devices), `/loadtest`.
-  - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds.
+- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`.
+  - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds and feeds
+    `OutageTracker`; open outages from a previous run are closed at startup.
+  - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
   - `Discovery/LanDiscovery` + `LanDiscoveryService` — runs scans (periodic and "Scan now").
   - `LoadTest/` — `LoadTestReceiver` (opt-in `BackgroundService`, disabled by default; the target/agent),
     `LoadTestClient` (sender), `LoadTestManager` (orchestrates one run, live samples + `Changed` event).
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
-  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/targets`, `/api/loadtest`), Blazor (Interactive Server).
-  - `Components/` — dashboard; `LatencyChart`/`ThroughputChart` are dependency-free SVG charts;
+  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
+  - `Components/` — dashboard; `LatencyChart`/`ThroughputChart`/`SpeedChart`/`OutageTimeline` are dependency-free SVG charts;
     `TargetEditor` adds/removes custom targets.
 - `tests/NetPulse.Tests` — NUnit 4, constraint model (`Assert.That`).
 
@@ -74,5 +80,6 @@ docker build -t netpulse .                 # container image
 - ICMP on Linux: unprivileged ping usually works (Docker enables `ping_group_range`); if not,
   document `--cap-add NET_RAW`.
 - `Ping.RoundtripTime` has 1 ms resolution; that is acceptable for this use case.
+- Speed tests default to Cloudflare's free endpoint (`speed.cloudflare.com/__down`, `__up`); URLs are configurable.
 - `MonitorOptions.Targets` defaults to an empty list on purpose (the config binder appends to
   lists); `EffectiveTargets` applies the defaults.
