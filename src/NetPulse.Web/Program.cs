@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Discovery;
+using NetPulse.Core.Outages;
+using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Probing;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
@@ -9,6 +11,7 @@ using NetPulse.Core.LoadTest;
 using NetPulse.Web.Discovery;
 using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
+using NetPulse.Web.SpeedTest;
 using NetPulse.Web.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +31,9 @@ builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<ISampleStore>(),
         Math.Max(0, options.MaxCustomTargets));
 });
+builder.Services.Configure<OutageOptions>(builder.Configuration.GetSection(OutageOptions.SectionName));
+builder.Services.AddSingleton<IOutageStore>(sp =>
+    new SqliteOutageStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
 builder.Services.AddHostedService<PingMonitorService>();
 
 // LAN discovery
@@ -56,6 +62,21 @@ builder.Services.AddSingleton<LanScanner>();
 builder.Services.AddSingleton<LanDiscovery>();
 builder.Services.AddHostedService<LanDiscoveryService>();
 
+// Speed tests against a public endpoint (scheduled + "Run now")
+builder.Services.Configure<SpeedTestOptions>(builder.Configuration.GetSection(SpeedTestOptions.SectionName));
+builder.Services.AddSingleton<ISpeedTestStore>(sp =>
+    new SqliteSpeedTestStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddHttpClient(SpeedTestRunner.HttpClientName, client =>
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("NetPulse (+https://github.com/Fpippi/NetPulse)"))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        // Measure the raw transfer (no compression); recycle connections so DNS changes are picked up.
+        AutomaticDecompression = System.Net.DecompressionMethods.None,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+    });
+builder.Services.AddSingleton<SpeedTestRunner>();
+builder.Services.AddHostedService<SpeedTestService>();
+
 // Cooperative load testing (sender + opt-in receiver)
 builder.Services.Configure<LoadTestServerOptions>(builder.Configuration.GetSection(LoadTestServerOptions.SectionName));
 builder.Services.AddSingleton<LoadTestClient>();
@@ -75,6 +96,8 @@ var app = builder.Build();
 await app.Services.GetRequiredService<ISampleStore>().InitializeAsync();
 await app.Services.GetRequiredService<ITargetStore>().InitializeAsync();
 await app.Services.GetRequiredService<ILanDeviceStore>().InitializeAsync();
+await app.Services.GetRequiredService<IOutageStore>().InitializeAsync();
+await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
 
 app.UseAntiforgery();
 app.MapStaticAssets();
@@ -105,6 +128,47 @@ api.MapGet("/stats", async (ISampleStore store, int minutes = 15) =>
 
     return Results.Ok(stats);
 });
+
+api.MapGet("/outages", async (IOutageStore outages, IOptions<OutageOptions> options, int hours = 24) =>
+{
+    var to = DateTimeOffset.UtcNow;
+    var from = to.AddHours(-Math.Clamp(hours, 1, 24 * 366));
+    var list = await outages.GetSinceAsync(from);
+
+    var summaries = list
+        .GroupBy(o => o.Target, StringComparer.OrdinalIgnoreCase)
+        .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+        .Select(g => new { target = g.Key, summary = OutageSummary.From(g, from, to) });
+
+    return Results.Ok(new
+    {
+        from,
+        to,
+        consecutiveLosses = Math.Max(1, options.Value.ConsecutiveLosses),
+        targets = summaries,
+        outages = list.Select(o => new
+        {
+            o.Target,
+            o.Start,
+            o.End,
+            o.LastLost,
+            o.LostSamples,
+            o.IsOngoing,
+            durationSeconds = Math.Round(o.Duration(to).TotalSeconds, 1),
+        }),
+    });
+});
+
+api.MapGet("/speedtests", async (ISpeedTestStore store, SpeedTestRunner runner, int days = 7) =>
+{
+    var results = await store.GetSinceAsync(DateTimeOffset.UtcNow.AddDays(-Math.Clamp(days, 1, 366)));
+    return Results.Ok(new { status = runner.Status, summary = SpeedTestSummary.From(results), results });
+});
+
+api.MapPost("/speedtests/run", async (SpeedTestRunner runner, CancellationToken ct) =>
+    await runner.RunAsync(ct) is { } result
+        ? Results.Ok(result)
+        : Results.Conflict(new { error = "A speed test is already running." }));
 
 api.MapGet("/targets", async (TargetManager targets) =>
     Results.Ok(await targets.GetTargetsAsync()));
