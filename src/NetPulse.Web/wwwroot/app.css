@@ -612,3 +612,56 @@ code {
 
 .legend .download::before { background: var(--accent); }
 .legend .upload::before { background: var(--good); }
+
+/* --- Report ------------------------------------------------------------- */
+
+.form-actions { display: flex; align-items: flex-end; }
+
+.downloads {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .4rem 1rem;
+    margin: 1rem 0 0;
+}
+
+.downloads a { color: var(--accent); }
+
+.printable h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
+
+.report-head h2 { margin: 0; font-size: 1.3rem; }
+.report-head p { margin: .3rem 0 0; color: var(--muted); }
+
+.report-note { color: var(--muted); font-size: .85rem; line-height: 1.5; }
+
+.stats.big dd small { display: block; font-size: .8rem; color: var(--muted); }
+
+.cause.internet { color: var(--poor); }
+.cause.localnetwork { color: var(--fair); }
+.cause.singlehost, .cause.unknown { color: var(--muted); }
+
+/* Printing (or "Save as PDF"): only the report, black on white, no controls. */
+@media print {
+    :root {
+        --bg: #fff;
+        --card: #fff;
+        --border: #ccc;
+        --text: #000;
+        --muted: #444;
+        color-scheme: light;
+    }
+
+    .no-print { display: none !important; }
+
+    main { padding: 0; max-width: none; }
+
+    .card { border: 0; padding: 0; }
+
+    .table-wrap { overflow: visible; }
+
+    .devices td { white-space: normal; }
+
+    tr, .stats > div { break-inside: avoid; }
+
+    .printable h3 { break-after: avoid; }
+}

@@ -39,15 +39,34 @@ or your ISP.
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
+- **ISP report**: a printable report (save it as PDF from the browser) with Internet outages, downtime,
+  availability and speed against your contract, plus **CSV export** of all raw data
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
   when a new device joins or a known one goes offline
 - **Cooperative throughput testing** (iperf-style): measure real throughput and UDP loss between two of your
   own machines — both ends opt in, with duration and bandwidth safety caps
-- **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/devices`, `/api/loadtest`) for scripts and integrations
+- **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export`,
+  `/api/devices`, `/api/loadtest`) for scripts and integrations
 - Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
 
 ## Quick start
+
+### Download
+
+Every [release](https://github.com/Fpippi/NetPulse/releases) has self-contained archives for
+**Windows x64**, **Linux x64** and **Linux arm64** (Raspberry Pi 3/4/5 with a 64-bit OS): nothing else to
+install. Extract the archive, then from inside the `netpulse` folder run:
+
+```bash
+./NetPulse.Web --urls http://0.0.0.0:5080      # Linux
+NetPulse.Web.exe --urls http://0.0.0.0:5080    # Windows
+```
+
+Open <http://localhost:5080>. Run it from its own folder: settings are read from `appsettings.json` and
+the database is created in `data/` under the current directory. `SHA256SUMS.txt` lists the checksums.
+
+### From source
 
 Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download)
 
@@ -138,6 +157,28 @@ Settings live in the `SpeedTest` section, e.g. `NetPulse__SpeedTest__IntervalMin
 | `TimeoutSeconds`  | `120`                                              | A slower test is recorded as failed       |
 | `RetentionDays`   | `365`                                              | Older results are deleted automatically   |
 
+### Reports for your ISP
+
+The **Report** page summarizes a period (the last 30 days by default) in a form you can send to your
+provider. Pick the dates and, optionally, the download and upload speeds in your contract, then click
+**Print / Save as PDF**: the print stylesheet hides the dashboard and prints only the report.
+
+- **Summary**: number of Internet outages, total Internet downtime, average download and upload speed
+  (and the share of the contracted speed).
+- **Latency, loss and availability** for every target: pings, average and maximum latency, jitter, packet
+  loss, outages, downtime and availability.
+- **Outages** with their **likely cause**, judged by what else was down at the same time:
+  *Local network* (the router did not answer either), *Internet (ISP)* (the router answered but every
+  public host was down), *Single host* (only that host was down) or *Unknown* (the gateway is not
+  monitored). Only Internet outages count toward the Internet downtime, and overlapping outages of
+  different hosts count once.
+- **Speed tests**, with how many measured less than half the contracted speed.
+- **How this was measured**: interval, timeout, outage threshold and speed test method.
+
+The page also links the raw data of the same period as **CSV**: ping samples, outages (with cause) and
+speed tests. Files use commas, a `.` decimal separator and UTC timestamps in ISO 8601, so they import the
+same way everywhere (in Excel with an Italian locale, use *Data → From Text/CSV*).
+
 ### LAN discovery
 
 The **Devices** page lists every device found on your local network: IP address, MAC address, vendor
@@ -212,6 +253,10 @@ Settings live in the `LoadTest` section:
 | `GET /api/outages?hours=24`              | Outages in the period, with a downtime/availability summary per target |
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
+| `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload` = contracted Mbps, optional) |
+| `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV |
+| `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV |
+| `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV |
 | `GET /api/targets`                       | Monitored targets (`isCustom` marks the removable ones) |
 | `POST /api/targets` `{"target":"example.com"}` | Add a custom target |
 | `DELETE /api/targets/{target}`           | Remove a custom target and its samples |
@@ -224,14 +269,16 @@ Settings live in the `LoadTest` section:
 | `POST /api/loadtest/start` `{"protocol":"Tcp","host":"...","port":5201,"durationSeconds":10,"targetMbps":0,"parallelStreams":4}` | Start a load test |
 | `POST /api/loadtest/stop`                | Stop the current load test |
 
-`minutes` defaults to 15 and is clamped between 1 minute and 7 days.
+`minutes` defaults to 15 and is clamped between 1 minute and 7 days. Reports and exports take either
+`days` (default 30, at most 366) or `from` and `to` as dates (`yyyy-MM-dd`, both inclusive, whole days in
+the server's time zone).
 
 ## Architecture
 
 ```
 src/
-  NetPulse.Core   Domain: models, ping probe, statistics, outage detection, speed test, LAN discovery, load-test logic,
-                  storage abstraction (no dependencies)
+  NetPulse.Core   Domain: models, ping probe, statistics, outage detection, speed test, reports and CSV,
+                  LAN discovery, load-test logic, storage abstraction (no dependencies)
   NetPulse.Web    ASP.NET Core host: background monitor, speed-test scheduler, scanner and load-test receiver,
                   SQLite store, REST API, Blazor dashboard
 tests/
@@ -249,12 +296,16 @@ dotnet test       # run the NUnit tests
 
 CI builds and tests every pull request and every push to `main` and `develop`, on Linux and Windows.
 
+To publish a release, push a version tag: `git tag v1.0.0 && git push origin v1.0.0`. The `Release`
+workflow tests the code, builds the self-contained archives for every platform and attaches them, with
+their checksums, to a new GitHub release.
+
 ## Roadmap
 
 - [x] **v0.1** — Ping monitor, SQLite storage, dashboard, API
 - [x] **v0.2** — LAN device discovery (IP, MAC, vendor, hostname) and online/offline alerts
 - [x] **v0.3** — Scheduled speed tests, outage detection and timeline
-- [ ] **v1.0** — Exportable reports (CSV/PDF) to send to your ISP
+- [x] **v1.0** — Exportable reports (CSV/PDF) to send to your ISP, release binaries
 
 ## Project page
 

@@ -159,6 +159,10 @@ public class TargetManagerTests
             DateTimeOffset since, string? target = null, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PingSample>>([]);
 
+        public IAsyncEnumerable<PingSample> StreamAsync(
+            DateTimeOffset from, DateTimeOffset to, string? target = null, CancellationToken cancellationToken = default) =>
+            AsyncEnumerable.Empty<PingSample>();
+
         public Task<int> PurgeOlderThanAsync(DateTimeOffset before, CancellationToken cancellationToken = default) =>
             Task.FromResult(0);
 

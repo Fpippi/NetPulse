@@ -1,0 +1,308 @@
+@page "/report"
+@using Microsoft.Extensions.Options
+@using NetPulse.Core.Outages
+@using NetPulse.Core.Reports
+@using NetPulse.Web.Monitoring
+@using NetPulse.Web.Reports
+@using NetPulse.Web.SpeedTest
+@inject ReportService Reports
+@inject IOptions<MonitorOptions> MonitorOptions
+@inject IOptions<OutageOptions> OutageOptions
+@inject IOptions<SpeedTestOptions> SpeedOptions
+
+<PageTitle>Report · NetPulse</PageTitle>
+
+<header class="top no-print">
+    <div class="brand">
+        <h1>NetPulse</h1>
+        <SiteNav />
+    </div>
+    @* A plain HTML handler (not a Blazor event): opens the browser's print dialog, which can also save a PDF. *@
+    <button type="button" class="primary" onclick="window.print()" disabled="@(_report is null)">Print / Save as PDF</button>
+</header>
+
+<main class="report">
+    <section class="card no-print">
+        <div class="card-head">
+            <h2>Report settings</h2>
+            <span class="hint">Dates are whole days in the server's time zone.</span>
+        </div>
+
+        <form class="form-grid" @onsubmit="GenerateAsync">
+            <label>From
+                <input type="date" @bind="_from" required />
+            </label>
+            <label>To
+                <input type="date" @bind="_to" required />
+            </label>
+            <label>Contracted download (Mbps, optional)
+                <input type="number" min="0" step="any" @bind="_download" />
+            </label>
+            <label>Contracted upload (Mbps, optional)
+                <input type="number" min="0" step="any" @bind="_upload" />
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="primary" disabled="@_busy">@(_busy ? "Generating…" : "Generate")</button>
+            </div>
+        </form>
+
+        @if (_error is not null)
+        {
+            <p class="error" role="alert">@_error</p>
+        }
+
+        <p class="downloads">
+            <span class="hint">Raw data (CSV) for this period:</span>
+            <a href="@ExportUrl("samples")" download>Ping samples</a>
+            <a href="@ExportUrl("outages")" download>Outages</a>
+            <a href="@ExportUrl("speedtests")" download>Speed tests</a>
+        </p>
+    </section>
+
+    @if (_report is { } report)
+    {
+        <article class="card printable">
+            <header class="report-head">
+                <h2>Connection quality report</h2>
+                <p>
+                    @Day(report.From) – @Day(report.To.AddTicks(-1)) ·
+                    generated @Time(report.GeneratedAt) by NetPulse
+                </p>
+            </header>
+
+            <section>
+                <h3>Summary</h3>
+                <dl class="stats big">
+                    <div>
+                        <dt>Internet outages</dt>
+                        <dd>@report.InternetOutages.Count</dd>
+                    </div>
+                    <div>
+                        <dt>Internet downtime</dt>
+                        <dd>@(report.InternetOutages.Count == 0 ? "–" : DurationFormat.Format(report.InternetDowntime))</dd>
+                    </div>
+                    <div>
+                        <dt>Avg download</dt>
+                        <dd>@Mbps(report.Speed.AvgDownloadMbps)<small>@Contract(report.Download)</small></dd>
+                    </div>
+                    <div>
+                        <dt>Avg upload</dt>
+                        <dd>@Mbps(report.Speed.AvgUploadMbps)<small>@Contract(report.Upload)</small></dd>
+                    </div>
+                </dl>
+                <p class="report-note">
+                    An <strong>Internet outage</strong> is a period in which the router answered but every monitored
+                    public host was unreachable, so the problem was beyond the local network. Overlapping outages of
+                    different hosts count once.
+                </p>
+            </section>
+
+            <section>
+                <h3>Latency, loss and availability</h3>
+                <div class="table-wrap">
+                    <table class="devices summary">
+                        <thead>
+                            <tr>
+                                <th scope="col">Target</th>
+                                <th scope="col">Pings</th>
+                                <th scope="col">Avg</th>
+                                <th scope="col">Max</th>
+                                <th scope="col">Jitter</th>
+                                <th scope="col">Loss</th>
+                                <th scope="col">Outages</th>
+                                <th scope="col">Downtime</th>
+                                <th scope="col">Availability</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var target in report.Targets)
+                            {
+                                <tr>
+                                    <td>@target.Target</td>
+                                    <td>@target.Latency.Count.ToString("N0", CultureInfo.InvariantCulture)</td>
+                                    <td>@Ms(target.Latency.AvgMs)</td>
+                                    <td>@Ms(target.Latency.MaxMs)</td>
+                                    <td>@Ms(target.Latency.JitterMs)</td>
+                                    <td>@target.Latency.LossPercent.ToString("0.00", CultureInfo.InvariantCulture) %</td>
+                                    <td>@target.Outages.Count</td>
+                                    <td>@(target.Outages.Count == 0 ? "–" : DurationFormat.Format(target.Outages.Downtime))</td>
+                                    <td>@Percent(target.Outages.AvailabilityPercent)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section>
+                <h3>Outages</h3>
+                @if (report.Outages.Count == 0)
+                {
+                    <p class="empty">No outages in this period.</p>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table class="devices">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Started</th>
+                                    <th scope="col">Duration</th>
+                                    <th scope="col">Target</th>
+                                    <th scope="col">Likely cause</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (outage, cause) in report.Outages.Take(MaxRows))
+                                {
+                                    <tr>
+                                        <td>@Time(outage.Start)</td>
+                                        <td>@DurationFormat.Format(outage.Duration(report.To))@(outage.IsOngoing ? " (ongoing)" : "")</td>
+                                        <td>@outage.Target</td>
+                                        <td><span class="cause @cause.ToString().ToLowerInvariant()">@CauseLabel(cause)</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (report.Outages.Count > MaxRows)
+                    {
+                        <p class="hint">Showing the first @MaxRows of @report.Outages.Count outages; the CSV export has them all.</p>
+                    }
+                }
+            </section>
+
+            <section>
+                <h3>Speed tests</h3>
+                @if (report.SpeedTests.Count == 0)
+                {
+                    <p class="empty">No speed tests in this period.</p>
+                }
+                else
+                {
+                    <p>
+                        <span>@report.Speed.Count tests (@report.Speed.Failed failed).</span>
+                        <span>
+                            Download min @Mbps(report.Speed.MinDownloadMbps), max @Mbps(report.Speed.MaxDownloadMbps);
+                            upload min @Mbps(report.Speed.MinUploadMbps), max @Mbps(report.Speed.MaxUploadMbps).
+                        </span>
+                        @if (report.Download is { } down)
+                        {
+                            <span>@down.TestsBelowHalf tests measured less than half the contracted download (@Mbps(down.ContractedMbps)).</span>
+                        }
+                        @if (report.Upload is { } up)
+                        {
+                            <span>@up.TestsBelowHalf tests measured less than half the contracted upload (@Mbps(up.ContractedMbps)).</span>
+                        }
+                    </p>
+                    <div class="table-wrap">
+                        <table class="devices summary">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">Download</th>
+                                    <th scope="col">Upload</th>
+                                    <th scope="col">Latency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var test in report.SpeedTests.Take(MaxRows))
+                                {
+                                    <tr>
+                                        <td>@Time(test.Timestamp)@(test.Success ? "" : " (failed)")</td>
+                                        <td>@Mbps(test.DownloadMbps)</td>
+                                        <td>@Mbps(test.UploadMbps)</td>
+                                        <td>@Ms(test.LatencyMs)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="report-note">
+                <h3>How this was measured</h3>
+                <p>
+                    NetPulse sent an ICMP ping to each target every @MonitorOptions.Value.IntervalSeconds s
+                    (timeout @MonitorOptions.Value.TimeoutMs ms). <code>gateway</code> is the local router.
+                    An outage is @OutageOptions.Value.ConsecutiveLosses or more lost pings in a row; it starts at the first
+                    lost ping and ends at the next reply. Speed tests download and upload over HTTPS
+                    (@SpeedServer); the first 20% of each transfer is ignored as TCP warm-up.
+                    Times are in the server's local time zone.
+                </p>
+            </section>
+        </article>
+    }
+</main>
+
+@code {
+    private const int MaxRows = 200;
+
+    private DateOnly _from = DateOnly.FromDateTime(DateTime.Now.AddDays(-29));
+    private DateOnly _to = DateOnly.FromDateTime(DateTime.Now);
+    private double? _download;
+    private double? _upload;
+    private bool _busy;
+    private string? _error;
+    private IspReport? _report;
+
+    private string SpeedServer =>
+        Uri.TryCreate(SpeedOptions.Value.UploadUrl, UriKind.Absolute, out var uri) ? uri.Host : "speed test server";
+
+    protected override Task OnInitializedAsync() => GenerateAsync();
+
+    private async Task GenerateAsync()
+    {
+        _error = null;
+        if (!ReportPeriod.TryResolve(Iso(_from), Iso(_to), null, DateTimeOffset.UtcNow, TimeZoneInfo.Local, out var period, out var error))
+        {
+            _error = error;
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            _report = await Reports.BuildAsync(period, _download, _upload);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private string ExportUrl(string kind) => $"api/export/{kind}.csv?from={Iso(_from)}&to={Iso(_to)}";
+
+    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static string CauseLabel(OutageCause cause) => cause switch
+    {
+        OutageCause.Internet => "Internet (ISP)",
+        OutageCause.LocalNetwork => "Local network",
+        OutageCause.SingleHost => "Single host",
+        _ => "Unknown",
+    };
+
+    private static string Contract(SpeedVersusContract? comparison) =>
+        comparison?.AveragePercent is { } percent
+            ? $"{percent.ToString("0", CultureInfo.InvariantCulture)} % of contract"
+            : "";
+
+    private static string Mbps(double? value) =>
+        value is null ? "–" : value.Value.ToString("0.0", CultureInfo.InvariantCulture) + " Mbps";
+
+    private static string Ms(double? value) =>
+        value is null ? "–" : value.Value.ToString("0.0", CultureInfo.InvariantCulture) + " ms";
+
+    // Truncated, not rounded: 99.999 % must not read as 100 % when there was downtime.
+    private static string Percent(double value) => value >= 100
+        ? "100 %"
+        : (Math.Floor(value * 100) / 100).ToString("0.00", CultureInfo.InvariantCulture) + " %";
+
+    private static string Day(DateTimeOffset time) =>
+        time.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static string Time(DateTimeOffset time) =>
+        time.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+}

@@ -95,6 +95,35 @@ public sealed class SqliteSampleStore(string databasePath) : ISampleStore
         return result;
     }
 
+    public async IAsyncEnumerable<PingSample> StreamAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        string? target = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT timestamp, target, success, latency_ms
+            FROM samples
+            WHERE timestamp >= $from AND timestamp < $to AND ($target IS NULL OR target = $target)
+            ORDER BY timestamp
+            """;
+        command.Parameters.AddWithValue("$from", from.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("$to", to.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("$target", (object?)target ?? DBNull.Value);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            yield return new PingSample(
+                DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(0)),
+                reader.GetString(1),
+                reader.GetInt64(2) == 1,
+                reader.IsDBNull(3) ? null : reader.GetDouble(3));
+        }
+    }
+
     public async Task<int> PurgeOlderThanAsync(DateTimeOffset before, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);
