@@ -1,0 +1,111 @@
+name: Release
+
+# Push a version tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`) to build self-contained
+# binaries for every platform and publish them as a GitHub release. Pull requests that change this
+# workflow, and manual runs from the Actions tab, build the archives without releasing.
+
+on:
+  push:
+    tags: [ 'v*' ]
+  pull_request:
+    paths: [ '.github/workflows/release.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            archive: zip
+          - rid: linux-x64
+            os: ubuntu-latest
+            archive: tar.gz
+          - rid: linux-arm64
+            os: ubuntu-latest
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Version
+        id: version
+        shell: bash
+        run: |
+          # v1.2.3 -> 1.2.3; manual runs get a dev version.
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-dev.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test
+        if: matrix.rid != 'linux-arm64'
+        run: dotnet test -c Release
+
+      - name: Publish
+        shell: bash
+        run: >
+          dotnet publish src/NetPulse.Web/NetPulse.Web.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained
+          -p:PublishSingleFile=true
+          -p:DebugType=none
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish/netpulse
+
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          name="netpulse-${{ steps.version.outputs.version }}-${{ matrix.rid }}"
+          cp README.md LICENSE publish/netpulse/
+          cd publish
+          if [[ "${{ matrix.archive }}" == zip ]]; then
+            7z a -tzip "$name.zip" netpulse > /dev/null
+          else
+            tar -czf "$name.tar.gz" netpulse
+          fi
+          echo "file=publish/$name.${{ matrix.archive }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: ${{ steps.package.outputs.file }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" dist/*
+          --repo "$GITHUB_REPOSITORY"
+          --title "NetPulse $GITHUB_REF_NAME"
+          --generate-notes
