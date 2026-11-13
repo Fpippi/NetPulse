@@ -3,6 +3,7 @@ using NetPulse.Core.Discovery;
 using NetPulse.Core.Outages;
 using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Probing;
+using NetPulse.Core.Reports;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
@@ -11,6 +12,7 @@ using NetPulse.Core.LoadTest;
 using NetPulse.Web.Discovery;
 using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
+using NetPulse.Web.Reports;
 using NetPulse.Web.SpeedTest;
 using NetPulse.Web.Storage;
 
@@ -76,6 +78,9 @@ builder.Services.AddHttpClient(SpeedTestRunner.HttpClientName, client =>
     });
 builder.Services.AddSingleton<SpeedTestRunner>();
 builder.Services.AddHostedService<SpeedTestService>();
+
+// Reports and CSV export
+builder.Services.AddSingleton<ReportService>();
 
 // Cooperative load testing (sender + opt-in receiver)
 builder.Services.Configure<LoadTestServerOptions>(builder.Configuration.GetSection(LoadTestServerOptions.SectionName));
@@ -170,6 +175,51 @@ api.MapPost("/speedtests/run", async (SpeedTestRunner runner, CancellationToken 
         ? Results.Ok(result)
         : Results.Conflict(new { error = "A speed test is already running." }));
 
+// --- Reports and CSV export ------------------------------------------------
+// Period: ?days=30 (default), or ?from=yyyy-MM-dd&to=yyyy-MM-dd (whole days in the server's time zone).
+
+api.MapGet("/report", async (ReportService reports, string? from, string? to, int? days,
+    double? download, double? upload, CancellationToken ct) =>
+{
+    if (!ReportPeriod.TryResolve(from, to, days, DateTimeOffset.UtcNow, TimeZoneInfo.Local, out var period, out var error))
+    {
+        return Results.BadRequest(new { error });
+    }
+
+    var report = await reports.BuildAsync(period, download, upload, ct);
+    return Results.Ok(new
+    {
+        report.From,
+        report.To,
+        report.GeneratedAt,
+        report.Targets,
+        outages = report.Outages.Select(o => new { o.Outage.Target, o.Outage.Start, o.Outage.End, o.Outage.LostSamples, o.Cause }),
+        internetOutages = report.InternetOutages.Count,
+        internetDowntimeSeconds = Math.Round(report.InternetDowntime.TotalSeconds),
+        speed = report.Speed,
+        report.Download,
+        report.Upload,
+    });
+});
+
+var export = api.MapGroup("/export");
+
+export.MapGet("/samples.csv", (HttpContext http, ISampleStore store, string? from, string? to, int? days, string? target) =>
+    CsvDownload(http, from, to, days, "samples", (period, writer, ct) =>
+        CsvExport.WriteSamplesAsync(writer, store.StreamAsync(period.From, period.To, target, ct), ct)));
+
+export.MapGet("/outages.csv", (HttpContext http, ReportService reports, TargetManager targets, string? from, string? to, int? days) =>
+    CsvDownload(http, from, to, days, "outages", async (period, writer, ct) =>
+        await CsvExport.WriteOutagesAsync(
+            writer,
+            await reports.GetClassifiedOutagesAsync(period, await targets.GetEffectiveTargetsAsync(ct), ct),
+            period.To)));
+
+export.MapGet("/speedtests.csv", (HttpContext http, ISpeedTestStore store, string? from, string? to, int? days) =>
+    CsvDownload(http, from, to, days, "speedtests", async (period, writer, ct) =>
+        await CsvExport.WriteSpeedTestsAsync(
+            writer, (await store.GetSinceAsync(period.From, ct)).Where(r => r.Timestamp < period.To))));
+
 api.MapGet("/targets", async (TargetManager targets) =>
     Results.Ok(await targets.GetTargetsAsync()));
 
@@ -230,6 +280,28 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+// Streams a CSV download named e.g. "netpulse-samples-2026-10-14_2026-11-13.csv".
+static IResult CsvDownload(HttpContext http, string? from, string? to, int? days, string name,
+    Func<ReportPeriod, TextWriter, CancellationToken, Task> write)
+{
+    if (!ReportPeriod.TryResolve(from, to, days, DateTimeOffset.UtcNow, TimeZoneInfo.Local, out var period, out var error))
+    {
+        return Results.BadRequest(new { error });
+    }
+
+    static string Day(DateTimeOffset t) =>
+        t.ToLocalTime().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    http.Response.Headers.ContentDisposition =
+        $"attachment; filename=\"netpulse-{name}-{Day(period.From)}_{Day(period.To)}.csv\"";
+
+    return Results.Stream(async stream =>
+    {
+        await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
+        await write(period, writer, http.RequestAborted);
+    }, "text/csv; charset=utf-8");
+}
 
 /// <summary>Body of <c>POST /api/targets</c>.</summary>
 internal sealed record AddTargetRequest(string? Target);

@@ -211,8 +211,10 @@
         _ => "poor",
     };
 
-    private static string Percent(double value) =>
-        value.ToString(value >= 99.995 ? "0" : "0.00", CultureInfo.InvariantCulture) + " %";
+    // Truncated, not rounded: 99.999 % must not read as 100 % when there was downtime.
+    private static string Percent(double value) => value >= 100
+        ? "100 %"
+        : (Math.Floor(value * 100) / 100).ToString("0.00", CultureInfo.InvariantCulture) + " %";
 
     private static string Time(DateTimeOffset time) =>
         time.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
