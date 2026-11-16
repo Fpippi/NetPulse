@@ -4,4 +4,9 @@
     <RootNamespace>NetPulse.Core</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- MAC vendor database (IEEE OUI registry), copied next to every app that references Core. -->
+    <None Include="Data/oui.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

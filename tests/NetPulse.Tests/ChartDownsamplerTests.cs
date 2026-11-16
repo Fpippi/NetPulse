@@ -61,4 +61,14 @@ public class ChartDownsamplerTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => ChartDownsampler.Downsample([], 0));
     }
+
+    [Test]
+    public void Bucket_time_is_midpoint_of_its_samples()
+    {
+        // 10 samples one second apart, 5 buckets of 2 samples: bucket 0 spans T0..T0+1s.
+        var points = ChartDownsampler.Downsample(Series(10, _ => 5), 5);
+
+        Assert.That(points[0].Time, Is.EqualTo(T0.AddMilliseconds(500)));
+        Assert.That(points[4].Time, Is.EqualTo(T0.AddMilliseconds(8500)));
+    }
 }

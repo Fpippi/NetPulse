@@ -1,0 +1,52 @@
+@* Dependency-free SVG throughput chart: megabits per second over elapsed time. *@
+@using NetPulse.Core.LoadTest
+
+@if (_points.Count < 2)
+{
+    <div class="chart-empty">Waiting for throughput…</div>
+}
+else
+{
+    <div class="chart-wrap">
+        <span class="chart-max">@_scaleMbps.ToString("0.#", CultureInfo.InvariantCulture) Mbps</span>
+        <svg class="chart throughput" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img"
+             aria-label="Throughput over time">
+            <polyline class="line" points="@_polyline" />
+        </svg>
+    </div>
+}
+
+@code {
+    private const int Width = 600;
+    private const int Height = 120;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ThroughputSample> Samples { get; set; } = [];
+
+    private IReadOnlyList<ThroughputSample> _points = [];
+    private string _polyline = "";
+    private double _scaleMbps;
+
+    protected override void OnParametersSet()
+    {
+        _points = Samples;
+        if (_points.Count < 2)
+        {
+            return;
+        }
+
+        var peak = _points.Select(p => p.Mbps).DefaultIfEmpty(0).Max();
+        _scaleMbps = Math.Max(1, peak * 1.1);
+
+        var maxElapsed = _points[^1].ElapsedSeconds;
+        var span = maxElapsed > 0 ? maxElapsed : 1;
+
+        double X(double elapsed) => elapsed / span * Width;
+        double Y(double mbps) => Height - mbps / _scaleMbps * Height;
+
+        // Invariant culture: SVG needs '.' as the decimal separator (e.g. on it-IT machines).
+        static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+        _polyline = string.Join(' ', _points.Select(p => $"{F(X(p.ElapsedSeconds))},{F(Y(p.Mbps))}"));
+    }
+}

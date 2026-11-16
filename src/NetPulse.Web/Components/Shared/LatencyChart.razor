@@ -15,7 +15,19 @@ else
                 <line class="loss" x1="@x" x2="@x" y1="0" y2="@Height" />
             }
             <polyline class="line" points="@_polyline" />
+            @foreach (var zone in _hoverZones)
+            {
+                <g class="hover">
+                    <title>@zone.Tooltip</title>
+                    <rect x="@zone.Left" width="@zone.Width" y="0" height="@Height" />
+                    <line x1="@zone.X" x2="@zone.X" y1="0" y2="@Height" />
+                </g>
+            }
         </svg>
+        <div class="chart-axis">
+            <span>−@WindowLabel</span>
+            <span>now</span>
+        </div>
     </div>
 }
 
@@ -27,10 +39,26 @@ else
     [Parameter, EditorRequired]
     public IReadOnlyList<PingSample> Samples { get; set; } = [];
 
+    /// <summary>Start of the time window shown on the x axis.</summary>
+    [Parameter, EditorRequired]
+    public DateTimeOffset From { get; set; }
+
+    /// <summary>End of the time window shown on the x axis (usually "now").</summary>
+    [Parameter, EditorRequired]
+    public DateTimeOffset To { get; set; }
+
+    /// <summary>Short label for the window length, e.g. "15m".</summary>
+    [Parameter]
+    public string WindowLabel { get; set; } = "";
+
     private IReadOnlyList<ChartPoint> _points = [];
     private List<string> _lossX = [];
     private string _polyline = "";
     private double _scaleMs;
+    private List<HoverZone> _hoverZones = [];
+
+    /// <summary>An invisible vertical strip around one point; hovering it shows a native SVG tooltip.</summary>
+    private sealed record HoverZone(string Left, string Width, string X, string Tooltip);
 
     protected override void OnParametersSet()
     {
@@ -43,15 +71,37 @@ else
         var max = _points.Where(p => p.MaxLatencyMs.HasValue).Select(p => p.MaxLatencyMs!.Value).DefaultIfEmpty(0).Max();
         _scaleMs = Math.Max(10, max * 1.1);
 
-        double X(int index) => (double)index * Width / (_points.Count - 1);
+        // The x axis spans the selected window, not the data extent, so different windows look different.
+        double X(ChartPoint p) => ChartTimeAxis.ToX(p.Time, From, To, Width);
 
         // Invariant culture is required: SVG needs '.' as decimal separator (e.g. on it-IT machines).
         static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
         _polyline = string.Join(' ', _points
             .Where(p => p.MaxLatencyMs.HasValue)
-            .Select(p => $"{F(X(p.Index))},{F(Height - p.MaxLatencyMs!.Value / _scaleMs * Height)}"));
+            .Select(p => $"{F(X(p))},{F(Height - p.MaxLatencyMs!.Value / _scaleMs * Height)}"));
 
-        _lossX = _points.Where(p => p.HasLoss).Select(p => F(X(p.Index))).ToList();
+        _lossX = _points.Where(p => p.HasLoss).Select(p => F(X(p))).ToList();
+
+        // Each zone extends halfway to its neighbours, so the whole plotted range is hoverable.
+        var xs = _points.Select(X).ToList();
+        _hoverZones = _points.Select((p, i) =>
+        {
+            var left = i == 0 ? xs[i] : (xs[i - 1] + xs[i]) / 2;
+            var right = i == xs.Count - 1 ? xs[i] : (xs[i] + xs[i + 1]) / 2;
+            left = Math.Max(0, Math.Min(left, xs[i] - 2));
+            right = Math.Min(Width, Math.Max(right, xs[i] + 2));
+            return new HoverZone(F(left), F(right - left), F(xs[i]), Tooltip(p));
+        }).ToList();
+    }
+
+    private static string Tooltip(ChartPoint p)
+    {
+        var time = p.Time.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        var latency = p.MaxLatencyMs is double ms
+            ? ms.ToString("0.0", CultureInfo.InvariantCulture) + " ms"
+            : "lost";
+        var loss = p.HasLoss && p.MaxLatencyMs is not null ? " (packet loss)" : "";
+        return $"{time}  {latency}{loss}";
     }
 }

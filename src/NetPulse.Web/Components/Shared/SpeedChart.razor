@@ -1,0 +1,91 @@
+@* Dependency-free SVG chart of speed test results: download and upload over the selected window. *@
+@using NetPulse.Core.SpeedTest
+
+@if (_points.Count == 0)
+{
+    <div class="chart-empty">No speed tests in this period yet</div>
+}
+else
+{
+    <div class="chart-wrap">
+        <span class="chart-max">@_scaleMbps.ToString("0", CultureInfo.InvariantCulture) Mbps</span>
+        <svg class="chart speed" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img"
+             aria-label="Download and upload speed over time">
+            <polyline class="line download" points="@_download" />
+            <polyline class="line upload" points="@_upload" />
+        </svg>
+        @* Markers are HTML so they stay round although the SVG stretches. *@
+        @foreach (var point in _points)
+        {
+            <span class="speed-dot download" style="@point.DownloadStyle" title="@point.Tooltip"></span>
+            <span class="speed-dot upload" style="@point.UploadStyle" title="@point.Tooltip"></span>
+        }
+        <div class="chart-axis">
+            <span>−@WindowLabel</span>
+            <span>now</span>
+        </div>
+    </div>
+    <div class="legend">
+        <span class="download">Download</span>
+        <span class="upload">Upload</span>
+    </div>
+}
+
+@code {
+    private const int Width = 600;
+    private const int Height = 120;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<SpeedTestResult> Results { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public DateTimeOffset From { get; set; }
+
+    [Parameter, EditorRequired]
+    public DateTimeOffset To { get; set; }
+
+    [Parameter]
+    public string WindowLabel { get; set; } = "";
+
+    private List<Point> _points = [];
+    private string _download = "";
+    private string _upload = "";
+    private double _scaleMbps;
+
+    private sealed record Point(string? DownloadStyle, string? UploadStyle, string Tooltip);
+
+    protected override void OnParametersSet()
+    {
+        var ok = Results.Where(r => r.Success).ToList();
+        if (ok.Count == 0)
+        {
+            _points = [];
+            return;
+        }
+
+        var max = ok.SelectMany(r => new[] { r.DownloadMbps ?? 0, r.UploadMbps ?? 0 }).Max();
+        _scaleMbps = Math.Max(1, max * 1.15);
+
+        // Invariant culture: SVG and CSS need '.' as the decimal separator (e.g. on it-IT machines).
+        static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+        double X(SpeedTestResult r) => ChartTimeAxis.ToX(r.Timestamp, From, To, Width);
+        double Y(double mbps) => Height - mbps / _scaleMbps * Height;
+
+        _download = string.Join(' ', ok.Where(r => r.DownloadMbps.HasValue).Select(r => $"{F(X(r))},{F(Y(r.DownloadMbps!.Value))}"));
+        _upload = string.Join(' ', ok.Where(r => r.UploadMbps.HasValue).Select(r => $"{F(X(r))},{F(Y(r.UploadMbps!.Value))}"));
+
+        string? Style(SpeedTestResult r, double? mbps) => mbps is { } v
+            ? $"left:{F(X(r) / Width * 100)}%;top:{F(Y(v))}px"
+            : null;
+
+        _points = ok.Select(r => new Point(Style(r, r.DownloadMbps), Style(r, r.UploadMbps), Tooltip(r))).ToList();
+    }
+
+    private static string Tooltip(SpeedTestResult r)
+    {
+        static string M(double? v) => v is null ? "–" : v.Value.ToString("0.0", CultureInfo.InvariantCulture);
+        var time = r.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        return $"{time}  ↓ {M(r.DownloadMbps)} Mbps  ↑ {M(r.UploadMbps)} Mbps";
+    }
+}

@@ -1,11 +1,16 @@
 @page "/"
 @implements IDisposable
+@using NetPulse.Core.Targets
 @inject ISampleStore Store
+@inject TargetManager Targets
 
 <PageTitle>NetPulse</PageTitle>
 
 <header class="top">
-    <h1>NetPulse</h1>
+    <div class="brand">
+        <h1>NetPulse</h1>
+        <SiteNav />
+    </div>
     <nav class="windows">
         @foreach (var window in Windows)
         {
@@ -17,6 +22,8 @@
 </header>
 
 <main>
+    <TargetEditor OnChanged="LoadAsync" />
+
     @if (_series.Count == 0)
     {
         <p class="empty">Waiting for the first samples…</p>
@@ -39,7 +46,7 @@
                 <div><dt>Samples</dt><dd>@series.Stats.Count</dd></div>
             </dl>
 
-            <LatencyChart Samples="series.Samples" />
+            <LatencyChart Samples="series.Samples" From="_from" To="_to" WindowLabel="@Label(_window)" />
         </section>
     }
 </main>
@@ -56,6 +63,8 @@
 
     private readonly CancellationTokenSource _cts = new();
     private TimeSpan _window = Windows[0];
+    private DateTimeOffset _from;
+    private DateTimeOffset _to;
     private List<Series> _series = [];
 
     private sealed record Series(string Target, IReadOnlyList<PingSample> Samples, LatencyStats Stats);
@@ -94,9 +103,14 @@
 
     private async Task LoadAsync()
     {
-        var samples = await Store.GetSinceAsync(DateTimeOffset.UtcNow - _window);
+        _to = DateTimeOffset.UtcNow;
+        _from = _to - _window;
+        var samples = await Store.GetSinceAsync(_from);
+        var monitored = new HashSet<string>(await Targets.GetEffectiveTargetsAsync(), StringComparer.OrdinalIgnoreCase);
 
+        // Only show targets that are still monitored (a removed target may have a last in-flight sample).
         _series = samples
+            .Where(s => monitored.Contains(s.Target))
             .GroupBy(s => s.Target)
             .OrderBy(g => g.Key)
             .Select(g =>

@@ -1,0 +1,85 @@
+@* Dependency-free SVG timeline: one row per target, a red bar for each outage in the window. *@
+@using NetPulse.Core.Outages
+
+<div class="timeline" role="img" aria-label="Outages per target over the last @WindowLabel">
+    @foreach (var row in _rows)
+    {
+        <div class="timeline-row">
+            <span class="timeline-label" title="@row.Target">@row.Target</span>
+            <svg class="timeline-track" viewBox="0 0 @Width @Height" preserveAspectRatio="none">
+                <rect class="track" x="0" y="0" width="@Width" height="@Height" />
+                @foreach (var bar in row.Bars)
+                {
+                    <rect class="@(bar.Ongoing ? "outage ongoing" : "outage")" x="@bar.X" y="0" width="@bar.Width" height="@Height">
+                        <title>@bar.Tooltip</title>
+                    </rect>
+                }
+            </svg>
+        </div>
+    }
+    <div class="timeline-row axis">
+        <span class="timeline-label"></span>
+        <div class="chart-axis">
+            <span>−@WindowLabel</span>
+            <span>now</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    private const int Width = 1000;
+    private const int Height = 10;
+
+    /// <summary>Shortest bar drawn, in viewBox units, so that a 15-second outage stays visible on a 30-day axis.</summary>
+    private const double MinBarWidth = 2;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Targets { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Outage> Outages { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public DateTimeOffset From { get; set; }
+
+    [Parameter, EditorRequired]
+    public DateTimeOffset To { get; set; }
+
+    [Parameter]
+    public string WindowLabel { get; set; } = "";
+
+    private List<Row> _rows = [];
+
+    private sealed record Row(string Target, IReadOnlyList<Bar> Bars);
+
+    private sealed record Bar(string X, string Width, bool Ongoing, string Tooltip);
+
+    protected override void OnParametersSet()
+    {
+        // Invariant culture: SVG needs '.' as the decimal separator (e.g. on it-IT machines).
+        static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+        _rows = Targets
+            .Select(target => new Row(target, Outages
+                .Where(o => string.Equals(o.Target, target, StringComparison.OrdinalIgnoreCase))
+                .Select(o =>
+                {
+                    var x1 = ChartTimeAxis.ToX(o.Start, From, To, Width);
+                    var x2 = ChartTimeAxis.ToX(o.End ?? To, From, To, Width);
+                    var width = Math.Max(MinBarWidth, x2 - x1);
+                    var x = Math.Min(x1, Width - width);
+                    return new Bar(F(x), F(width), o.IsOngoing, Tooltip(o));
+                })
+                .ToList()))
+            .ToList();
+    }
+
+    private string Tooltip(Outage outage)
+    {
+        var start = outage.Start.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+        var duration = DurationFormat.Format(outage.Duration(To));
+        return outage.IsOngoing
+            ? $"{start}  ongoing, {duration} so far"
+            : $"{start}  {duration} ({outage.LostSamples} lost pings)";
+    }
+}

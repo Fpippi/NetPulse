@@ -1,0 +1,229 @@
+@page "/speed"
+@implements IDisposable
+@using Microsoft.Extensions.Options
+@using NetPulse.Core.Discovery
+@using NetPulse.Core.SpeedTest
+@using NetPulse.Web.SpeedTest
+@inject ISpeedTestStore Store
+@inject SpeedTestRunner Runner
+@inject IOptions<SpeedTestOptions> Options
+
+<PageTitle>Speed · NetPulse</PageTitle>
+
+<header class="top">
+    <div class="brand">
+        <h1>NetPulse</h1>
+        <SiteNav />
+    </div>
+    <div class="actions">
+        <nav class="windows">
+            @foreach (var window in Windows)
+            {
+                <button class="@(window == _window ? "active" : null)" @onclick="() => SetWindowAsync(window)">
+                    @Label(window)
+                </button>
+            }
+        </nav>
+        <button type="button" class="primary" disabled="@_status.IsRunning" @onclick="RunNowAsync">
+            @(_status.IsRunning ? "Testing…" : "Run now")
+        </button>
+    </div>
+</header>
+
+<main>
+    <section class="card">
+        <div class="card-head">
+            <h2>Latest test</h2>
+            @if (_latest is { } latest)
+            {
+                <span class="hint" title="@Time(latest.Timestamp)">@RelativeTime.Format(latest.Timestamp, _now) · @latest.Server</span>
+            }
+        </div>
+
+        <p class="scan-status">
+            @if (_status.IsRunning)
+            {
+                <span class="scanning">Measuring @(_status.Phase ?? "")…</span>
+            }
+            @if (_status.NextRun is { } next && !_status.IsRunning)
+            {
+                <span>Next scheduled test <strong>@Time(next)</strong></span>
+            }
+            else if (!Options.Value.Enabled)
+            {
+                <span>Scheduled tests are off.</span>
+            }
+            <span>Each test transfers about @Megabytes(Options.Value.DownloadBytes + Options.Value.UploadBytes).</span>
+        </p>
+
+        @if (_latest is null)
+        {
+            <p class="empty">No speed test yet. Press “Run now” or wait for the first scheduled one.</p>
+        }
+        else
+        {
+            @if (_latest.Error is not null)
+            {
+                <p class="error" role="alert">Failed: @_latest.Error</p>
+            }
+
+            <dl class="stats big">
+                <div><dt>Download</dt><dd>@Mbps(_latest.DownloadMbps)</dd></div>
+                <div><dt>Upload</dt><dd>@Mbps(_latest.UploadMbps)</dd></div>
+                <div><dt>Latency</dt><dd>@Ms(_latest.LatencyMs)</dd></div>
+            </dl>
+        }
+    </section>
+
+    <section class="card">
+        <div class="card-head">
+            <h2>History</h2>
+            <span class="hint">@_summary.Count tests@(_summary.Failed > 0 ? $", {_summary.Failed} failed" : "")</span>
+        </div>
+
+        <dl class="stats">
+            <div><dt>Avg down</dt><dd>@Mbps(_summary.AvgDownloadMbps)</dd></div>
+            <div><dt>Min down</dt><dd>@Mbps(_summary.MinDownloadMbps)</dd></div>
+            <div><dt>Avg up</dt><dd>@Mbps(_summary.AvgUploadMbps)</dd></div>
+            <div><dt>Min up</dt><dd>@Mbps(_summary.MinUploadMbps)</dd></div>
+            <div><dt>Avg latency</dt><dd>@Ms(_summary.AvgLatencyMs)</dd></div>
+        </dl>
+
+        <SpeedChart Results="_results" From="_from" To="_now" WindowLabel="@Label(_window)" />
+
+        @if (_results.Count > 0)
+        {
+            <div class="table-wrap">
+                <table class="devices summary">
+                    <thead>
+                        <tr>
+                            <th scope="col">Time</th>
+                            <th scope="col">Download</th>
+                            <th scope="col">Upload</th>
+                            <th scope="col">Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var result in _results.OrderByDescending(r => r.Timestamp))
+                        {
+                            <tr class="@(result.Success ? null : "offline")">
+                                <td>
+                                    @Time(result.Timestamp)
+                                    @if (!result.Success)
+                                    {
+                                        <span class="tag offline" title="@result.Error">failed</span>
+                                    }
+                                </td>
+                                <td>@Mbps(result.DownloadMbps)</td>
+                                <td>@Mbps(result.UploadMbps)</td>
+                                <td>@Ms(result.LatencyMs)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</main>
+
+@code {
+    private static readonly TimeSpan[] Windows = [TimeSpan.FromDays(7), TimeSpan.FromDays(30)];
+
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(10);
+
+    private readonly CancellationTokenSource _cts = new();
+    private TimeSpan _window = Windows[0];
+    private DateTimeOffset _from;
+    private DateTimeOffset _now;
+    private SpeedTestStatus _status = SpeedTestStatus.Idle;
+    private SpeedTestResult? _latest;
+    private IReadOnlyList<SpeedTestResult> _results = [];
+    private SpeedTestSummary _summary = SpeedTestSummary.From([]);
+    private bool _wasRunning;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Runner.Changed += OnChanged;
+        await LoadAsync();
+        _ = RefreshLoopAsync(_cts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed.
+        }
+    }
+
+    private void OnChanged() =>
+        _ = InvokeAsync(async () =>
+        {
+            _status = Runner.Status;
+
+            // Reload the history once, when a test (ours or the scheduler's) finishes.
+            if (_wasRunning && !_status.IsRunning)
+            {
+                await LoadAsync();
+            }
+
+            _wasRunning = _status.IsRunning;
+            StateHasChanged();
+        });
+
+    private async Task SetWindowAsync(TimeSpan window)
+    {
+        _window = window;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _status = Runner.Status;
+        _wasRunning = _status.IsRunning;
+        _now = DateTimeOffset.UtcNow;
+        _from = _now - _window;
+        _results = await Store.GetSinceAsync(_from);
+        _latest = await Store.GetLatestAsync();
+        _summary = SpeedTestSummary.From(_results);
+    }
+
+    private Task RunNowAsync()
+    {
+        // Runs in the background; progress arrives through Runner.Changed.
+        _ = Task.Run(() => Runner.RunAsync());
+        return Task.CompletedTask;
+    }
+
+    private static string Mbps(double? value) =>
+        value is null ? "–" : value.Value.ToString(value < 10 ? "0.00" : "0.0", CultureInfo.InvariantCulture) + " Mbps";
+
+    private static string Ms(double? value) =>
+        value is null ? "–" : value.Value.ToString(value < 10 ? "0.0" : "0", CultureInfo.InvariantCulture) + " ms";
+
+    private static string Megabytes(long bytes) =>
+        (bytes / 1_000_000.0).ToString("0", CultureInfo.InvariantCulture) + " MB";
+
+    private static string Time(DateTimeOffset time) =>
+        time.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+
+    private static string Label(TimeSpan window) => $"{window.TotalDays:0}d";
+
+    public void Dispose()
+    {
+        Runner.Changed -= OnChanged;
+        _cts.Cancel();
+    }
+}

@@ -34,13 +34,35 @@ docker build -t netpulse .                 # container image
   - `Models/PingSample` — one measurement.
   - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver`.
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
-  - `Storage/ISampleStore` — persistence abstraction.
-- `src/NetPulse.Web` — ASP.NET Core host.
-  - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds.
-  - `Storage/SqliteSampleStore` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
-  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`), Blazor (Interactive Server).
-  - `Components/` — dashboard; `LatencyChart` is a dependency-free SVG chart.
+  - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices).
+  - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
+    `OutageSummary` (downtime/availability over a window), `DurationFormat`.
+  - `SpeedTest/` — `HttpSpeedTest` (latency/download/upload over `HttpClient`), `SpeedTestPlan`
+    (validation), `TransferMeter` (Mbps with TCP warm-up skipped), `SpeedTestSchedule`, `SpeedTestSummary`.
+  - `Reports/` — `IspReportBuilder` (→ `IspReport`), `ReportPeriod` (days or from/to dates), `Csv` +
+    `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601). `Outages/OutageClassifier` labels outages
+    LocalNetwork / Internet / SingleHost / Unknown; `Stats/LatencyAccumulator` streams `LatencyStats`.
+  - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
+  - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
+    `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
+    (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
+- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`, `/report`
+  (printable; `@media print` in `app.css`).
+  - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds and feeds
+    `OutageTracker`; open outages from a previous run are closed at startup.
+  - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
+  - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; CSV endpoints in `Program.cs`.
+  - `Discovery/LanDiscovery` + `LanDiscoveryService` — runs scans (periodic and "Scan now").
+  - `LoadTest/` — `LoadTestReceiver` (opt-in `BackgroundService`, disabled by default; the target/agent),
+    `LoadTestClient` (sender), `LoadTestManager` (orchestrates one run, live samples + `Changed` event).
+  - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
+  - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
+  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
+  - `Components/` — dashboard; `LatencyChart`/`ThroughputChart`/`SpeedChart`/`OutageTimeline` are dependency-free SVG charts;
+    `TargetEditor` adds/removes custom targets.
 - `tests/NetPulse.Tests` — NUnit 4, constraint model (`Assert.That`).
+- `.github/workflows/release.yml` — on `v*` tags, self-contained single-file archives for win-x64,
+  linux-x64 and linux-arm64 attached to a GitHub release.
 
 ## Conventions
 
@@ -65,5 +87,6 @@ docker build -t netpulse .                 # container image
 - ICMP on Linux: unprivileged ping usually works (Docker enables `ping_group_range`); if not,
   document `--cap-add NET_RAW`.
 - `Ping.RoundtripTime` has 1 ms resolution; that is acceptable for this use case.
+- Speed tests default to Cloudflare's free endpoint (`speed.cloudflare.com/__down`, `__up`); URLs are configurable.
 - `MonitorOptions.Targets` defaults to an empty list on purpose (the config binder appends to
   lists); `EffectiveTargets` applies the defaults.
