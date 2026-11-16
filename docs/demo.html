@@ -6,24 +6,29 @@
   <title>NetPulse demo</title>
   <meta name="description" content="Interactive demo of the NetPulse dashboard with simulated ping data.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="themes.css">
   <link rel="stylesheet" href="dashboard.css">
+  <script>
+    // The real app keeps the theme in a cookie; the static demo takes it from ?theme=.
+    const theme = new URLSearchParams(location.search).get("theme");
+    if (["light", "cyberpunk", "anime", "medieval"].includes(theme)) document.documentElement.dataset.theme = theme;
+  </script>
   <style>
     .demo-bar {
       display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: center;
       padding: .5rem 1rem; font-size: .85rem; color: var(--muted);
-      background: #11263b; border-bottom: 1px solid var(--border); text-align: center;
+      background: color-mix(in srgb, var(--accent) 10%, var(--bg)); border-bottom: 1px solid var(--border); text-align: center;
     }
     .demo-bar a { color: var(--accent); text-decoration: none; }
     .demo-bar a:hover { text-decoration: underline; }
     .top a { color: inherit; text-decoration: none; }
-    .top-right { display: flex; align-items: center; gap: .75rem; }
-    .live { display: inline-flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+        .live { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: .75rem; color: var(--good); white-space: nowrap; }
     .live::before {
-      content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: var(--good);
+      content: ""; width: .5rem; height: .5rem; border-radius: 1px; background: var(--good);
       animation: pulse 1.6s ease-out infinite;
     }
     .card-right { display: flex; align-items: center; gap: .75rem; }
-    .now { font-size: .9rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .now { font-family: var(--mono); font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
     .now.lost { color: var(--poor); }
     .now.flash { animation: flash .8s ease-out; }
     .live-dot {
@@ -33,13 +38,13 @@
     }
     .live-dot.lost { background: var(--poor); }
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(74, 163, 255, .6); }
-      100% { box-shadow: 0 0 0 8px rgba(74, 163, 255, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(240, 162, 50, .6); }
+      100% { box-shadow: 0 0 0 8px rgba(240, 162, 50, 0); }
     }
     .live::before { animation-name: pulse-good; }
     @keyframes pulse-good {
-      0% { box-shadow: 0 0 0 0 rgba(63, 185, 80, .6); }
-      100% { box-shadow: 0 0 0 7px rgba(63, 185, 80, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(147, 196, 107, .6); }
+      100% { box-shadow: 0 0 0 7px rgba(147, 196, 107, 0); }
     }
     @keyframes flash { from { color: var(--text); } }
     @media (prefers-reduced-motion: reduce) {
@@ -47,7 +52,7 @@
       .live-dot { transition: none; }
     }
     @media (max-width: 520px) {
-      .top { padding: 1rem; } main { padding: 1rem; }
+      main { padding: 1rem; }
       .live span { display: none; }
     }
   </style>
@@ -58,10 +63,21 @@
     <a href="./">← Back to the project page</a>
   </div>
   <header class="top">
-    <h1><a href="./">NetPulse</a></h1>
-    <div class="top-right">
-      <span class="live">Live <span>· 5× speed</span></span>
+    <a class="brand" href="./"><svg class="logo-mark" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path class="trace" d="M6 25V7l9 15 3.2-6.5L20.5 20 26 7v18"/><circle class="ping" cx="26" cy="7" r="2.8"/></svg><h1 class="wordmark">net<span>pulse</span></h1></a>
+    <nav class="site-nav" aria-label="Pages"><a class="active" href="demo.html"><i>01</i>Latency</a></nav>
+    <div class="top-actions">
+      <span class="live">REC <span>· 5× speed</span></span>
       <nav class="windows" id="windows" aria-label="Time window"></nav>
+      <details class="theme-picker">
+        <summary aria-label="Theme"><span class="swatch" aria-hidden="true"></span><span class="label">Theme</span></summary>
+        <ul>
+          <li><a href="?theme=dark" data-theme-option="dark"><span class="swatch" aria-hidden="true"></span>Dark</a></li>
+          <li><a href="?theme=light" data-theme-option="light"><span class="swatch" aria-hidden="true"></span>Light</a></li>
+          <li><a href="?theme=cyberpunk" data-theme-option="cyberpunk"><span class="swatch" aria-hidden="true"></span>Cyberpunk</a></li>
+          <li><a href="?theme=anime" data-theme-option="anime"><span class="swatch" aria-hidden="true"></span>Anime</a></li>
+          <li><a href="?theme=medieval" data-theme-option="medieval"><span class="swatch" aria-hidden="true"></span>Medieval</a></li>
+        </ul>
+      </details>
     </div>
   </header>
   <main id="cards">
