@@ -16,6 +16,10 @@
 @font-face { font-family: "Rajdhani"; src: url("fonts/rajdhani-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "Rajdhani"; src: url("fonts/rajdhani-600.woff2") format("woff2"); font-weight: 600 700; font-display: swap; }
 @font-face { font-family: "Share Tech Mono"; src: url("fonts/share-tech-mono-400.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-500.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-800.woff2") format("woff2"); font-weight: 700 900; font-display: swap; }
+/* Only the katakana Sakura uses (ネットパルス), subset to a few kilobytes. */
+@font-face { font-family: "NP Kana"; src: url("fonts/mplus-rounded-kana-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
 @font-face { font-family: "Cinzel"; src: url("fonts/cinzel-600.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
 /* Dela Gothic One, subset to latin letters, digits and the katakana NetPulse uses (ネットパルス, ピン！). */
 @font-face { font-family: "NP Shonen"; src: url("fonts/dela-gothic-one-subset.woff2") format("woff2"); font-display: swap; }
@@ -361,8 +365,9 @@
 [data-theme="anime"] .tag { border: 2px solid var(--ink); color: var(--ink); }
 
 /* --- Bizarre: a saturated, menacing manga colour page --------------------- */
+/* The variants (bizarre-night, -pastel, -desert, -ink) reuse these rules and recolour them below. */
 
-[data-theme="bizarre"] {
+[data-theme^="bizarre"] {
     --ink: #0b0710;
     --purple: #5a1aa0;
     --magenta: #e0157f;
@@ -402,7 +407,7 @@
 }
 
 /* Black top bar; the active page is a yellow slanted tab. */
-[data-theme="bizarre"] .top {
+[data-theme^="bizarre"] .top {
     --text: #ffffff;
     --muted: #c9b6e6;
     --faint: #7d62a8;
@@ -413,15 +418,15 @@
     border-bottom: 5px solid var(--yellow);
     box-shadow: 0 5px 0 var(--magenta);
 }
-[data-theme="bizarre"] .brand,
-[data-theme="bizarre"] .site-nav a { border-right: 0; }
-[data-theme="bizarre"] .logo-mark .trace { stroke: var(--yellow); }
-[data-theme="bizarre"] .logo-mark .ping { fill: var(--magenta); }
-[data-theme="bizarre"] .wordmark { font-size: 1.4rem; font-style: italic; color: var(--yellow); }
-[data-theme="bizarre"] .wordmark span { color: var(--magenta); }
+[data-theme^="bizarre"] .brand,
+[data-theme^="bizarre"] .site-nav a { border-right: 0; }
+[data-theme^="bizarre"] .logo-mark .trace { stroke: var(--yellow); }
+[data-theme^="bizarre"] .logo-mark .ping { fill: var(--magenta); }
+[data-theme^="bizarre"] .wordmark { font-size: 1.4rem; font-style: italic; color: var(--yellow); }
+[data-theme^="bizarre"] .wordmark span { color: var(--magenta); }
 /* The name in katakana under the logo, like a manga title. */
-[data-theme="bizarre"] .brand { flex-wrap: wrap; row-gap: 0; align-content: center; }
-[data-theme="bizarre"] .brand::after {
+[data-theme^="bizarre"] .brand { flex-wrap: wrap; row-gap: 0; align-content: center; }
+[data-theme^="bizarre"] .brand::after {
     content: "ネットパルス";
     flex-basis: 100%;
     margin: -.15rem 0 0 2.15rem;
@@ -430,22 +435,22 @@
     letter-spacing: .4em;
     color: var(--teal);
 }
-[data-theme="bizarre"] .site-nav { gap: .1rem; padding: 0 .3rem; align-items: center; }
-[data-theme="bizarre"] .site-nav a {
+[data-theme^="bizarre"] .site-nav { gap: .1rem; padding: 0 .3rem; align-items: center; }
+[data-theme^="bizarre"] .site-nav a {
     min-height: 34px;
     padding: 0 .6rem;
     font-family: var(--font-num);
     font-size: .74rem;
     transform: skewX(-12deg);
 }
-[data-theme="bizarre"] .site-nav a.active { background: var(--yellow); color: var(--ink); box-shadow: 4px 4px 0 var(--magenta); }
-[data-theme="bizarre"] .site-nav a.active i { color: var(--purple); }
+[data-theme^="bizarre"] .site-nav a.active { background: var(--yellow); color: var(--ink); box-shadow: 4px 4px 0 var(--magenta); }
+[data-theme^="bizarre"] .site-nav a.active i { color: var(--purple); }
 
-[data-theme="bizarre"] main { gap: 2.2rem; padding-top: 2.4rem; }
+[data-theme^="bizarre"] main { gap: 2.2rem; padding-top: 2.4rem; }
 
 /* Panels: thick ink frame, black and yellow offset shadows, and a menacing "ゴゴゴ" beside each one. */
-[data-theme="bizarre"] .card { position: relative; }
-[data-theme="bizarre"] .card::after {
+[data-theme^="bizarre"] .card { position: relative; }
+[data-theme^="bizarre"] .card::after {
     content: "ゴ ゴ ゴ";
     position: absolute;
     top: -26px;
@@ -461,24 +466,24 @@
     pointer-events: none;
 }
 /* Title bar: a hard diagonal split from purple to teal, with ink hatching. */
-[data-theme="bizarre"] .card-head {
+[data-theme^="bizarre"] .card-head {
     border-bottom: 4px solid var(--ink);
     background:
         repeating-linear-gradient(-45deg, rgba(11, 7, 16, .28) 0 2px, transparent 2px 7px),
         linear-gradient(105deg, var(--purple) 0 62%, var(--ink) 62% 63%, var(--teal) 63%);
 }
-[data-theme="bizarre"] .card-head h2 {
+[data-theme^="bizarre"] .card-head h2 {
     color: var(--yellow);
     font-style: italic;
     -webkit-text-stroke: 1.5px var(--ink);
     paint-order: stroke fill;
     text-shadow: 3px 3px 0 var(--ink);
 }
-[data-theme="bizarre"] .card-head h2 small,
-[data-theme="bizarre"] .card-head .hint { color: #ffffff; -webkit-text-stroke: 0; text-shadow: none; }
+[data-theme^="bizarre"] .card-head h2 small,
+[data-theme^="bizarre"] .card-head .hint { color: #ffffff; -webkit-text-stroke: 0; text-shadow: none; }
 
 /* Status: a slanted tag. */
-[data-theme="bizarre"] .badge {
+[data-theme^="bizarre"] .badge {
     display: inline-block;
     padding: .2rem .7rem;
     border: 2px solid var(--ink);
@@ -489,17 +494,17 @@
     transform: skewX(-12deg);
     box-shadow: 3px 3px 0 var(--ink);
 }
-[data-theme="bizarre"] .badge::before { content: "!! "; }
-[data-theme="bizarre"] .badge.good { background: var(--yellow); color: var(--ink); }
-[data-theme="bizarre"] .badge.good::before { content: "▶ "; color: var(--magenta); }
-[data-theme="bizarre"] .badge.fair { background: var(--fair); }
-[data-theme="bizarre"] .badge.unknown,
-[data-theme="bizarre"] .badge.muted { background: #5b4a6e; }
+[data-theme^="bizarre"] .badge::before { content: "!! "; }
+[data-theme^="bizarre"] .badge.good { background: var(--yellow); color: var(--ink); }
+[data-theme^="bizarre"] .badge.good::before { content: "▶ "; color: var(--magenta); }
+[data-theme^="bizarre"] .badge.fair { background: var(--fair); }
+[data-theme^="bizarre"] .badge.unknown,
+[data-theme^="bizarre"] .badge.muted { background: #5b4a6e; }
 
-[data-theme="bizarre"] .stats > div { border-left: 3px solid var(--ink); }
-[data-theme="bizarre"] .stats > div:first-child { border-left: 0; }
-[data-theme="bizarre"] .stats dt { color: var(--purple); font-weight: 700; }
-[data-theme="bizarre"] .stats dd {
+[data-theme^="bizarre"] .stats > div { border-left: 3px solid var(--ink); }
+[data-theme^="bizarre"] .stats > div:first-child { border-left: 0; }
+[data-theme^="bizarre"] .stats dt { color: var(--purple); font-weight: 700; }
+[data-theme^="bizarre"] .stats dd {
     font-size: 1.8rem;
     font-style: italic;
     color: var(--magenta);
@@ -507,19 +512,19 @@
     paint-order: stroke fill;
     text-shadow: 3px 3px 0 var(--yellow);
 }
-[data-theme="bizarre"] .stats dd .unit { color: var(--ink); font-style: normal; -webkit-text-stroke: 0; text-shadow: none; }
+[data-theme^="bizarre"] .stats dd .unit { color: var(--ink); font-style: normal; -webkit-text-stroke: 0; text-shadow: none; }
 
 /* The chart is an inner panel shaded with ink hatching. */
-[data-theme="bizarre"] .chart {
+[data-theme^="bizarre"] .chart {
     border: 3px solid var(--ink);
     background-color: #ffffff;
     background-image: repeating-linear-gradient(45deg, rgba(90, 26, 160, .1) 0 1px, transparent 1px 6px);
     background-size: auto;
 }
-[data-theme="bizarre"] .chart-max,
-[data-theme="bizarre"] .chart-axis { color: var(--ink); font-weight: 700; }
+[data-theme^="bizarre"] .chart-max,
+[data-theme^="bizarre"] .chart-axis { color: var(--ink); font-weight: 700; }
 /* The "ping!" sound effect, in katakana, slammed onto every chart. */
-[data-theme="bizarre"] .chart-wrap::after {
+[data-theme^="bizarre"] .chart-wrap::after {
     content: "ピン！";
     position: absolute;
     right: 8px;
@@ -535,16 +540,267 @@
     pointer-events: none;
 }
 
-[data-theme="bizarre"] .windows { border: 2px solid var(--yellow); }
-[data-theme="bizarre"] .windows button { font-family: var(--font-num); color: #c9b6e6; }
-[data-theme="bizarre"] .windows button + button { border-left: 2px solid var(--yellow); }
-[data-theme="bizarre"] .windows button.active { background: var(--yellow); color: var(--ink); }
-[data-theme="bizarre"] button.primary { background: var(--magenta); color: #ffffff; border: 2px solid var(--yellow); font-family: var(--font-num); transform: skewX(-10deg); }
-[data-theme="bizarre"] .theme-picker summary { border: 2px solid var(--yellow); color: #ffffff; }
-[data-theme="bizarre"] .theme-picker ul { border: 3px solid var(--yellow); }
-[data-theme="bizarre"] .target,
-[data-theme="bizarre"] .tag { border: 2px solid var(--ink); color: var(--ink); }
-[data-theme="bizarre"] main > .empty { color: #ffffff; }
+[data-theme^="bizarre"] .windows { border: 2px solid var(--yellow); }
+[data-theme^="bizarre"] .windows button { font-family: var(--font-num); color: #c9b6e6; }
+[data-theme^="bizarre"] .windows button + button { border-left: 2px solid var(--yellow); }
+[data-theme^="bizarre"] .windows button.active { background: var(--yellow); color: var(--ink); }
+[data-theme^="bizarre"] button.primary { background: var(--magenta); color: #ffffff; border: 2px solid var(--yellow); font-family: var(--font-num); transform: skewX(-10deg); }
+[data-theme^="bizarre"] .theme-picker summary { border: 2px solid var(--yellow); color: #ffffff; }
+[data-theme^="bizarre"] .theme-picker ul { border: 3px solid var(--yellow); }
+[data-theme^="bizarre"] .target,
+[data-theme^="bizarre"] .tag { border: 2px solid var(--ink); color: var(--ink); }
+[data-theme^="bizarre"] main > .empty { color: #ffffff; }
+
+/* Bizarre Night: black, violet and toxic green, a giant ゴゴゴ behind the page. */
+[data-theme="bizarre-night"] {
+  --bg:#0a0612; --bg-image: repeating-linear-gradient(-45deg, rgba(160,255,60,.05) 0 2px, transparent 2px 10px), radial-gradient(ellipse at 80% 0%, rgba(122,40,255,.45), transparent 60%), radial-gradient(ellipse at 0% 100%, rgba(160,255,60,.25), transparent 55%);
+  --card:#15101f; --text:#f4f0ff; --muted:#a99cc4; --faint:#3b2f52; --border:#000;
+  --accent:#a0ff3c; --trace:#a0ff3c; --area-opacity:.12; --good:#a0ff3c; --poor:#ff2d6b; --fair:#ffb000;
+  --card-shadow: 8px 8px 0 #000, 14px 14px 0 #7a28ff;
+}
+[data-theme="bizarre-night"] body::after { content:"ゴ\Aゴ\Aゴ\Aゴ\Aゴ"; white-space:pre; line-height:.95; position:fixed; right:-1rem; top:5rem; font-family:"NP Shonen"; font-size:9rem; color:transparent; -webkit-text-stroke:3px rgba(160,255,60,.18); pointer-events:none; z-index:0; }
+[data-theme="bizarre-night"] main { position:relative; z-index:1; }
+[data-theme="bizarre-night"] .card-head { background: repeating-linear-gradient(-45deg, rgba(0,0,0,.35) 0 2px, transparent 2px 7px), linear-gradient(105deg, #7a28ff 0 62%, #000 62% 63%, #a0ff3c 63%); }
+[data-theme="bizarre-night"] .card-head h2 { color:#a0ff3c; }
+[data-theme="bizarre-night"] .card-head .hint { color:#0a0612; }
+[data-theme="bizarre-night"] .stats dt { color:#a0ff3c; }
+[data-theme="bizarre-night"] .stats dd { color:#f4f0ff; text-shadow:3px 3px 0 #7a28ff; }
+[data-theme="bizarre-night"] .stats dd .unit { color:#a0ff3c; }
+[data-theme="bizarre-night"] .stats > div { border-left-color:#7a28ff; }
+[data-theme="bizarre-night"] .chart { background-color:#0a0612; border-color:#7a28ff; background-image: repeating-linear-gradient(45deg, rgba(122,40,255,.15) 0 1px, transparent 1px 6px); }
+[data-theme="bizarre-night"] .chart-max, [data-theme="bizarre-night"] .chart-axis { color:#a99cc4; }
+[data-theme="bizarre-night"] .card::after { color:#000; -webkit-text-stroke:2px #a0ff3c; text-shadow:3px 3px 0 #7a28ff; }
+[data-theme="bizarre-night"] .badge.good { background:#a0ff3c; }
+
+/* Bizarre Pastel: candy pink, mint and lilac. */
+[data-theme="bizarre-pastel"] {
+  --bg:#ffc7e0; --bg-image: repeating-linear-gradient(-45deg, rgba(0,0,0,.06) 0 2px, transparent 2px 9px), linear-gradient(160deg, #ff9fcb 0%, #c7a6ff 50%, #7ff0d0 100%);
+  --card:#ffffff; --text:#120a18; --muted:#6a4d78; --accent:#ff2f8e; --trace:#7a2cff; --area-opacity:.15; --good:#00c79a;
+  --card-shadow: 8px 8px 0 #120a18, 14px 14px 0 #00e0b0;
+}
+[data-theme="bizarre-pastel"] .card-head { background: repeating-linear-gradient(-45deg, rgba(18,10,24,.18) 0 2px, transparent 2px 7px), linear-gradient(105deg, #ff2f8e 0 58%, #120a18 58% 59%, #ffe14d 59%); }
+[data-theme="bizarre-pastel"] .card-head h2 { color:#ffffff; }
+[data-theme="bizarre-pastel"] .stats dt { color:#7a2cff; }
+[data-theme="bizarre-pastel"] .stats dd { color:#7a2cff; text-shadow:3px 3px 0 #7ff0d0; }
+[data-theme="bizarre-pastel"] .chart { background-image: repeating-linear-gradient(45deg, rgba(255,47,142,.12) 0 1px, transparent 1px 6px); }
+[data-theme="bizarre-pastel"] .card::after { color:#ff2f8e; -webkit-text-stroke:2px #120a18; text-shadow:3px 3px 0 #7ff0d0; }
+[data-theme="bizarre-pastel"] .badge.good { background:#7ff0d0; }
+[data-theme="bizarre-pastel"] .top { border-bottom-color:#ff2f8e; box-shadow:0 5px 0 #7ff0d0; }
+
+/* Bizarre Desert: a sun-yellow poster in sepia ink, with ドドド. */
+[data-theme="bizarre-desert"] {
+  --bg:#f5b400; --bg-image: repeating-conic-gradient(from 0deg at 50% 0%, rgba(120,30,0,.12) 0 1.2deg, transparent 1.2deg 5deg), linear-gradient(180deg, #ffd23a 0%, #f58a00 60%, #b8320a 100%);
+  --card:#fff3d6; --text:#2a1206; --muted:#7a4a22; --accent:#c2200a; --trace:#c2200a; --area-opacity:.14; --good:#1f7a3a; --border:#2a1206;
+  --card-shadow: 8px 8px 0 #2a1206, 14px 14px 0 #c2200a;
+}
+[data-theme="bizarre-desert"] .card-head { background: repeating-linear-gradient(-45deg, rgba(42,18,6,.3) 0 2px, transparent 2px 7px), linear-gradient(105deg, #2a1206 0 62%, #c2200a 62% 64%, #ffd23a 64%); }
+[data-theme="bizarre-desert"] .card-head h2 { color:#ffd23a; }
+[data-theme="bizarre-desert"] .stats dt { color:#c2200a; }
+[data-theme="bizarre-desert"] .stats dd { color:#2a1206; text-shadow:3px 3px 0 #ffb000; -webkit-text-stroke:0; }
+[data-theme="bizarre-desert"] .chart { background-image: repeating-linear-gradient(45deg, rgba(42,18,6,.08) 0 1px, transparent 1px 5px); }
+[data-theme="bizarre-desert"] .card::after { content:"ド ド ド"; color:#2a1206; -webkit-text-stroke:2px #ffd23a; text-shadow:3px 3px 0 #c2200a; }
+[data-theme="bizarre-desert"] .badge.good { background:#ffd23a; }
+[data-theme="bizarre-desert"] .top { border-bottom-color:#ffd23a; box-shadow:0 5px 0 #c2200a; }
+
+/* Bizarre Ink: black and white hatching with one fuchsia accent. */
+[data-theme="bizarre-ink"] {
+  --bg:#f4f1ea; --bg-image: repeating-linear-gradient(-45deg, rgba(0,0,0,.13) 0 1.5px, transparent 1.5px 6px), repeating-linear-gradient(45deg, rgba(0,0,0,.06) 0 1px, transparent 1px 6px);
+  --card:#ffffff; --text:#000; --muted:#444; --accent:#ff0a78; --trace:#000; --area-opacity:0; --good:#000;
+  --card-shadow: 8px 8px 0 #000, 14px 14px 0 #ff0a78;
+}
+[data-theme="bizarre-ink"] .card-head { background: repeating-linear-gradient(-45deg, #000 0 3px, #fff 3px 6px); }
+[data-theme="bizarre-ink"] .card-head h2 { color:#fff; background:#000; padding:.1rem .6rem; -webkit-text-stroke:0; text-shadow:4px 4px 0 #ff0a78; }
+[data-theme="bizarre-ink"] .card-head .hint { background:#000; padding:0 .4rem; }
+[data-theme="bizarre-ink"] .stats dt { color:#000; }
+[data-theme="bizarre-ink"] .stats dd { color:#000; text-shadow:3px 3px 0 #ff0a78; -webkit-text-stroke:0; }
+[data-theme="bizarre-ink"] .stats dd .unit { color:#ff0a78; }
+[data-theme="bizarre-ink"] .chart { background-image: repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 1px, transparent 1px 5px); }
+[data-theme="bizarre-ink"] .card::after { color:#fff; -webkit-text-stroke:2.5px #000; text-shadow:4px 4px 0 #ff0a78; font-size:2.3rem; }
+[data-theme="bizarre-ink"] .chart-wrap::after { color:#ff0a78; text-shadow:3px 3px 0 #000; }
+[data-theme="bizarre-ink"] .badge.good { background:#fff; }
+[data-theme="bizarre-ink"] .top { border-bottom-color:#ff0a78; box-shadow:0 5px 0 #000; }
+[data-theme="bizarre-ink"] .wordmark { color:#fff; } [data-theme="bizarre-ink"] .wordmark span { color:#ff0a78; }
+[data-theme="bizarre-ink"] .logo-mark .trace { stroke:#fff; }
+
+/* --- Sakura: a shoujo manga page under falling sakura -------------------- */
+
+[data-theme="sakura"] {
+    --ink: #1d1626;
+    --sakura: #ff6fae;
+    --bg: #ffeaf4;
+    --bg-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg fill='%23ffffff' opacity='.55'%3E%3Ccircle cx='20' cy='30' r='1.6'/%3E%3Ccircle cx='110' cy='20' r='1.2'/%3E%3Ccircle cx='70' cy='90' r='1.4'/%3E%3Ccircle cx='140' cy='120' r='1.8'/%3E%3Ccircle cx='30' cy='140' r='1.1'/%3E%3C/g%3E%3C/svg%3E"),
+        linear-gradient(180deg, #bfe4ff 0%, #e4dcff 45%, #ffe1ef 100%);
+    --card: #ffffff;
+    --border: var(--ink);
+    --rule-width: 3px;
+    --text: var(--ink);
+    --muted: #7b6a8c;
+    --faint: #cdbfdc;
+    --logo: var(--ink);
+    --accent: var(--sakura);
+    --on-accent: #ffffff;
+    --good: #12b886;
+    --fair: #ff9f1c;
+    --poor: #ff3860;
+    --trace: #6c4cf5;
+    --trace-width: 2.4;
+    --trace-filter: none;
+    --area-opacity: .16;
+    --radius: 999px;
+    --radius-card: 16px;
+    --card-shadow: 6px 6px 0 var(--ink);
+    --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+    --font-num: var(--font-body);
+    --font-head: var(--font-body);
+    --font-brand: var(--font-body);
+    --head-size: 1.1rem;
+    --head-weight: 800;
+    color-scheme: light;
+}
+
+/* Sakura petals drifting down behind the page (still when reduced motion is requested). */
+[data-theme="sakura"] body::before {
+    content: "";
+    position: fixed;
+    inset: -200px 0 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='300'%3E%3Cg fill='%23ffb3d1' stroke='%23ff7fb6' stroke-width='.8'%3E%3Cpath d='M30 40c8-10 22-8 24 2 2 9-8 18-22 18 6-6 4-12-2-20z'/%3E%3Cpath d='M180 120c6-12 20-12 24-3 3 8-5 18-19 20 5-7 3-12-5-17z' transform='rotate(35 190 130)'/%3E%3Cpath d='M90 220c7-9 19-7 21 2 2 8-7 15-19 15 5-5 3-10-2-17z' transform='rotate(-25 100 225)'/%3E%3C/g%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='420'%3E%3Cg fill='%23ffc9de' stroke='%23ff9cc6' stroke-width='.6'%3E%3Cpath d='M60 90c5-7 15-6 17 1 1 6-6 12-15 12 4-4 3-8-2-13z' transform='rotate(60 70 95)'/%3E%3Cpath d='M250 300c5-7 15-6 17 1 1 6-6 12-15 12 4-4 3-8-2-13z' transform='rotate(-40 258 305)'/%3E%3C/g%3E%3C/svg%3E");
+    animation: np-petals 26s linear infinite;
+}
+
+@keyframes np-petals {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 260px 900px, -340px 840px; }
+}
+
+[data-theme="sakura"] .top,
+[data-theme="sakura"] main { position: relative; z-index: 1; }
+
+[data-theme="sakura"] .top { background: #ffffff; border-bottom: 3px solid var(--ink); }
+[data-theme="sakura"] .brand,
+[data-theme="sakura"] .site-nav a { border-right: 0; }
+[data-theme="sakura"] .wordmark { font-size: 1.25rem; font-weight: 800; }
+/* The name in katakana under the logo, like a manga title. */
+[data-theme="sakura"] .brand { flex-wrap: wrap; row-gap: 0; align-content: center; }
+[data-theme="sakura"] .brand::after {
+    content: "ネットパルス";
+    flex-basis: 100%;
+    margin: -.2rem 0 0 2.1rem;
+    font-family: "NP Kana", var(--font-body);
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .25em;
+    color: var(--sakura);
+}
+[data-theme="sakura"] .site-nav { gap: .15rem; padding: 0 .25rem; align-items: center; }
+[data-theme="sakura"] .site-nav a {
+    min-height: 34px;
+    padding: 0 .75rem;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    font-weight: 600;
+}
+[data-theme="sakura"] .site-nav a.active {
+    background: var(--sakura);
+    color: #ffffff;
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+[data-theme="sakura"] .site-nav a.active i { color: #ffffff; }
+
+/* Cards are manga panels: thick ink frame, hard shadow, a screentone title strip and a sparkle. */
+[data-theme="sakura"] .card { position: relative; }
+[data-theme="sakura"] .card::after {
+    content: "✦";
+    position: absolute;
+    top: -18px;
+    right: -12px;
+    font-size: 30px;
+    line-height: 1;
+    color: #ffd23f;
+    -webkit-text-stroke: 2px var(--ink);
+    transform: rotate(12deg);
+    pointer-events: none;
+}
+[data-theme="sakura"] .card-head {
+    border-bottom: 3px solid var(--ink);
+    border-radius: 13px 13px 0 0;
+    background-color: #ffd6e8;
+    background-image: radial-gradient(rgba(255, 111, 174, .55) 1.2px, transparent 1.4px);
+    background-size: 7px 7px;
+}
+[data-theme="sakura"] .card-head h2 { color: var(--ink); }
+[data-theme="sakura"] .card-head h2::before { content: "♡ "; color: var(--sakura); }
+
+/* Status as a speech bubble. */
+[data-theme="sakura"] .badge {
+    position: relative;
+    padding: .2rem .7rem;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: #ffffff;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+[data-theme="sakura"] .badge::before { content: "♥ "; }
+[data-theme="sakura"] .badge.good::before { content: "★ "; }
+[data-theme="sakura"] .badge::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    bottom: -7px;
+    width: 9px;
+    height: 9px;
+    background: #ffffff;
+    border-right: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    transform: rotate(45deg);
+}
+
+[data-theme="sakura"] .stats > div { border-left: 2px dashed var(--faint); }
+[data-theme="sakura"] .stats > div:first-child { border-left: 0; }
+[data-theme="sakura"] .stats dd {
+    font-weight: 800;
+    font-size: 1.6rem;
+    color: var(--ink);
+    text-shadow: 2px 2px 0 #ffc2dc;
+}
+[data-theme="sakura"] .stats dd .unit { text-shadow: none; color: var(--sakura); }
+
+[data-theme="sakura"] .chart {
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    background-color: #f7f3ff;
+}
+/* The "ping!" sound effect, in katakana, stamped on every chart. */
+[data-theme="sakura"] .chart-wrap::after {
+    content: "ピン！";
+    position: absolute;
+    bottom: 4px;
+    right: -10px;
+    font-family: "NP Kana", var(--font-body);
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #ffd23f;
+    -webkit-text-stroke: 1.5px var(--ink);
+    paint-order: stroke fill;
+    transform: rotate(-8deg);
+    pointer-events: none;
+}
+[data-theme="sakura"] .windows { border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; }
+[data-theme="sakura"] .windows button + button { border-left: 2px solid var(--ink); }
+[data-theme="sakura"] .windows button { font-weight: 800; }
+[data-theme="sakura"] button.primary,
+[data-theme="sakura"] .theme-picker summary { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); color: var(--ink); }
+[data-theme="sakura"] button.primary { background: #ffd23f; }
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="sakura"] body::before { animation: none; }
+}
 
 /* --- Medieval: a manuscript under the banners of the realm --------------- */
 
@@ -729,4 +985,9 @@
 [data-theme-option="cyberpunk"] .swatch { background: linear-gradient(135deg, #ff2bd6 50%, #00f0ff 50%); }
 [data-theme-option="anime"] .swatch { background: linear-gradient(135deg, #0d0d10 50%, #e8202a 50%); }
 [data-theme-option="bizarre"] .swatch { background: linear-gradient(135deg, #5a1aa0 50%, #ffe100 50%); }
+[data-theme-option="sakura"] .swatch { background: linear-gradient(135deg, #ff6fae 50%, #bfe4ff 50%); }
+[data-theme-option="bizarre-night"] .swatch { background: linear-gradient(135deg, #0a0612 50%, #a0ff3c 50%); }
+[data-theme-option="bizarre-pastel"] .swatch { background: linear-gradient(135deg, #ff9fcb 50%, #7ff0d0 50%); }
+[data-theme-option="bizarre-desert"] .swatch { background: linear-gradient(135deg, #f5b400 50%, #2a1206 50%); }
+[data-theme-option="bizarre-ink"] .swatch { background: linear-gradient(135deg, #ffffff 50%, #ff0a78 50%); }
 [data-theme-option="medieval"] .swatch { background: linear-gradient(135deg, #d9b45a 50%, #8e1b1b 50%); }

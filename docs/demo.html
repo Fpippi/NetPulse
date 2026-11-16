@@ -12,7 +12,7 @@
     // The real app keeps the theme in a cookie; the static demo takes it from ?theme=.
     const theme = new URLSearchParams(location.search).get("theme");
     document.documentElement.dataset.theme =
-      ["light", "cyberpunk", "anime", "bizarre", "medieval"].includes(theme) ? theme : "dark";
+      ["light", "cyberpunk", "anime", "sakura", "bizarre", "bizarre-night", "bizarre-pastel", "bizarre-desert", "bizarre-ink", "medieval"].includes(theme) ? theme : "dark";
   </script>
   <style>
     .demo-bar {
@@ -76,7 +76,12 @@
           <li><a href="?theme=light" data-theme-option="light"><span class="swatch" aria-hidden="true"></span>Light</a></li>
           <li><a href="?theme=cyberpunk" data-theme-option="cyberpunk"><span class="swatch" aria-hidden="true"></span>Cyberpunk</a></li>
           <li><a href="?theme=anime" data-theme-option="anime"><span class="swatch" aria-hidden="true"></span>Anime</a></li>
+          <li><a href="?theme=sakura" data-theme-option="sakura"><span class="swatch" aria-hidden="true"></span>Sakura</a></li>
           <li><a href="?theme=bizarre" data-theme-option="bizarre"><span class="swatch" aria-hidden="true"></span>Bizarre</a></li>
+          <li><a href="?theme=bizarre-night" data-theme-option="bizarre-night"><span class="swatch" aria-hidden="true"></span>Bizarre Night</a></li>
+          <li><a href="?theme=bizarre-pastel" data-theme-option="bizarre-pastel"><span class="swatch" aria-hidden="true"></span>Bizarre Pastel</a></li>
+          <li><a href="?theme=bizarre-desert" data-theme-option="bizarre-desert"><span class="swatch" aria-hidden="true"></span>Bizarre Desert</a></li>
+          <li><a href="?theme=bizarre-ink" data-theme-option="bizarre-ink"><span class="swatch" aria-hidden="true"></span>Bizarre Ink</a></li>
           <li><a href="?theme=medieval" data-theme-option="medieval"><span class="swatch" aria-hidden="true"></span>Medieval</a></li>
         </ul>
       </details>

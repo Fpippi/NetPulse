@@ -10,7 +10,12 @@ public class ThemeCatalogTests
     {
         var ids = ThemeCatalog.All.Select(t => t.Id).ToList();
 
-        Assert.That(ids, Is.EqualTo(new[] { "dark", "light", "cyberpunk", "anime", "bizarre", "medieval" }));
+        Assert.That(ids, Is.EqualTo(new[]
+        {
+            "dark", "light", "cyberpunk", "anime", "sakura",
+            "bizarre", "bizarre-night", "bizarre-pastel", "bizarre-desert", "bizarre-ink",
+            "medieval",
+        }));
         Assert.That(ids, Is.Unique);
     }
 
@@ -22,6 +27,8 @@ public class ThemeCatalogTests
     [TestCase(" anime ", "anime")]
     [TestCase("Bizarre", "bizarre")]
     [TestCase("medieval", "medieval")]
+    [TestCase("Sakura", "sakura")]
+    [TestCase("BIZARRE-INK", "bizarre-ink")]
     public void Resolves_known_ids(string input, string expected) =>
         Assert.That(ThemeCatalog.Resolve(input).Id, Is.EqualTo(expected));
 

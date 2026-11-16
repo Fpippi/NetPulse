@@ -170,6 +170,7 @@ button.primary:disabled { opacity: .45; cursor: default; }
 
 .theme-picker a {
     display: flex;
+    white-space: nowrap;
     align-items: center;
     gap: .55rem;
     padding: .4rem .6rem;

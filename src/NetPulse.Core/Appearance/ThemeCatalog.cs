@@ -13,11 +13,21 @@ public static class ThemeCatalog
     public static readonly Theme Light = new("light", "Light");
     public static readonly Theme Cyberpunk = new("cyberpunk", "Cyberpunk");
     public static readonly Theme Anime = new("anime", "Anime");
+    public static readonly Theme Sakura = new("sakura", "Sakura");
     public static readonly Theme Bizarre = new("bizarre", "Bizarre");
+    public static readonly Theme BizarreNight = new("bizarre-night", "Bizarre Night");
+    public static readonly Theme BizarrePastel = new("bizarre-pastel", "Bizarre Pastel");
+    public static readonly Theme BizarreDesert = new("bizarre-desert", "Bizarre Desert");
+    public static readonly Theme BizarreInk = new("bizarre-ink", "Bizarre Ink");
     public static readonly Theme Medieval = new("medieval", "Medieval");
 
     /// <summary>All themes, in the order they are offered.</summary>
-    public static IReadOnlyList<Theme> All { get; } = [Dark, Light, Cyberpunk, Anime, Bizarre, Medieval];
+    public static IReadOnlyList<Theme> All { get; } =
+    [
+        Dark, Light, Cyberpunk, Anime, Sakura,
+        Bizarre, BizarreNight, BizarrePastel, BizarreDesert, BizarreInk,
+        Medieval,
+    ];
 
     /// <summary>The theme used when none (or an unknown one) is chosen.</summary>
     public static Theme Default => Dark;
