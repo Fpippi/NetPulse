@@ -15,6 +15,8 @@ public sealed class PingMonitorService(
     IPingProbe probe,
     ISampleStore store,
     IOutageStore outages,
+    IOutageTraceStore traces,
+    OutageTracer tracer,
     TargetManager targets,
     IOptions<MonitorOptions> options,
     IOptions<OutageOptions> outageOptions,
@@ -22,10 +24,13 @@ public sealed class PingMonitorService(
 {
     private static readonly TimeSpan PurgeInterval = TimeSpan.FromHours(1);
 
+    private CancellationToken _stopping;
+
     private readonly OutageTracker _tracker = new(Math.Max(1, outageOptions.Value.ConsecutiveLosses));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _stopping = stoppingToken;
         var opt = options.Value;
         var timeout = TimeSpan.FromMilliseconds(Math.Max(100, opt.TimeoutMs));
         var lastPurge = DateTimeOffset.MinValue;
@@ -61,8 +66,9 @@ public sealed class PingMonitorService(
                         logger.LogInformation("Purged {Count} old samples", deleted);
                     }
 
-                    await outages.PurgeOlderThanAsync(
-                        DateTimeOffset.UtcNow.AddDays(-Math.Max(1, outageOptions.Value.RetentionDays)), stoppingToken);
+                    var outageCutoff = DateTimeOffset.UtcNow.AddDays(-Math.Max(1, outageOptions.Value.RetentionDays));
+                    await outages.PurgeOlderThanAsync(outageCutoff, stoppingToken);
+                    await traces.PurgeOlderThanAsync(outageCutoff, stoppingToken);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -112,6 +118,7 @@ public sealed class PingMonitorService(
             else if (outage.LostSamples == _tracker.ConsecutiveLosses)
             {
                 logger.LogWarning("Outage on {Target} since {Start:u}", outage.Target, outage.Start);
+                tracer.OnOutageStarted(outage, _stopping);
             }
         }
     }

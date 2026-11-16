@@ -4,7 +4,9 @@
 @using NetPulse.Core.Outages
 @using NetPulse.Core.Targets
 @using NetPulse.Web.Monitoring
+@using NetPulse.Core.Traceroute
 @inject IOutageStore Store
+@inject IOutageTraceStore TraceStore
 @inject TargetManager Targets
 @inject IOptions<OutageOptions> Options
 @inject IOptions<MonitorOptions> MonitorOptions
@@ -107,6 +109,7 @@
                             <th scope="col">Ended</th>
                             <th scope="col">Duration</th>
                             <th scope="col">Lost pings</th>
+                            <th scope="col">Route</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,6 +130,34 @@
                                 </td>
                                 <td>@DurationFormat.Format(outage.Duration(_to))</td>
                                 <td>@outage.LostSamples</td>
+                                <td>
+                                    @if (_traces.Find(outage) is { } trace)
+                                    {
+                                        <details class="trace">
+                                            <summary>@trace.Summary</summary>
+                                            <ol>
+                                                @foreach (var hop in trace.Hops)
+                                                {
+                                                    <li value="@hop.Number">
+                                                        @if (hop.Address is null)
+                                                        {
+                                                            <span class="hint">* no answer</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>@hop.Address</span>
+                                                            <span class="hint">@Ms(hop.RttMs)</span>
+                                                        }
+                                                    </li>
+                                                }
+                                            </ol>
+                                        </details>
+                                    }
+                                    else
+                                    {
+                                        <span class="hint">–</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -151,6 +182,7 @@
     private DateTimeOffset _from;
     private DateTimeOffset _to;
     private IReadOnlyList<Outage> _outages = [];
+    private TraceLookup _traces = TraceLookup.Empty;
     private List<string> _targets = [];
 
     private int Threshold => Math.Max(1, Options.Value.ConsecutiveLosses);
@@ -194,6 +226,9 @@
         _to = DateTimeOffset.UtcNow;
         _from = _to - _window;
         _outages = await Store.GetSinceAsync(_from);
+        _traces = _outages.Count == 0
+            ? TraceLookup.Empty
+            : new TraceLookup(await TraceStore.GetSinceAsync(_outages.Min(o => o.Start)));
 
         // Monitored targets first, then targets that are gone but had outages in the window.
         _targets = TargetList.Merge(
@@ -215,6 +250,9 @@
     private static string Percent(double value) => value >= 100
         ? "100 %"
         : (Math.Floor(value * 100) / 100).ToString("0.00", CultureInfo.InvariantCulture) + " %";
+
+    private static string Ms(double? value) =>
+        value is null ? "" : value.Value.ToString("0", CultureInfo.InvariantCulture) + " ms";
 
     private static string Time(DateTimeOffset time) =>
         time.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);

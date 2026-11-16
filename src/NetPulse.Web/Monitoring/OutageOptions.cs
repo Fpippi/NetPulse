@@ -15,4 +15,10 @@ public sealed class OutageOptions
     /// Outages are kept longer than raw samples by default, so the history can back a report to the ISP.
     /// </summary>
     public int RetentionDays { get; set; } = 365;
+
+    /// <summary>Runs a traceroute towards a public target when its outage starts, to show where the path breaks.</summary>
+    public bool TraceRoute { get; set; } = true;
+
+    /// <summary>Farthest hop probed by the traceroute.</summary>
+    public int TraceMaxHops { get; set; } = 20;
 }
