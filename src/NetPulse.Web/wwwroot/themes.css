@@ -19,34 +19,35 @@
 @font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-500.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
 @font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-800.woff2") format("woff2"); font-weight: 700 900; font-display: swap; }
 @font-face { font-family: "Cinzel"; src: url("fonts/cinzel-600.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+/* Only the katakana NetPulse uses (ネットパルス, ピン！), subset to a few kilobytes. */
+@font-face { font-family: "NP Kana"; src: url("fonts/mplus-rounded-kana-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "NP Blackletter"; src: url("fonts/unifraktur-400.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "IM Fell English"; src: url("fonts/im-fell-400.woff2") format("woff2"); font-display: swap; }
 
-/* --- Dark (default): a green-on-black terminal --------------------------- */
+/* --- Dark (default): black and green, like a terminal -------------------- */
 
 :root {
-    --bg: #030603;
-    --bg-image:
-        repeating-linear-gradient(0deg, rgba(57, 255, 106, .025) 0 1px, transparent 1px 3px),
-        radial-gradient(ellipse 90% 70% at 50% 40%, rgba(57, 255, 106, .05), transparent 75%);
-    --card: #060c07;
+    --bg: #000000;
+    --bg-image: none;
+    --card: #000000;
     --card-image: none;
     --card-shadow: none;
-    --border: #143a1c;
+    --border: #1f1f1f;
     --rule-width: 1px;
     --rule-style: solid;
-    --text: #b9f5c6;
-    --muted: #4f9a62;
-    --faint: #2b5a37;
-    --logo: #39ff6a;
-    --accent: #39ff6a;
-    --on-accent: #021004;
-    --good: #39ff6a;
-    --fair: #ffd23f;
-    --poor: #ff4f4f;
+    --text: #e8e8e8;
+    --muted: #8c8c8c;
+    --faint: #4a4a4a;
+    --logo: #00ff66;
+    --accent: #00ff66;
+    --on-accent: #000000;
+    --good: #00ff66;
+    --fair: #ffcc00;
+    --poor: #ff3b3b;
     --trace: var(--accent);
-    --trace-width: 1.6;
-    --trace-filter: drop-shadow(0 0 2px rgba(57, 255, 106, .8));
-    --area-opacity: .07;
+    --trace-width: 1.5;
+    --trace-filter: none;
+    --area-opacity: 0;
     --radius: 0;
     --radius-card: 0;
     --font-body: "Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -61,9 +62,7 @@
     color-scheme: dark;
 }
 
-/* Phosphor glow, a shell prompt on every card and a blinking cursor after the name. */
-[data-theme="dark"] .stats dd,
-[data-theme="dark"] .wordmark { text-shadow: 0 0 6px rgba(57, 255, 106, .45); }
+/* A shell prompt on every card, bracketed status and a blinking block cursor after the name. */
 [data-theme="dark"] .wordmark span { color: var(--text); }
 [data-theme="dark"] .wordmark::after {
     content: "";
@@ -78,7 +77,7 @@
 [data-theme="dark"] .card-head h2::before { content: "$ "; color: var(--accent); }
 [data-theme="dark"] .badge::before { content: "[ "; }
 [data-theme="dark"] .badge::after { content: " ]"; }
-[data-theme="dark"] .site-nav a.active { color: var(--accent); background: rgba(57, 255, 106, .06); }
+[data-theme="dark"] .site-nav a.active { color: var(--accent); }
 [data-theme="dark"] .logo-mark .ping { fill: var(--text); }
 
 @keyframes np-blink { 50% { opacity: 0; } }
@@ -122,14 +121,14 @@
 
 /* The top bar stays a black terminal strip, so the brand reads the same in both modes. */
 [data-theme="light"] .top {
-    --text: #e8ffe9;
-    --muted: #7fa58a;
-    --faint: #3f6049;
-    --border: #1d2620;
-    --logo: #39ff6a;
-    --accent: #39ff6a;
-    --on-accent: #021004;
-    background: #0b0f0c;
+    --text: #e8e8e8;
+    --muted: #8c8c8c;
+    --faint: #4a4a4a;
+    --border: #1f1f1f;
+    --logo: #00ff66;
+    --accent: #00ff66;
+    --on-accent: #000000;
+    background: #000000;
     color: var(--text);
     border-bottom: 0;
     color-scheme: dark;
@@ -196,138 +195,366 @@
 [data-theme="cyberpunk"] .windows button.active,
 [data-theme="cyberpunk"] button.primary:hover:not(:disabled) { box-shadow: 0 0 14px rgba(255, 43, 214, .6); }
 
-/* --- Anime: pastel sky, stickers and soft corners ------------------------ */
+/* --- Anime: a shoujo manga page under falling sakura --------------------- */
 
 [data-theme="anime"] {
-    --trace-filter: none;
-    --bg: #fff3f8;
+    --ink: #1d1626;
+    --sakura: #ff6fae;
+    --bg: #ffeaf4;
     --bg-image:
-        radial-gradient(circle at 12% 8%, rgba(255, 182, 213, .55) 0 120px, transparent 260px),
-        radial-gradient(circle at 92% 30%, rgba(186, 206, 255, .5) 0 140px, transparent 300px),
-        radial-gradient(rgba(255, 111, 168, .14) 1.5px, transparent 1.5px);
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg fill='%23ffffff' opacity='.55'%3E%3Ccircle cx='20' cy='30' r='1.6'/%3E%3Ccircle cx='110' cy='20' r='1.2'/%3E%3Ccircle cx='70' cy='90' r='1.4'/%3E%3Ccircle cx='140' cy='120' r='1.8'/%3E%3Ccircle cx='30' cy='140' r='1.1'/%3E%3C/g%3E%3C/svg%3E"),
+        linear-gradient(180deg, #bfe4ff 0%, #e4dcff 45%, #ffe1ef 100%);
     --card: #ffffff;
-    --border: #f6cfe1;
-    --rule-width: 2px;
-    --text: #4b3653;
-    --muted: #9b80a6;
-    --faint: #d7c3dd;
-    --logo: #7a5cff;
-    --accent: #ff5fa2;
+    --border: var(--ink);
+    --rule-width: 3px;
+    --text: var(--ink);
+    --muted: #7b6a8c;
+    --faint: #cdbfdc;
+    --logo: var(--ink);
+    --accent: var(--sakura);
     --on-accent: #ffffff;
-    --good: #2fbf8f;
-    --fair: #f39c32;
-    --poor: #ff4d6d;
-    --trace: #7a5cff;
+    --good: #12b886;
+    --fair: #ff9f1c;
+    --poor: #ff3860;
+    --trace: #6c4cf5;
     --trace-width: 2.4;
-    --area-opacity: .14;
+    --trace-filter: none;
+    --area-opacity: .16;
     --radius: 999px;
-    --radius-card: 20px;
-    --card-shadow: 0 6px 0 #f6cfe1;
+    --radius-card: 16px;
+    --card-shadow: 6px 6px 0 var(--ink);
     --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
     --font-num: var(--font-body);
     --font-head: var(--font-body);
     --font-brand: var(--font-body);
-    --head-size: 1.05rem;
+    --head-size: 1.1rem;
     --head-weight: 800;
     color-scheme: light;
 }
 
-[data-theme="anime"] body { background-size: auto, auto, 22px 22px; }
-[data-theme="anime"] .top { background: rgba(255, 255, 255, .7); border-bottom: 2px solid var(--border); }
+/* Sakura petals drifting down behind the page (still when reduced motion is requested). */
+[data-theme="anime"] body::before {
+    content: "";
+    position: fixed;
+    inset: -200px 0 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='300'%3E%3Cg fill='%23ffb3d1' stroke='%23ff7fb6' stroke-width='.8'%3E%3Cpath d='M30 40c8-10 22-8 24 2 2 9-8 18-22 18 6-6 4-12-2-20z'/%3E%3Cpath d='M180 120c6-12 20-12 24-3 3 8-5 18-19 20 5-7 3-12-5-17z' transform='rotate(35 190 130)'/%3E%3Cpath d='M90 220c7-9 19-7 21 2 2 8-7 15-19 15 5-5 3-10-2-17z' transform='rotate(-25 100 225)'/%3E%3C/g%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='420'%3E%3Cg fill='%23ffc9de' stroke='%23ff9cc6' stroke-width='.6'%3E%3Cpath d='M60 90c5-7 15-6 17 1 1 6-6 12-15 12 4-4 3-8-2-13z' transform='rotate(60 70 95)'/%3E%3Cpath d='M250 300c5-7 15-6 17 1 1 6-6 12-15 12 4-4 3-8-2-13z' transform='rotate(-40 258 305)'/%3E%3C/g%3E%3C/svg%3E");
+    animation: np-petals 26s linear infinite;
+}
+
+@keyframes np-petals {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 260px 900px, -340px 840px; }
+}
+
+[data-theme="anime"] .top,
+[data-theme="anime"] main { position: relative; z-index: 1; }
+
+[data-theme="anime"] .top { background: #ffffff; border-bottom: 3px solid var(--ink); }
 [data-theme="anime"] .brand,
 [data-theme="anime"] .site-nav a { border-right: 0; }
-[data-theme="anime"] .site-nav { gap: .25rem; padding: 0 .5rem; }
-[data-theme="anime"] .site-nav a { min-height: 36px; margin: auto 0; border-radius: 999px; }
-[data-theme="anime"] .site-nav a.active { background: var(--accent); color: var(--on-accent); box-shadow: 0 3px 0 #e04b8a; }
-[data-theme="anime"] .site-nav a.active i { color: var(--on-accent); }
-[data-theme="anime"] .wordmark { font-weight: 800; font-size: 1.15rem; }
-[data-theme="anime"] .card-head { border-bottom: 2px dashed var(--border); }
-[data-theme="anime"] .card-head h2::before { content: "✿ "; color: var(--accent); }
-[data-theme="anime"] .badge {
-    padding: .15rem .65rem;
+[data-theme="anime"] .wordmark { font-size: 1.25rem; font-weight: 800; }
+/* The name in katakana under the logo, like a manga title. */
+[data-theme="anime"] .brand { flex-wrap: wrap; row-gap: 0; align-content: center; }
+[data-theme="anime"] .brand::after {
+    content: "ネットパルス";
+    flex-basis: 100%;
+    margin: -.2rem 0 0 2.1rem;
+    font-family: "NP Kana", var(--font-body);
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .25em;
+    color: var(--sakura);
+}
+[data-theme="anime"] .site-nav { gap: .15rem; padding: 0 .25rem; align-items: center; }
+[data-theme="anime"] .site-nav a {
+    min-height: 34px;
+    padding: 0 .75rem;
+    border: 2px solid transparent;
     border-radius: 999px;
-    background: currentColor;
+    font-weight: 600;
+}
+[data-theme="anime"] .site-nav a.active {
+    background: var(--sakura);
+    color: #ffffff;
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+[data-theme="anime"] .site-nav a.active i { color: #ffffff; }
+
+/* Cards are manga panels: thick ink frame, hard shadow, a screentone title strip and a sparkle. */
+[data-theme="anime"] .card { position: relative; }
+[data-theme="anime"] .card::after {
+    content: "✦";
+    position: absolute;
+    top: -18px;
+    right: -12px;
+    font-size: 30px;
+    line-height: 1;
+    color: #ffd23f;
+    -webkit-text-stroke: 2px var(--ink);
+    transform: rotate(12deg);
+    pointer-events: none;
+}
+[data-theme="anime"] .card-head {
+    border-bottom: 3px solid var(--ink);
+    border-radius: 13px 13px 0 0;
+    background-color: #ffd6e8;
+    background-image: radial-gradient(rgba(255, 111, 174, .55) 1.2px, transparent 1.4px);
+    background-size: 7px 7px;
+}
+[data-theme="anime"] .card-head h2 { color: var(--ink); }
+[data-theme="anime"] .card-head h2::before { content: "♡ "; color: var(--sakura); }
+
+/* Status as a speech bubble. */
+[data-theme="anime"] .badge {
+    position: relative;
+    padding: .2rem .7rem;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: #ffffff;
+    font-weight: 800;
     letter-spacing: .04em;
 }
 [data-theme="anime"] .badge::before { content: "♥ "; }
 [data-theme="anime"] .badge.good::before { content: "★ "; }
-/* The pill takes the status colour; the text inside stays white. */
-[data-theme="anime"] .badge { color: var(--muted); }
-[data-theme="anime"] .badge.good { color: var(--good); }
-[data-theme="anime"] .badge.fair { color: var(--fair); }
-[data-theme="anime"] .badge.poor { color: var(--poor); }
-[data-theme="anime"] .badge { -webkit-text-fill-color: #fff; }
-[data-theme="anime"] .stats > div { border-left: 2px dotted var(--border); }
-[data-theme="anime"] .stats > div:first-child { border-left: 0; }
-[data-theme="anime"] .stats dd { font-weight: 800; color: #6a4bd8; }
-[data-theme="anime"] .windows { border: 2px solid var(--border); border-radius: 999px; overflow: hidden; }
-[data-theme="anime"] .windows button + button { border-left: 0; }
-[data-theme="anime"] .chart { border: 0; border-radius: 12px; background-color: #fbf7ff; }
-[data-theme="anime"] button.primary { border-width: 2px; box-shadow: 0 3px 0 var(--accent); }
+[data-theme="anime"] .badge::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    bottom: -7px;
+    width: 9px;
+    height: 9px;
+    background: #ffffff;
+    border-right: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    transform: rotate(45deg);
+}
 
-/* --- Medieval: an illuminated ledger on parchment ------------------------ */
+[data-theme="anime"] .stats > div { border-left: 2px dashed var(--faint); }
+[data-theme="anime"] .stats > div:first-child { border-left: 0; }
+[data-theme="anime"] .stats dd {
+    font-weight: 800;
+    font-size: 1.6rem;
+    color: var(--ink);
+    text-shadow: 2px 2px 0 #ffc2dc;
+}
+[data-theme="anime"] .stats dd .unit { text-shadow: none; color: var(--sakura); }
+
+[data-theme="anime"] .chart {
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    background-color: #f7f3ff;
+}
+/* The "ping!" sound effect, in katakana, stamped on every chart. */
+[data-theme="anime"] .chart-wrap::after {
+    content: "ピン！";
+    position: absolute;
+    bottom: 4px;
+    right: -10px;
+    font-family: "NP Kana", var(--font-body);
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #ffd23f;
+    -webkit-text-stroke: 1.5px var(--ink);
+    paint-order: stroke fill;
+    transform: rotate(-8deg);
+    pointer-events: none;
+}
+[data-theme="anime"] .windows { border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; }
+[data-theme="anime"] .windows button + button { border-left: 2px solid var(--ink); }
+[data-theme="anime"] .windows button { font-weight: 800; }
+[data-theme="anime"] button.primary,
+[data-theme="anime"] .theme-picker summary { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); color: var(--ink); }
+[data-theme="anime"] button.primary { background: #ffd23f; }
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="anime"] body::before { animation: none; }
+}
+
+/* --- Medieval: a manuscript under the banners of the realm --------------- */
 
 [data-theme="medieval"] {
-    --trace-filter: none;
-    --bg: #e6d6b4;
+    --leather: #2e1b10;
+    --gold: #d9b45a;
+    --crimson: #8e1b1b;
+    --bg: #d8c39a;
     --bg-image:
-        radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(92, 60, 20, .28) 100%),
-        radial-gradient(circle at 20% 30%, rgba(160, 120, 60, .12), transparent 40%),
-        radial-gradient(circle at 80% 70%, rgba(140, 100, 50, .10), transparent 45%);
-    --card: #f3e8cf;
-    --card-image: radial-gradient(ellipse at 50% 0%, rgba(255, 250, 235, .7), transparent 70%);
-    --border: #8a6a3b;
-    --rule-width: 3px;
-    --rule-style: double;
-    --text: #2b1f12;
-    --muted: #6b5638;
-    --faint: #a68d63;
-    --logo: #2b1f12;
-    --accent: #8b1a1a;
-    --on-accent: #f3e8cf;
-    --good: #35622a;
-    --fair: #a87410;
-    --poor: #8b1a1a;
-    --trace: #2b1f12;
-    --trace-width: 1.6;
-    --area-opacity: .1;
+        radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(70, 40, 10, .45) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='1000' preserveAspectRatio='none'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' stitchTiles='stitch' baseFrequency='.012' numOctaves='4' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .12 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='1600' height='1000' filter='url(%23n)'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' stitchTiles='stitch' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .1 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)'/%3E%3C/svg%3E");
+    --card: #f1e4c3;
+    --card-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='46'%3E%3Cg fill='none' stroke='%238e1b1b' stroke-width='1.6'%3E%3Cpath d='M4 42V14C4 8 8 4 14 4h28'/%3E%3Cpath d='M10 42V20c0-6 4-10 10-10h22' stroke='%23b8862b'/%3E%3Cpath d='M16 16c4 0 6 3 4 6s-6 1-5-2' /%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='2.2' fill='%23b8862b'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='46'%3E%3Cg fill='none' stroke='%238e1b1b' stroke-width='1.6' transform='matrix(-1 0 0 1 46 0)'%3E%3Cpath d='M4 42V14C4 8 8 4 14 4h28'/%3E%3Cpath d='M10 42V20c0-6 4-10 10-10h22' stroke='%23b8862b'/%3E%3Cpath d='M16 16c4 0 6 3 4 6s-6 1-5-2' /%3E%3C/g%3E%3Ccircle cx='30' cy='16' r='2.2' fill='%23b8862b'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='46'%3E%3Cg fill='none' stroke='%238e1b1b' stroke-width='1.6' transform='matrix(1 0 0 -1 0 46)'%3E%3Cpath d='M4 42V14C4 8 8 4 14 4h28'/%3E%3Cpath d='M10 42V20c0-6 4-10 10-10h22' stroke='%23b8862b'/%3E%3C/g%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='46'%3E%3Cg fill='none' stroke='%238e1b1b' stroke-width='1.6' transform='matrix(-1 0 0 -1 46 46)'%3E%3Cpath d='M4 42V14C4 8 8 4 14 4h28'/%3E%3Cpath d='M10 42V20c0-6 4-10 10-10h22' stroke='%23b8862b'/%3E%3C/g%3E%3C/svg%3E"),
+        radial-gradient(ellipse at 50% 30%, rgba(255, 250, 230, .8), transparent 75%);
+    --border: #5b3a1a;
+    --rule-width: 2px;
+    --text: #2a1a0c;
+    --muted: #6a4f2c;
+    --faint: #a78a5c;
+    --logo: var(--gold);
+    --accent: var(--crimson);
+    --on-accent: #f6e7c1;
+    --good: #2f5d1f;
+    --fair: #9a6a00;
+    --poor: var(--crimson);
+    --trace: #2a1a0c;
+    --trace-width: 1.7;
+    --trace-filter: none;
+    --area-opacity: 0;
     --radius: 0;
     --radius-card: 0;
-    --card-shadow: 2px 3px 0 rgba(60, 40, 15, .18);
+    --card-shadow: 0 0 0 5px var(--card), 0 0 0 6px #a8834a, 4px 8px 18px rgba(50, 25, 5, .35);
     --font-body: "IM Fell English", Garamond, Georgia, serif;
     --font-num: var(--font-body);
-    --font-head: "Cinzel", "Trajan Pro", Georgia, serif;
+    --font-head: "NP Blackletter", "Old English Text MT", serif;
     --font-brand: var(--font-head);
     --body-size: 1.08rem;
-    --head-size: 1rem;
-    --head-weight: 600;
-    --head-spacing: .08em;
+    --head-size: 1.45rem;
+    --head-weight: 400;
+    --head-spacing: .01em;
     color-scheme: light;
 }
 
-[data-theme="medieval"] .top { background: rgba(243, 232, 207, .55); border-bottom: 3px double var(--border); }
-[data-theme="medieval"] .brand,
-[data-theme="medieval"] .site-nav a { border-right-color: rgba(138, 106, 59, .4); }
-[data-theme="medieval"] .logo-mark .ping { fill: #b8860b; }
-[data-theme="medieval"] .wordmark { font-size: 1.15rem; letter-spacing: .06em; }
-[data-theme="medieval"] .wordmark span { color: var(--accent); }
-[data-theme="medieval"] .card-head { border-bottom: 1px solid rgba(138, 106, 59, .5); }
-[data-theme="medieval"] .card-head h2::before { content: "❧ "; color: var(--accent); }
-/* An illuminated initial: the first letter of each card title in crimson and gold. */
-[data-theme="medieval"] .card-head h2::first-letter { color: var(--accent); font-size: 1.35em; text-shadow: 1px 1px 0 #d4a937; }
-[data-theme="medieval"] .stats dt { font-family: var(--font-head); letter-spacing: .12em; }
-[data-theme="medieval"] .stats dd { font-size: 1.55rem; }
-[data-theme="medieval"] .stats > div { border-left-color: rgba(138, 106, 59, .4); }
-[data-theme="medieval"] .badge { font-family: var(--font-head); }
-[data-theme="medieval"] .badge::before { content: "✠ "; }
-[data-theme="medieval"] .chart { background-color: rgba(255, 250, 235, .45); border-color: rgba(138, 106, 59, .5); }
-[data-theme="medieval"] .windows button.active { font-family: var(--font-head); }
+[data-theme="medieval"] body { background-size: auto, cover, auto; }
+[data-theme="medieval"] main { gap: 1.8rem; padding-top: 2rem; }
+
+/* A leather top bar with gold lettering and the realm's banners hanging from it. */
+[data-theme="medieval"] .top {
+    --text: #f3dfa8;
+    --muted: #c9ae75;
+    --faint: #8c7448;
+    --border: #5a3a20;
+    background:
+        linear-gradient(180deg, rgba(255, 220, 150, .08), transparent 40%),
+        var(--leather);
+    border-bottom: 4px double var(--gold);
+    color: var(--text);
+    overflow: visible;
+}
+[data-theme="medieval"] .brand { border-right: 0; }
+[data-theme="medieval"] .wordmark { font-size: 1.7rem; font-weight: 400; color: var(--gold); text-shadow: 0 1px 0 #000; }
+[data-theme="medieval"] .wordmark span { color: #f3dfa8; }
+/* The mark sits on a crimson heraldic shield. */
+[data-theme="medieval"] .logo-mark {
+    width: 30px;
+    height: 34px;
+    padding: 4px 4px 8px;
+    background: var(--crimson);
+    clip-path: polygon(0 0, 100% 0, 100% 58%, 50% 100%, 0 58%);
+}
+[data-theme="medieval"] .logo-mark .trace { stroke: var(--gold); }
+[data-theme="medieval"] .logo-mark .ping { fill: #f3dfa8; }
+
+[data-theme="medieval"] .site-nav { gap: .5rem; padding: 0 .75rem; align-items: flex-start; }
+[data-theme="medieval"] .site-nav a {
+    border-right: 0;
+    min-height: 0;
+    padding: .7rem .8rem 1.3rem;
+    margin-bottom: -14px;
+    position: relative;
+    z-index: 2;
+    background: #5e1414;
+    color: #e8cf93;
+    font-family: "Cinzel", serif;
+    font-size: .78rem;
+    letter-spacing: .06em;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%);
+    box-shadow: none;
+}
+[data-theme="medieval"] .site-nav a i,
+[data-theme="medieval"] .site-nav a.active i { color: var(--gold); font-family: "Cinzel", serif; }
+[data-theme="medieval"] .site-nav a:hover { background: #7a1c1c; }
+[data-theme="medieval"] .site-nav a.active {
+    background: var(--crimson);
+    color: #fff3cf;
+    padding-bottom: 1.8rem;
+    margin-bottom: -22px;
+    box-shadow: inset 0 3px 0 var(--gold);
+}
+
+/* Manuscript pages with gilded corner flourishes. */
+[data-theme="medieval"] .card {
+    background-repeat: no-repeat;
+    background-position: 4px 4px, calc(100% - 4px) 4px, 4px calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), center;
+    padding: 1.4rem 1.8rem;
+}
+[data-theme="medieval"] .card-head {
+    margin: -1.4rem -1.8rem 1rem;
+    padding: 1.1rem 3rem .6rem;
+    border-bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='12'%3E%3Cpath d='M0 6h130M170 6h130' stroke='%23a8834a'/%3E%3Cpath d='M150 1l5 5-5 5-5-5z' fill='%238e1b1b'/%3E%3C/svg%3E") center bottom / 300px 12px no-repeat;
+}
+[data-theme="medieval"] .card-head h2 { color: var(--text); }
+/* An illuminated mark before every title: a crimson cross on gold leaf. */
+[data-theme="medieval"] .card-head h2::before {
+    content: "✠";
+    display: inline-block;
+    width: 1.35em;
+    margin-right: .45rem;
+    font-family: Georgia, serif;
+    font-size: .85em;
+    line-height: 1.35em;
+    text-align: center;
+    vertical-align: .1em;
+    color: var(--crimson);
+    background: linear-gradient(135deg, #f7dd8b, #c89a35 55%, #f2d27a);
+    border: 1px solid #6b4a14;
+    box-shadow: 1px 1px 0 #6b4a14;
+}
+[data-theme="medieval"] .card-head h2 small { font-family: var(--font-body); }
+
+/* Status sealed with red wax. */
+[data-theme="medieval"] .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    font-family: "Cinzel", serif;
+    font-size: .78rem;
+    letter-spacing: .1em;
+}
+[data-theme="medieval"] .badge::before {
+    content: "";
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 48% 52% 46% 54% / 52% 46% 54% 48%;
+    background: radial-gradient(circle at 35% 30%, #d14a3a, #8e1b1b 55%, #5c0f0f);
+    box-shadow: 0 0 0 2px rgba(142, 27, 27, .35), inset 0 0 0 3px rgba(0, 0, 0, .15);
+}
+[data-theme="medieval"] .badge.good::before { background: radial-gradient(circle at 35% 30%, #6fa04a, #2f5d1f 55%, #1d3a12); box-shadow: 0 0 0 2px rgba(47, 93, 31, .35), inset 0 0 0 3px rgba(0, 0, 0, .15); }
+[data-theme="medieval"] .badge.fair::before { background: radial-gradient(circle at 35% 30%, #e0b54a, #9a6a00 55%, #5e4000); box-shadow: 0 0 0 2px rgba(154, 106, 0, .35), inset 0 0 0 3px rgba(0, 0, 0, .15); }
+
+[data-theme="medieval"] .stats dt { font-family: "Cinzel", serif; letter-spacing: .14em; color: var(--muted); }
+[data-theme="medieval"] .stats dd { font-size: 1.7rem; }
+[data-theme="medieval"] .stats > div { border-left: 1px solid rgba(91, 58, 26, .35); }
+[data-theme="medieval"] .stats > div:first-child { border-left: 0; }
+
+[data-theme="medieval"] .chart {
+    background-color: rgba(255, 248, 225, .55);
+    border-top: 2px solid var(--border);
+    border-bottom: 2px solid var(--border);
+}
+[data-theme="medieval"] .windows { border-color: var(--gold); }
+[data-theme="medieval"] .windows button { font-family: "Cinzel", serif; color: var(--muted); }
+[data-theme="medieval"] .windows button + button { border-left-color: #5a3a20; }
+[data-theme="medieval"] .windows button.active { background: var(--crimson); color: #fff3cf; }
+[data-theme="medieval"] button.primary,
+[data-theme="medieval"] .theme-picker summary { font-family: "Cinzel", serif; color: var(--gold); border-color: var(--gold); }
+[data-theme="medieval"] button.primary:hover:not(:disabled) { background: var(--gold); color: var(--leather); }
+[data-theme="medieval"] .theme-picker ul { background: #f1e4c3; }
+[data-theme="medieval"] .theme-picker a { color: #2a1a0c; }
 
 /* --- Theme picker swatches: each option previews its own colours --------- */
 
 [data-theme-option] .swatch { background: var(--accent); }
-[data-theme-option="dark"] .swatch { background: linear-gradient(135deg, #030603 50%, #39ff6a 50%); }
+[data-theme-option="dark"] .swatch { background: linear-gradient(135deg, #000000 50%, #00ff66 50%); }
 [data-theme-option="light"] .swatch { background: linear-gradient(135deg, #ffffff 50%, #111418 50%); }
 [data-theme-option="cyberpunk"] .swatch { background: linear-gradient(135deg, #ff2bd6 50%, #00f0ff 50%); }
-[data-theme-option="anime"] .swatch { background: linear-gradient(135deg, #ffb6d5 50%, #7a5cff 50%); }
-[data-theme-option="medieval"] .swatch { background: linear-gradient(135deg, #e6d6b4 50%, #8b1a1a 50%); }
+[data-theme-option="anime"] .swatch { background: linear-gradient(135deg, #ff6fae 50%, #bfe4ff 50%); }
+[data-theme-option="medieval"] .swatch { background: linear-gradient(135deg, #d9b45a 50%, #8e1b1b 50%); }
