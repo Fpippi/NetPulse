@@ -48,6 +48,7 @@ or your ISP.
 - **Notifications** on your phone or inbox (ntfy, Telegram, any webhook incl. Slack/Discord, e-mail) when a
   target goes down or comes back, a new device joins the network, or a speed test is slow — delivered even
   after an Internet outage, because undelivered alerts are retried
+- **Prometheus `/metrics` and `/healthz`** for Grafana, Home Assistant, Uptime Kuma and Docker health checks
 - **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export`,
   `/api/devices`, `/api/loadtest`) for scripts and integrations
 - Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
@@ -269,6 +270,33 @@ Example with environment variables: `NetPulse__Notifications__NtfyUrl=https://nt
 Check the setup with `curl -X POST http://localhost:5080/api/notifications/test`, which sends a test alert
 to every channel and reports the result of each. Keep tokens and passwords out of `appsettings.json` if you
 commit it: use environment variables or [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets).
+
+### Health and metrics
+
+- `GET /healthz` answers `200 Healthy` when the monitoring loop completed a cycle recently (within three
+  intervals, at least 30 s) and the database is readable, otherwise `503 Unhealthy`. Point Uptime Kuma,
+  a reverse proxy or an orchestrator at it to restart NetPulse if it hangs.
+- `GET /metrics` exposes the current state in the Prometheus text format, so Grafana (via Prometheus) or
+  Home Assistant's Prometheus integration can chart it next to everything else:
+
+| Metric | Labels | Meaning |
+|--------|--------|---------|
+| `netpulse_target_up` | `target` | 1 while the target answers, 0 during an outage or before its first sample |
+| `netpulse_latency_avg_ms`, `_min_ms`, `_max_ms` | `target` | Round-trip times over the last 5 minutes |
+| `netpulse_jitter_ms`, `netpulse_packet_loss_ratio`, `netpulse_samples` | `target` | Jitter, loss (0–1) and probe count over the last 5 minutes |
+| `netpulse_speedtest_download_mbps`, `_upload_mbps`, `_latency_ms`, `_success`, `_timestamp_seconds` | | Latest speed test |
+| `netpulse_lan_devices_known`, `netpulse_lan_devices_online` | | LAN devices |
+| `netpulse_outages_ongoing` | | Outages in progress |
+
+A minimal Prometheus scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: netpulse
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["netpulse-host:5080"]
+```
 
 ## API
 
