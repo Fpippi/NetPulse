@@ -104,8 +104,8 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const fmtMs = v => (v == null ? "–" : v.toFixed(1) + " ms");
-  const fmtPct = v => (Math.round(v * 10) / 10).toString() + " %";
+  const fmtMs = v => (v == null ? "–" : v.toFixed(1) + "<span class=\"unit\">ms</span>");
+  const fmtPct = v => (Math.round(v * 10) / 10).toString() + "<span class=\"unit\">%</span>";
   const f = v => (Math.round(v * 100) / 100).toString();
 
   function el(tag, cls, text) {
@@ -126,14 +126,14 @@
     const from = node._value;
     node._value = to;
     if (from == null || to == null || reducedMotion || from === to) {
-      node.textContent = fmt(to);
+      node.innerHTML = fmt(to);
       return;
     }
     const start = performance.now(), dur = 600;
     cancelAnimationFrame(node._raf);
     const step = now => {
       const t = Math.min(1, (now - start) / dur), e = 1 - (1 - t) ** 3;
-      node.textContent = fmt(from + (to - from) * e);
+      node.innerHTML = fmt(from + (to - from) * e);
       if (t < 1) node._raf = requestAnimationFrame(step);
     };
     node._raf = requestAnimationFrame(step);
@@ -161,14 +161,15 @@
     const chart = svg("svg", { class: "chart", viewBox: `0 0 ${WIDTH} ${HEIGHT}`, preserveAspectRatio: "none", role: "img", "aria-label": "Latency over time" });
     const scroll = svg("g", { class: "scroll" });
     const losses = svg("g", {});
+    const area = svg("polygon", { class: "area" });
     const line = svg("polyline", { class: "line" });
-    scroll.append(losses, line);
+    scroll.append(area, losses, line);
     chart.append(scroll);
     const dot = el("span", "live-dot");
     wrap.append(scaleLabel, chart, dot);
 
     card.append(head, dl, wrap);
-    return { card, now, badge, dd, scaleLabel, scroll, losses, line, dot };
+    return { card, now, badge, dd, scaleLabel, scroll, losses, area, line, dot };
   }
 
   function updateCard(c, samples, animateScroll) {
@@ -197,7 +198,11 @@
     const dx = WIDTH / (pts.length - 1);
     const y = v => HEIGHT - v / scale * HEIGHT;
     c.scaleLabel.textContent = `${Math.round(scale)} ms`;
-    c.line.setAttribute("points", pts.filter(p => p.max !== null).map(p => `${f(p.index * dx)},${f(y(p.max))}`).join(" "));
+    const plotted = pts.filter(p => p.max !== null);
+    const trace = plotted.map(p => `${f(p.index * dx)},${f(y(p.max))}`).join(" ");
+    c.line.setAttribute("points", trace);
+    c.area.setAttribute("points", plotted.length < 2 ? "" :
+      `${f(plotted[0].index * dx)},${HEIGHT} ${trace} ${f(plotted[plotted.length - 1].index * dx)},${HEIGHT}`);
     c.losses.replaceChildren(...pts.filter(p => p.hasLoss)
       .map(p => svg("line", { class: "loss", x1: f(p.index * dx), x2: f(p.index * dx), y1: 0, y2: HEIGHT })));
 

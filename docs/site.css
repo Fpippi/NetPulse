@@ -1,12 +1,18 @@
-/* Project page styles. Same palette as the dashboard (src/NetPulse.Web/wwwroot/app.css). */
+/* Project page styles. Same palette and fonts as the dashboard dark theme (src/NetPulse.Web/wwwroot/themes.css). */
+@font-face { font-family: "Plex Sans"; src: url("fonts/plex-sans-var.woff2") format("woff2"); font-weight: 100 700; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+
 :root {
-    --bg: #0f1419;
-    --card: #182029;
-    --border: #263241;
-    --text: #e6edf3;
-    --muted: #8b98a5;
-    --accent: #4aa3ff;
-    --good: #3fb950;
+    --bg: #000000;
+    --card: #0a0a0a;
+    --border: #1f1f1f;
+    --text: #e8e8e8;
+    --muted: #8c8c8c;
+    --accent: #00ff66;
+    --good: #00ff66;
+    --sans: "Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Plex Mono", ui-monospace, Consolas, monospace;
     color-scheme: dark;
 }
 
@@ -16,7 +22,7 @@ html { scroll-behavior: smooth; }
 
 body {
     margin: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--sans);
     line-height: 1.6;
     background: var(--bg);
     color: var(--text);
@@ -24,19 +30,20 @@ body {
 
 a { color: var(--accent); }
 
-code, pre { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; }
-code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: .05rem .3rem; }
+code, pre { font-family: var(--mono); font-size: .9em; }
+code { background: var(--card); border: 1px solid var(--border); border-radius: 2px; padding: .05rem .3rem; }
 
 .nav {
     position: sticky; top: 0; z-index: 1;
     display: flex; align-items: center; justify-content: space-between; gap: 1rem;
     padding: .8rem 1.5rem;
-    background: rgba(15, 20, 25, .9);
+    background: rgba(0, 0, 0, .92);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--border);
 }
 
-.brand { display: flex; align-items: center; gap: .5rem; color: var(--text); font-weight: 700; text-decoration: none; }
+.brand { display: flex; align-items: center; gap: .5rem; color: var(--text); font-family: var(--mono); font-weight: 600; letter-spacing: -.02em; text-decoration: none; }
+.brand em { font-style: normal; color: var(--accent); }
 .nav nav { display: flex; gap: 1.25rem; }
 .nav nav a { color: var(--muted); text-decoration: none; font-size: .95rem; }
 .nav nav a:hover { color: var(--text); }
@@ -57,18 +64,18 @@ h3 { font-size: 1.05rem; margin: 0 0 .4rem; }
 
 .cta { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; margin: 2rem 0 2.5rem; }
 .btn {
-    display: inline-block; padding: .65rem 1.3rem; border-radius: 8px;
+    display: inline-block; padding: .65rem 1.3rem; border-radius: 2px;
     border: 1px solid var(--border); color: var(--text); text-decoration: none; font-weight: 600;
 }
 .btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #06121f; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #000000; }
 .btn.primary:hover { filter: brightness(1.1); }
 
 .shot { display: block; }
 .shot img {
     display: block; width: 100%; height: auto;
-    border: 1px solid var(--border); border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, .45), 0 0 0 1px rgba(74, 163, 255, .08);
+    border: 1px solid var(--border); border-radius: 2px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45), 0 0 0 1px rgba(0, 255, 102, .08);
     transition: transform .2s;
 }
 .shot:hover img { transform: translateY(-3px); }
@@ -76,7 +83,7 @@ h3 { font-size: 1.05rem; margin: 0 0 .4rem; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
 .grid article, .box {
-    background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: 2px; padding: 1.1rem 1.25rem;
 }
 .grid p { margin: 0; color: var(--muted); }
 .grid strong { color: var(--text); font-weight: 600; }
@@ -104,7 +111,7 @@ h3 { font-size: 1.05rem; margin: 0 0 .4rem; }
 
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
 pre {
-    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 2px;
     padding: 1rem; overflow-x: auto; margin: .5rem 0;
 }
 pre code { background: none; border: 0; padding: 0; }

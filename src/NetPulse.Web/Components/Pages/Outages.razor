@@ -11,11 +11,7 @@
 
 <PageTitle>Outages · NetPulse</PageTitle>
 
-<header class="top">
-    <div class="brand">
-        <h1>NetPulse</h1>
-        <SiteNav />
-    </div>
+<AppHeader>
     <nav class="windows">
         @foreach (var window in Windows)
         {
@@ -24,7 +20,7 @@
             </button>
         }
     </nav>
-</header>
+</AppHeader>
 
 <main>
     @if (_outages.Any(o => o.IsOngoing))

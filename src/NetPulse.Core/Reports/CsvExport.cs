@@ -39,7 +39,8 @@ public static class CsvExport
     public static async Task WriteSpeedTestsAsync(TextWriter writer, IEnumerable<SpeedTestResult> results)
     {
         await writer.WriteAsync(Csv.Row(
-            "timestamp_utc", "server", "download_mbps", "upload_mbps", "latency_ms", "download_bytes", "upload_bytes", "error"));
+            "timestamp_utc", "server", "download_mbps", "upload_mbps", "latency_ms", "download_bytes", "upload_bytes", "error",
+            "idle_ping_ms", "download_ping_ms", "upload_ping_ms", "bufferbloat_grade"));
         foreach (var r in results)
         {
             await writer.WriteAsync(Csv.Row(
@@ -50,7 +51,11 @@ public static class CsvExport
                 Csv.Number(r.LatencyMs),
                 Csv.Number(r.DownloadBytes),
                 Csv.Number(r.UploadBytes),
-                r.Error));
+                r.Error,
+                Csv.Number(r.Bufferbloat?.IdleMs),
+                Csv.Number(r.Bufferbloat?.DownloadMs),
+                Csv.Number(r.Bufferbloat?.UploadMs),
+                r.Bufferbloat?.Grade is { } grade ? Bufferbloat.Label(grade) : null));
         }
     }
 }

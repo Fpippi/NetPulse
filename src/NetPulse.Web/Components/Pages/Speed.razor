@@ -10,11 +10,7 @@
 
 <PageTitle>Speed · NetPulse</PageTitle>
 
-<header class="top">
-    <div class="brand">
-        <h1>NetPulse</h1>
-        <SiteNav />
-    </div>
+<AppHeader>
     <div class="actions">
         <nav class="windows">
             @foreach (var window in Windows)
@@ -28,7 +24,7 @@
             @(_status.IsRunning ? "Testing…" : "Run now")
         </button>
     </div>
-</header>
+</AppHeader>
 
 <main>
     <section class="card">
@@ -71,7 +67,34 @@
                 <div><dt>Download</dt><dd>@Mbps(_latest.DownloadMbps)</dd></div>
                 <div><dt>Upload</dt><dd>@Mbps(_latest.UploadMbps)</dd></div>
                 <div><dt>Latency</dt><dd>@Ms(_latest.LatencyMs)</dd></div>
+                <div>
+                    <dt>Bufferbloat</dt>
+                    <dd>
+                        @if (_latest.Bufferbloat?.Grade is { } grade)
+                        {
+                            <span class="badge @GradeClass(grade)" title="Extra latency under load: @Ms(_latest.Bufferbloat.WorstIncreaseMs)">@Bufferbloat.Label(grade)</span>
+                        }
+                        else
+                        {
+                            <text>–</text>
+                        }
+                    </dd>
+                </div>
             </dl>
+
+            @if (_latest.Bufferbloat is { } bloat)
+            {
+                <dl class="stats">
+                    <div><dt>Ping idle</dt><dd>@Ms(bloat.IdleMs)</dd></div>
+                    <div><dt>Ping downloading</dt><dd>@Ms(bloat.DownloadMs) @Increase(bloat.DownloadIncreaseMs)</dd></div>
+                    <div><dt>Ping uploading</dt><dd>@Ms(bloat.UploadMs) @Increase(bloat.UploadIncreaseMs)</dd></div>
+                </dl>
+                <p class="hint">
+                    Bufferbloat is the extra delay your router or modem adds while the line is busy. A or A+ means
+                    video calls and games stay smooth while someone downloads; C or worse usually improves with
+                    SQM / Smart Queue on the router.
+                </p>
+            }
         }
     </section>
 
@@ -101,6 +124,7 @@
                             <th scope="col">Download</th>
                             <th scope="col">Upload</th>
                             <th scope="col">Latency</th>
+                            <th scope="col">Bufferbloat</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,6 +141,16 @@
                                 <td>@Mbps(result.DownloadMbps)</td>
                                 <td>@Mbps(result.UploadMbps)</td>
                                 <td>@Ms(result.LatencyMs)</td>
+                                <td>
+                                    @if (result.Bufferbloat?.Grade is { } rowGrade)
+                                    {
+                                        <span class="badge @GradeClass(rowGrade)" title="+@Ms(result.Bufferbloat.WorstIncreaseMs) under load">@Bufferbloat.Label(rowGrade)</span>
+                                    }
+                                    else
+                                    {
+                                        <text>–</text>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -212,6 +246,16 @@
 
     private static string Ms(double? value) =>
         value is null ? "–" : value.Value.ToString(value < 10 ? "0.0" : "0", CultureInfo.InvariantCulture) + " ms";
+
+    private static string Increase(double? value) =>
+        value is null ? "" : $"(+{Ms(value)})";
+
+    private static string GradeClass(BufferbloatGrade grade) => grade switch
+    {
+        BufferbloatGrade.APlus or BufferbloatGrade.A => "good",
+        BufferbloatGrade.B or BufferbloatGrade.C => "fair",
+        _ => "poor",
+    };
 
     private static string Megabytes(long bytes) =>
         (bytes / 1_000_000.0).ToString("0", CultureInfo.InvariantCulture) + " MB";

@@ -11,7 +11,8 @@ namespace NetPulse.Web.Storage;
 public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
 {
     private const string Columns =
-        "timestamp, server, latency_ms, download_mbps, upload_mbps, download_bytes, upload_bytes, error";
+        "timestamp, server, latency_ms, download_mbps, upload_mbps, download_bytes, upload_bytes, error, "
+        + "idle_latency_ms, download_latency_ms, upload_latency_ms";
 
     private readonly string _connectionString =
         new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
@@ -41,6 +42,29 @@ public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
             CREATE INDEX IF NOT EXISTS ix_speed_tests_timestamp ON speed_tests (timestamp);
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        // Bufferbloat (added in a later version): ping idle and during download / upload.
+        foreach (var column in new[] { "idle_latency_ms", "download_latency_ms", "upload_latency_ms" })
+        {
+            await AddColumnIfMissingAsync(connection, "speed_tests", column, "REAL NULL", cancellationToken);
+        }
+    }
+
+    // Lightweight migration: SQLite has no "ADD COLUMN IF NOT EXISTS".
+    private static async Task AddColumnIfMissingAsync(
+        SqliteConnection connection, string table, string column, string type, CancellationToken cancellationToken)
+    {
+        await using var columns = connection.CreateCommand();
+        columns.CommandText = $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = $name";
+        columns.Parameters.AddWithValue("$name", column);
+        if (await columns.ExecuteScalarAsync(cancellationToken) is not null)
+        {
+            return;
+        }
+
+        await using var alter = connection.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
+        await alter.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task AddAsync(SpeedTestResult result, CancellationToken cancellationToken = default)
@@ -49,7 +73,7 @@ public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
         await using var command = connection.CreateCommand();
         command.CommandText = $"""
             INSERT INTO speed_tests ({Columns})
-            VALUES ($timestamp, $server, $latency, $down, $up, $downBytes, $upBytes, $error)
+            VALUES ($timestamp, $server, $latency, $down, $up, $downBytes, $upBytes, $error, $idle, $loadedDown, $loadedUp)
             """;
         command.Parameters.AddWithValue("$timestamp", result.Timestamp.ToUnixTimeMilliseconds());
         command.Parameters.AddWithValue("$server", result.Server);
@@ -59,6 +83,9 @@ public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
         command.Parameters.AddWithValue("$downBytes", result.DownloadBytes);
         command.Parameters.AddWithValue("$upBytes", result.UploadBytes);
         command.Parameters.AddWithValue("$error", (object?)result.Error ?? DBNull.Value);
+        command.Parameters.AddWithValue("$idle", (object?)result.Bufferbloat?.IdleMs ?? DBNull.Value);
+        command.Parameters.AddWithValue("$loadedDown", (object?)result.Bufferbloat?.DownloadMs ?? DBNull.Value);
+        command.Parameters.AddWithValue("$loadedUp", (object?)result.Bufferbloat?.UploadMs ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -102,10 +129,18 @@ public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
                 reader.IsDBNull(4) ? null : reader.GetDouble(4),
                 reader.GetInt64(5),
                 reader.GetInt64(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7)));
+                reader.IsDBNull(7) ? null : reader.GetString(7),
+                ReadBufferbloat(reader)));
         }
 
         return result;
+    }
+
+    private static Bufferbloat? ReadBufferbloat(SqliteDataReader reader)
+    {
+        double? Value(int i) => reader.IsDBNull(i) ? null : reader.GetDouble(i);
+        var (idle, down, up) = (Value(8), Value(9), Value(10));
+        return idle is null && down is null && up is null ? null : new Bufferbloat(idle, down, up);
     }
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)

@@ -36,9 +36,13 @@ or your ISP.
 - Continuous ping to the **default gateway** (auto-detected) and to public hosts (1.1.1.1, 8.8.8.8)
 - **Latency, jitter, packet loss** and a simple quality rating (Good / Fair / Poor) per target
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
+- **Eleven themes**: Dark, Light, Cyberpunk, Anime (shōnen), Sakura, Bizarre with four colour variants (Night, Pastel, Desert, Ink) and Medieval, picked from the top bar and remembered by the
+  browser (no JavaScript, fonts bundled, no CDN)
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
+- **Bufferbloat grade** (A+ to F): ping idle vs. during the download and upload, the hidden reason calls and
+  games lag on a "fast" connection
 - **ISP report**: a printable report (save it as PDF from the browser) with Internet outages, downtime,
   availability and speed against your contract, plus **CSV export** of all raw data
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
@@ -145,6 +149,15 @@ at a time. By default they use Cloudflare's free speed-test endpoint (`speed.clo
 HTTPS: latency is the median of a few empty requests, and the first 20% of each transfer is ignored as TCP
 warm-up.
 
+#### Bufferbloat
+
+During each test NetPulse also pings `BufferbloatHost` (1.1.1.1 by default): ten times on the idle line,
+then every 200 ms during the download and during the upload. The grade comes from the extra latency in the
+worse direction (median under load minus median idle): **A+** below 5 ms, **A** below 30, **B** below 60,
+**C** below 200, **D** below 400, **F** above. A or A+ means video calls and games stay smooth while someone
+downloads; C or worse usually improves a lot with SQM / Smart Queue (fq_codel, CAKE) on the router.
+The idle and loaded pings are stored with each test and exported in the speed-test CSV.
+
 > Each test transfers about **35 MB** (25 MB down, 10 MB up), so the default schedule uses about 140 MB a
 > day. On a metered connection, lower the sizes, raise the interval or set `Enabled` to `false`.
 
@@ -158,6 +171,7 @@ Settings live in the `SpeedTest` section, e.g. `NetPulse__SpeedTest__IntervalMin
 | `UploadBytes`     | `10000000`                                         | Upload size (`0` skips the upload)        |
 | `DownloadUrl`     | `https://speed.cloudflare.com/__down?bytes={bytes}` | Download endpoint; `{bytes}` is replaced with the size |
 | `UploadUrl`       | `https://speed.cloudflare.com/__up`                | Endpoint that accepts the upload as a POST body |
+| `BufferbloatHost` | `1.1.1.1`                                          | Host pinged idle and under load; empty turns bufferbloat off |
 | `TimeoutSeconds`  | `120`                                              | A slower test is recorded as failed       |
 | `RetentionDays`   | `365`                                              | Older results are deleted automatically   |
 

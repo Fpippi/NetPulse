@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Notifications;
+using NetPulse.Core.Probing;
 using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Storage;
 
@@ -23,6 +24,7 @@ public sealed record SpeedTestStatus(bool IsRunning, string? Phase, DateTimeOffs
 /// </summary>
 public sealed class SpeedTestRunner(
     IHttpClientFactory httpClients,
+    IPingProbe ping,
     ISpeedTestStore store,
     INotificationPublisher notifications,
     IOptions<NotificationOptions> notificationOptions,
@@ -62,7 +64,7 @@ public sealed class SpeedTestRunner(
             var http = httpClients.CreateClient(HttpClientName);
             http.Timeout = TimeSpan.FromSeconds(Math.Clamp(opt.TimeoutSeconds, 10, 600));
 
-            var test = new HttpSpeedTest(http);
+            var test = new HttpSpeedTest(http, LatencyProbe(opt.BufferbloatHost));
             test.PhaseChanged += phase => SetStatus(s => s with { Phase = phase });
 
             var result = await test.RunAsync(opt.ToPlan(), cancellationToken);
@@ -71,8 +73,9 @@ public sealed class SpeedTestRunner(
             if (result.Success)
             {
                 logger.LogInformation(
-                    "Speed test against {Server}: {Down:0.0} Mbps down, {Up:0.0} Mbps up, {Latency:0} ms",
-                    result.Server, result.DownloadMbps, result.UploadMbps, result.LatencyMs);
+                    "Speed test against {Server}: {Down:0.0} Mbps down, {Up:0.0} Mbps up, {Latency:0} ms, bufferbloat {Grade}",
+                    result.Server, result.DownloadMbps, result.UploadMbps, result.LatencyMs,
+                    result.Bufferbloat?.Grade is { } grade ? Bufferbloat.Label(grade) : "n/a");
             }
             else
             {
@@ -93,6 +96,20 @@ public sealed class SpeedTestRunner(
             SetStatus(s => s with { IsRunning = false, Phase = null, StartedAt = null });
             _gate.Release();
         }
+    }
+
+    private Func<CancellationToken, Task<double?>>? LatencyProbe(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return null;
+        }
+
+        return async ct =>
+        {
+            var result = await ping.PingAsync(host.Trim(), TimeSpan.FromSeconds(1), ct);
+            return result.Success ? result.LatencyMs : null;
+        };
     }
 
     /// <summary>Publishes when the scheduler will run the next test.</summary>

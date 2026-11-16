@@ -12,14 +12,10 @@
 
 <PageTitle>Report · NetPulse</PageTitle>
 
-<header class="top no-print">
-    <div class="brand">
-        <h1>NetPulse</h1>
-        <SiteNav />
-    </div>
+<AppHeader Class="no-print">
     @* A plain HTML handler (not a Blazor event): opens the browser's print dialog, which can also save a PDF. *@
     <button type="button" class="primary" onclick="window.print()" disabled="@(_report is null)">Print / Save as PDF</button>
-</header>
+</AppHeader>
 
 <main class="report">
     <section class="card no-print">
