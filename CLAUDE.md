@@ -32,7 +32,10 @@ docker build -t netpulse .                 # container image
 
 - `src/NetPulse.Core` — domain logic, **no external dependencies**.
   - `Models/PingSample` — one measurement.
-  - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver`.
+  - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver`; `ProbeTarget` parses a target into
+    ping / `dns:name[@server]` / `http(s)://` (`ProbeKind`); `DnsProbe` (raw UDP A query via `DnsWire`),
+    `HttpProbe` (GET until headers), `TargetProbe` dispatches by kind with `ProbeTimeouts`.
+    `Stats/QualityThresholds` gives each kind its own Good/Fair/Poor scale (`LatencyStats.Rate`).
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
   - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices).
   - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
@@ -53,7 +56,7 @@ docker build -t netpulse .                 # container image
     (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
 - `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`, `/report`
   (printable; `@media print` in `app.css`).
-  - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds and feeds
+  - `Monitoring/PingMonitorService` — `BackgroundService` that probes all targets every N seconds and feeds
     `OutageTracker`; open outages from a previous run are closed at startup.
   - `Monitoring/OutageTracer` — traceroute in the background when an outage starts (one at a time), stored by
     `Storage/SqliteOutageTraceStore` (hops as JSON); shown on `/outages`, in the report and `/api/outages`.

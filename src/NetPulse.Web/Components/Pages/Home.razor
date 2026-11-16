@@ -30,7 +30,7 @@
         <section class="card">
             <div class="card-head">
                 <h2>@series.Target</h2>
-                <span class="badge @series.Stats.Quality.ToString().ToLowerInvariant()">@series.Stats.Quality</span>
+                <span class="badge @series.Quality.ToString().ToLowerInvariant()">@series.Quality</span>
             </div>
 
             <dl class="stats">
@@ -63,7 +63,11 @@
     private DateTimeOffset _to;
     private List<Series> _series = [];
 
-    private sealed record Series(string Target, IReadOnlyList<PingSample> Samples, LatencyStats Stats);
+    private sealed record Series(string Target, IReadOnlyList<PingSample> Samples, LatencyStats Stats)
+    {
+        /// <summary>Rated on the scale of the target's probe kind (ping, DNS or HTTP).</summary>
+        public ConnectionQuality Quality => Stats.Rate(QualityThresholds.ForTarget(Target));
+    }
 
     protected override async Task OnInitializedAsync()
     {

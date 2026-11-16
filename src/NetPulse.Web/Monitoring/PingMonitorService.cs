@@ -9,11 +9,11 @@ using NetPulse.Core.Targets;
 namespace NetPulse.Web.Monitoring;
 
 /// <summary>
-/// Pings every configured and custom target at a fixed interval, stores the results and records
-/// outages (runs of consecutive lost pings).
+/// Probes every configured and custom target (ping, DNS or HTTP) at a fixed interval, stores the
+/// results and records outages (runs of consecutive lost probes).
 /// </summary>
 public sealed class PingMonitorService(
-    IPingProbe probe,
+    TargetProbe probe,
     ISampleStore store,
     IOutageStore outages,
     IOutageTraceStore traces,
@@ -34,7 +34,6 @@ public sealed class PingMonitorService(
     {
         _stopping = stoppingToken;
         var opt = options.Value;
-        var timeout = TimeSpan.FromMilliseconds(Math.Max(100, opt.TimeoutMs));
         var lastPurge = DateTimeOffset.MinValue;
 
         // Outages left open by a previous run cannot be followed: nobody watched in between.
@@ -55,7 +54,7 @@ public sealed class PingMonitorService(
         {
             try
             {
-                await RunCycleAsync(timeout, stoppingToken);
+                await RunCycleAsync(stoppingToken);
                 heartbeat.Beat(DateTimeOffset.UtcNow);
 
                 if (DateTimeOffset.UtcNow - lastPurge >= PurgeInterval)
@@ -82,19 +81,19 @@ public sealed class PingMonitorService(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    private async Task RunCycleAsync(TimeSpan timeout, CancellationToken ct)
+    private async Task RunCycleAsync(CancellationToken ct)
     {
         var timestamp = DateTimeOffset.UtcNow;
 
         // Read the list every cycle so targets added or removed from the dashboard apply immediately.
         var monitored = await targets.GetEffectiveTargetsAsync(ct);
         var tasks = monitored
-            .Select(target => (Target: target, Host: ResolveHost(target)))
-            .Where(t => t.Host is not null)
-            .Select(async t =>
+            .Select(Resolve)
+            .OfType<ProbeTarget>()
+            .Select(async target =>
             {
-                var result = await probe.PingAsync(t.Host!, timeout, ct);
-                return new PingSample(timestamp, t.Target, result.Success, result.LatencyMs);
+                var result = await probe.ProbeAsync(target, ct);
+                return new PingSample(timestamp, target.Name, result.Success, result.LatencyMs);
             });
 
         var samples = await Task.WhenAll(tasks);
@@ -126,19 +125,28 @@ public sealed class PingMonitorService(
         }
     }
 
-    private string? ResolveHost(string target)
+    /// <summary>Parses a target and replaces "gateway" with the current default router; null to skip it.</summary>
+    private ProbeTarget? Resolve(string target)
     {
-        if (!string.Equals(target, MonitorOptions.GatewayTarget, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(target, MonitorOptions.GatewayTarget, StringComparison.OrdinalIgnoreCase))
         {
-            return target;
+            var gateway = GatewayResolver.GetDefaultGateway();
+            if (gateway is null)
+            {
+                logger.LogWarning("No default gateway found, skipping gateway target");
+                return null;
+            }
+
+            return ProbeTarget.Ping(MonitorOptions.GatewayTarget, gateway.ToString());
         }
 
-        var gateway = GatewayResolver.GetDefaultGateway();
-        if (gateway is null)
+        if (!ProbeTarget.TryParse(target, out var parsed, out var error))
         {
-            logger.LogWarning("No default gateway found, skipping gateway target");
+            logger.LogWarning("Skipping invalid target {Target}: {Error}", target, error);
+            return null;
         }
 
-        return gateway?.ToString();
+        // Keep the configured spelling as the key so history and outages stay attached to it.
+        return parsed with { Name = target };
     }
 }

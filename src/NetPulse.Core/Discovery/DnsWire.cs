@@ -5,25 +5,68 @@ using System.Text;
 namespace NetPulse.Core.Discovery;
 
 /// <summary>
-/// Minimal DNS wire-format helpers, enough to ask for and read a reverse (PTR) record.
+/// Minimal DNS wire-format helpers, enough to ask for and read a reverse (PTR) record and to time
+/// a forward (A) lookup.
 /// Shared by unicast DNS-over-UDP and multicast DNS (mDNS), which use the same message format.
 /// Pure functions so the parsing can be tested without a network.
 /// </summary>
 public static class DnsWire
 {
+    private const int AType = 1;
     private const int PtrType = 12;
     private const int InClass = 1;
+
+    /// <summary>Response codes (RCODE) that matter to the DNS probe.</summary>
+    public enum ResponseCode
+    {
+        NoError = 0,
+        FormatError = 1,
+        ServerFailure = 2,
+        NameError = 3,
+        NotImplemented = 4,
+        Refused = 5,
+    }
 
     /// <summary>Builds a query for the PTR record of <paramref name="address"/> (e.g. 4.3.2.1.in-addr.arpa).</summary>
     public static byte[] BuildReversePtrQuery(IPAddress address, ushort transactionId)
     {
         var octets = address.GetAddressBytes();
         var qname = $"{octets[3]}.{octets[2]}.{octets[1]}.{octets[0]}.in-addr.arpa";
+        return BuildQuery(qname, PtrType, recursionDesired: false, transactionId);
+    }
 
+    /// <summary>Builds a recursive query for the A record of <paramref name="name"/>.</summary>
+    public static byte[] BuildAddressQuery(string name, ushort transactionId) =>
+        BuildQuery(name.TrimEnd('.'), AType, recursionDesired: true, transactionId);
+
+    /// <summary>
+    /// Reads the header of a response to the query with <paramref name="transactionId"/>.
+    /// Returns false when the message is too short, is not a response, or answers another query.
+    /// </summary>
+    public static bool TryReadResponseCode(ReadOnlySpan<byte> response, ushort transactionId, out ResponseCode code)
+    {
+        code = default;
+        if (response.Length < 12 || BinaryPrimitives.ReadUInt16BigEndian(response) != transactionId)
+        {
+            return false;
+        }
+
+        var flags = BinaryPrimitives.ReadUInt16BigEndian(response[2..]);
+        if ((flags & 0x8000) == 0) // QR bit: 1 = response
+        {
+            return false;
+        }
+
+        code = (ResponseCode)(flags & 0x000F);
+        return true;
+    }
+
+    private static byte[] BuildQuery(string qname, int type, bool recursionDesired, ushort transactionId)
+    {
         var message = new List<byte>();
         Span<byte> header = stackalloc byte[12];
         BinaryPrimitives.WriteUInt16BigEndian(header[0..], transactionId);
-        BinaryPrimitives.WriteUInt16BigEndian(header[2..], 0x0000); // standard query, no recursion
+        BinaryPrimitives.WriteUInt16BigEndian(header[2..], recursionDesired ? (ushort)0x0100 : (ushort)0x0000);
         BinaryPrimitives.WriteUInt16BigEndian(header[4..], 1);      // one question
         message.AddRange(header.ToArray());
 
@@ -36,7 +79,7 @@ public static class DnsWire
         message.Add(0); // root label
 
         Span<byte> tail = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt16BigEndian(tail[0..], PtrType);
+        BinaryPrimitives.WriteUInt16BigEndian(tail[0..], (ushort)type);
         BinaryPrimitives.WriteUInt16BigEndian(tail[2..], InClass);
         message.AddRange(tail.ToArray());
 

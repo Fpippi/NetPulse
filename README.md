@@ -34,6 +34,8 @@ or your ISP.
 ## Features
 
 - Continuous ping to the **default gateway** (auto-detected) and to public hosts (1.1.1.1, 8.8.8.8)
+- **DNS and HTTP probes** next to ping: resolver response time (`dns:example.com`) and time to a website's
+  first response (`https://example.com`), because "the Internet is slow" is often a slow DNS server
 - **Latency, jitter, packet loss** and a simple quality rating (Good / Fair / Poor) per target
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
 - **Eleven themes**: Dark, Light, Cyberpunk, Anime (shōnen), Sakura, Bizarre with four colour variants (Night, Pastel, Desert, Ink) and Medieval, picked from the top bar and remembered by the
@@ -108,15 +110,33 @@ or, for lists, `NetPulse__Targets__0=gateway` and `NetPulse__Targets__1=192.168.
 |-------------------|-----------------------------------|-----------------------------------------------|
 | `IntervalSeconds` | `5`                               | Time between ping rounds                      |
 | `TimeoutMs`       | `1000`                            | Ping timeout                                  |
+| `DnsTimeoutMs`    | `2000`                            | Timeout of DNS targets                        |
+| `HttpTimeoutMs`   | `5000`                            | Timeout of HTTP targets                       |
 | `RetentionDays`   | `30`                              | Older samples are deleted automatically       |
 | `DatabasePath`    | `data/netpulse.db`                | SQLite file                                   |
-| `Targets`         | `gateway`, `1.1.1.1`, `8.8.8.8`   | Hosts to monitor (`gateway` = default router) |
-| `MaxCustomTargets`| `20`                              | How many extra hosts can be added from the dashboard |
+| `Targets`         | `gateway`, `1.1.1.1`, `8.8.8.8`   | Targets to monitor (`gateway` = default router), see below |
+| `MaxCustomTargets`| `20`                              | How many extra targets can be added from the dashboard |
+
+### Target types
+
+| Target                     | Measures                                                                     |
+|----------------------------|------------------------------------------------------------------------------|
+| `1.1.1.1`, `my-nas`        | **Ping** (ICMP echo) round-trip time                                         |
+| `dns:example.com`          | **DNS**: time for the system's DNS server (usually your router) to answer an A query for the name |
+| `dns:example.com@1.1.1.1`  | **DNS** against a specific server, e.g. to compare your ISP's resolver with a public one |
+| `https://example.com/`     | **HTTP**: a GET on a fresh connection until the response headers arrive (DNS + TCP + TLS + server time), like a browser's first visit; any status below 500 counts as up |
+
+All types share the same charts, statistics, outage detection and reports. The quality rating uses a scale
+that fits each type (an HTTPS request at 200 ms is fine, a ping at 200 ms is not). DNS queries go straight
+to the server, so the operating system's cache does not hide a slow resolver; on Linux with systemd-resolved
+the "system" server can be the local stub (`127.0.0.53`), so name a server explicitly to bypass it.
+HTTP targets are requested every `IntervalSeconds`: point them at sites you own or that expect monitoring
+traffic, or raise the interval.
 
 ### Custom targets
 
-Besides the configured targets, you can add your own IP addresses or host names (e.g. your NAS,
-a game server, a website) from the **Targets** card on the dashboard. They are saved in the SQLite
+Besides the configured targets, you can add your own targets of any type (e.g. your NAS,
+a game server, `dns:example.com@8.8.8.8`, `https://your-site.example/`) from the **Targets** card on the dashboard. They are saved in the SQLite
 database, so they survive restarts. Click **×** on a custom target to stop monitoring it and delete
 its history. Configured targets can only be changed in the configuration.
 
