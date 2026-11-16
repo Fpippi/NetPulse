@@ -856,3 +856,9 @@ code {
 
     .printable h3 { break-after: avoid; }
 }
+
+/* Traceroute taken during an outage (Outages page) */
+details.trace summary { cursor: pointer; }
+details.trace ol { margin: .4rem 0 0; padding-left: 1.6rem; font-variant-numeric: tabular-nums; }
+details.trace li { margin: .1rem 0; }
+details.trace li .hint { margin-left: .4rem; }

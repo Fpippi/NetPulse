@@ -41,6 +41,8 @@ or your ISP.
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
+- **Traceroute on outages**: when a public target goes down, the route is recorded so the report shows where
+  the path broke (your router, the ISP's first hop, or beyond)
 - **Bufferbloat grade** (A+ to F): ping idle vs. during the download and upload, the hidden reason calls and
   games lag on a "fast" connection
 - **ISP report**: a printable report (save it as PDF from the browser) with Internet outages, downtime,
@@ -131,12 +133,23 @@ router; if only the public hosts are down, it is your ISP. Outages are kept for 
 than raw samples), so the history is there when you need to complain. If NetPulse stops during an outage,
 the outage is closed at its last lost ping on the next start, since nobody watched in between.
 
+When an outage of a public target starts, NetPulse also runs a **traceroute** towards it and stores the
+route with the outage: who answered at hop 1 (your router), hop 2 (usually the first router of your ISP) and
+so on. The **Route** column on the Outages page and the ISP report then say *where* the path was cut, e.g.
+"Stopped after hop 2 (100.64.0.1); nothing answered beyond it", which is far more convincing for your ISP
+than "the Internet did not work". Traces run one at a time in the background and stop after 4 silent hops.
+
 Settings live in the `Outages` section, e.g. `NetPulse__Outages__ConsecutiveLosses=5`:
 
 | Key                 | Default | Description                                         |
 |---------------------|---------|-----------------------------------------------------|
 | `ConsecutiveLosses` | `3`     | Lost pings in a row that make an outage             |
 | `RetentionDays`     | `365`   | Older outages are deleted automatically             |
+| `TraceRoute`        | `true`  | Traceroute towards a public target when its outage starts |
+| `TraceMaxHops`      | `20`    | Farthest hop the traceroute probes                  |
+
+> Traceroute needs ICMP with a custom TTL. On Linux, if every trace shows no hop at all, give the process
+> raw-socket permission (`--cap-add NET_RAW` in Docker, or `setcap cap_net_raw+ep` on the binary).
 
 ### Speed tests
 
@@ -292,7 +305,7 @@ scrape_configs:
 |------------------------------------------|-----------------------------------|
 | `GET /api/samples?minutes=15&target=...` | Raw samples, optionally for one target |
 | `GET /api/stats?minutes=60`              | Aggregated stats and quality per target |
-| `GET /api/outages?hours=24`              | Outages in the period, with a downtime/availability summary per target |
+| `GET /api/outages?hours=24`              | Outages in the period, with a downtime/availability summary per target and the traceroute taken when each started |
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
 | `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload` = contracted Mbps, optional) |

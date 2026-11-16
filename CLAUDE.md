@@ -43,6 +43,8 @@ docker build -t netpulse .                 # container image
   - `Reports/` — `IspReportBuilder` (→ `IspReport`), `ReportPeriod` (days or from/to dates), `Csv` +
     `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601). `Outages/OutageClassifier` labels outages
     LocalNetwork / Internet / SingleHost / Unknown; `Stats/LatencyAccumulator` streams `LatencyStats`.
+  - `Traceroute/` — `Tracer` (TTL 1…N until reached / N silent hops; `IsTraceable`), `ITraceProbe` +
+    `IcmpTraceProbe` (`PingOptions.Ttl`), `TraceResult.Summary`, `OutageTrace`, `TraceLookup` (trace of an outage).
   - `Metrics/` — `PrometheusWriter` (hand-written text format, invariant numbers, label escaping),
     `NetPulseMetrics` (renders a `MetricsSnapshot`), `MonitorHeartbeat` (last monitoring cycle, `IsAlive`).
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
@@ -53,6 +55,8 @@ docker build -t netpulse .                 # container image
   (printable; `@media print` in `app.css`).
   - `Monitoring/PingMonitorService` — `BackgroundService` that pings all targets every N seconds and feeds
     `OutageTracker`; open outages from a previous run are closed at startup.
+  - `Monitoring/OutageTracer` — traceroute in the background when an outage starts (one at a time), stored by
+    `Storage/SqliteOutageTraceStore` (hops as JSON); shown on `/outages`, in the report and `/api/outages`.
   - `Health/` — `MonitorHealthCheck` (heartbeat) and `DatabaseHealthCheck` behind `/healthz`; `/metrics` in `Program.cs`.
   - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
   - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; CSV endpoints in `Program.cs`.
