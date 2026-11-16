@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="@_theme.Id">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <link rel="icon" type="image/svg+xml" href="@Assets["favicon.svg"]" />
+    <link rel="stylesheet" href="@Assets["themes.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
@@ -15,3 +17,14 @@
 </body>
 
 </html>
+
+@code {
+    // App is rendered statically on the server, so the request (and its theme cookie) is available here.
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private Theme _theme = ThemeCatalog.Default;
+
+    protected override void OnInitialized() =>
+        _theme = ThemeCatalog.Resolve(HttpContext?.Request.Cookies[ThemeCatalog.CookieName]);
+}

@@ -14,6 +14,10 @@ else
             {
                 <line class="loss" x1="@x" x2="@x" y1="0" y2="@Height" />
             }
+            @if (_area.Length > 0)
+            {
+                <polygon class="area" points="@_area" />
+            }
             <polyline class="line" points="@_polyline" />
             @foreach (var zone in _hoverZones)
             {
@@ -54,6 +58,7 @@ else
     private IReadOnlyList<ChartPoint> _points = [];
     private List<string> _lossX = [];
     private string _polyline = "";
+    private string _area = "";
     private double _scaleMs;
     private List<HoverZone> _hoverZones = [];
 
@@ -77,9 +82,14 @@ else
         // Invariant culture is required: SVG needs '.' as decimal separator (e.g. on it-IT machines).
         static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
-        _polyline = string.Join(' ', _points
-            .Where(p => p.MaxLatencyMs.HasValue)
+        var plotted = _points.Where(p => p.MaxLatencyMs.HasValue).ToList();
+        _polyline = string.Join(' ', plotted
             .Select(p => $"{F(X(p))},{F(Height - p.MaxLatencyMs!.Value / _scaleMs * Height)}"));
+
+        // The same trace closed down to the baseline, for a faint fill under the line.
+        _area = plotted.Count < 2
+            ? ""
+            : $"{F(X(plotted[0]))},{Height} {_polyline} {F(X(plotted[^1]))},{Height}";
 
         _lossX = _points.Where(p => p.HasLoss).Select(p => F(X(p))).ToList();
 

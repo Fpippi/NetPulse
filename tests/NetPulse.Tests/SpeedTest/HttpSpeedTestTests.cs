@@ -34,6 +34,33 @@ public class HttpSpeedTestTests
     }
 
     [Test]
+    public async Task Measures_bufferbloat_idle_and_during_each_transfer()
+    {
+        // The fake ping reports 10 ms on the idle line, 80 ms during the download and 30 ms during the upload.
+        var handler = new FakeSpeedServer { Delay = TimeSpan.FromMilliseconds(20) };
+        var ping = 10.0;
+        var test = new HttpSpeedTest(new HttpClient(handler), _ => Task.FromResult<double?>(ping), TimeSpan.FromMilliseconds(1));
+        test.PhaseChanged += phase => ping = phase switch { "download" => 80, "upload" => 30, _ => 10 };
+
+        var result = await test.RunAsync(Plan);
+
+        Assert.That(result.Success, Is.True, result.Error);
+        Assert.That(result.Bufferbloat, Is.Not.Null);
+        Assert.That(result.Bufferbloat!.IdleMs, Is.EqualTo(10));
+        Assert.That(result.Bufferbloat.DownloadMs, Is.EqualTo(80));
+        Assert.That(result.Bufferbloat.UploadMs, Is.EqualTo(30));
+        Assert.That(result.Bufferbloat.Grade, Is.EqualTo(BufferbloatGrade.C));
+    }
+
+    [Test]
+    public async Task Without_a_latency_probe_there_is_no_bufferbloat()
+    {
+        var result = await new HttpSpeedTest(new HttpClient(new FakeSpeedServer())).RunAsync(Plan);
+
+        Assert.That(result.Bufferbloat, Is.Null);
+    }
+
+    [Test]
     public async Task Skips_phases_that_are_disabled()
     {
         var handler = new FakeSpeedServer();

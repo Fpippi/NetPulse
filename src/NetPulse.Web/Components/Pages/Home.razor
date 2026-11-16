@@ -6,11 +6,7 @@
 
 <PageTitle>NetPulse</PageTitle>
 
-<header class="top">
-    <div class="brand">
-        <h1>NetPulse</h1>
-        <SiteNav />
-    </div>
+<AppHeader>
     <nav class="windows">
         @foreach (var window in Windows)
         {
@@ -19,7 +15,7 @@
             </button>
         }
     </nav>
-</header>
+</AppHeader>
 
 <main>
     <TargetEditor OnChanged="LoadAsync" />
@@ -38,11 +34,11 @@
             </div>
 
             <dl class="stats">
-                <div><dt>Avg</dt><dd>@Ms(series.Stats.AvgMs)</dd></div>
-                <div><dt>Min</dt><dd>@Ms(series.Stats.MinMs)</dd></div>
-                <div><dt>Max</dt><dd>@Ms(series.Stats.MaxMs)</dd></div>
-                <div><dt>Jitter</dt><dd>@Ms(series.Stats.JitterMs)</dd></div>
-                <div><dt>Loss</dt><dd>@series.Stats.LossPercent.ToString("0.#", CultureInfo.InvariantCulture) %</dd></div>
+                <div><dt>Avg</dt><dd>@Ms(series.Stats.AvgMs)<span class="unit">@Unit(series.Stats.AvgMs)</span></dd></div>
+                <div><dt>Min</dt><dd>@Ms(series.Stats.MinMs)<span class="unit">@Unit(series.Stats.MinMs)</span></dd></div>
+                <div><dt>Max</dt><dd>@Ms(series.Stats.MaxMs)<span class="unit">@Unit(series.Stats.MaxMs)</span></dd></div>
+                <div><dt>Jitter</dt><dd>@Ms(series.Stats.JitterMs)<span class="unit">@Unit(series.Stats.JitterMs)</span></dd></div>
+                <div><dt>Loss</dt><dd>@series.Stats.LossPercent.ToString("0.#", CultureInfo.InvariantCulture)<span class="unit">%</span></dd></div>
                 <div><dt>Samples</dt><dd>@series.Stats.Count</dd></div>
             </dl>
 
@@ -126,7 +122,9 @@
     }
 
     private static string Ms(double? value) =>
-        value is null ? "–" : value.Value.ToString("0.0", CultureInfo.InvariantCulture) + " ms";
+        value is null ? "–" : value.Value.ToString("0.0", CultureInfo.InvariantCulture);
+
+    private static string Unit(double? value) => value is null ? "" : "ms";
 
     private static string Label(TimeSpan window) =>
         window.TotalHours >= 1 ? $"{window.TotalHours:0}h" : $"{window.TotalMinutes:0}m";

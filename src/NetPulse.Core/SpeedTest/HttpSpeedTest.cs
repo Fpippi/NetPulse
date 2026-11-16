@@ -7,10 +7,24 @@ namespace NetPulse.Core.SpeedTest;
 /// <summary>
 /// Measures idle latency, download and upload throughput over HTTP(S) against a public speed-test
 /// endpoint (Cloudflare's by default). Uses only the base class library.
+/// With a <paramref name="latencyProbe"/>, it also pings while idle and during each transfer to
+/// measure <see cref="Bufferbloat"/>.
 /// </summary>
-public sealed class HttpSpeedTest(HttpClient http)
+/// <param name="http">Client used for the transfers.</param>
+/// <param name="latencyProbe">One ping in ms (null when lost); null skips the bufferbloat measurement.</param>
+/// <param name="probeInterval">Pause between pings, 200 ms by default.</param>
+public sealed class HttpSpeedTest(
+    HttpClient http,
+    Func<CancellationToken, Task<double?>>? latencyProbe = null,
+    TimeSpan? probeInterval = null)
 {
     private const int BufferSize = 64 * 1024;
+
+    /// <summary>Pings taken on the idle line as the bufferbloat baseline.</summary>
+    private const int IdleProbes = 10;
+
+    private readonly LatencySampler? _sampler =
+        latencyProbe is null ? null : new LatencySampler(latencyProbe, probeInterval ?? TimeSpan.FromMilliseconds(200));
 
     /// <summary>Share of each transfer ignored as TCP warm-up.</summary>
     private const double WarmupFraction = 0.2;
@@ -30,19 +44,31 @@ public sealed class HttpSpeedTest(HttpClient http)
         var server = plan.DownloadUri(0).Host;
         double? latency = null, download = null, upload = null;
         long downloaded = 0, uploaded = 0;
+        List<double> idle = [], loadedDown = [], loadedUp = [];
 
         try
         {
-            if (plan.LatencyProbes > 0)
+            if (plan.LatencyProbes > 0 || _sampler is not null)
             {
                 PhaseChanged?.Invoke("latency");
+            }
+
+            if (plan.LatencyProbes > 0)
+            {
                 latency = await MeasureLatencyAsync(plan, cancellationToken);
+            }
+
+            if (_sampler is not null)
+            {
+                // Idle baseline for bufferbloat, before any transfer loads the line.
+                await _sampler.SampleAsync(IdleProbes, idle, cancellationToken);
             }
 
             if (plan.DownloadBytes > 0)
             {
                 PhaseChanged?.Invoke("download");
-                var meter = await DownloadAsync(plan.DownloadUri(plan.DownloadBytes), cancellationToken);
+                var meter = await UnderLoadAsync(
+                    () => DownloadAsync(plan.DownloadUri(plan.DownloadBytes), cancellationToken), loadedDown, cancellationToken);
                 downloaded = meter.TotalBytes;
                 download = meter.Mbps(WarmupFraction);
             }
@@ -50,21 +76,27 @@ public sealed class HttpSpeedTest(HttpClient http)
             if (plan.UploadBytes > 0)
             {
                 PhaseChanged?.Invoke("upload");
-                var meter = await UploadAsync(new Uri(plan.UploadUrl), plan.UploadBytes, cancellationToken);
+                var meter = await UnderLoadAsync(
+                    () => UploadAsync(new Uri(plan.UploadUrl), plan.UploadBytes, cancellationToken), loadedUp, cancellationToken);
                 uploaded = meter.TotalBytes;
                 upload = meter.Mbps(WarmupFraction);
             }
 
-            return new SpeedTestResult(started, server, latency, download, upload, downloaded, uploaded, null);
+            return new SpeedTestResult(started, server, latency, download, upload, downloaded, uploaded, null,
+                Bufferbloat.From(idle, loadedDown, loadedUp));
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException
                                    || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
         {
             // OperationCanceledException without our token being cancelled means the HttpClient timed out.
             var error = ex is OperationCanceledException ? "The speed test timed out." : ex.Message;
-            return new SpeedTestResult(started, server, latency, download, upload, downloaded, uploaded, error);
+            return new SpeedTestResult(started, server, latency, download, upload, downloaded, uploaded, error,
+                Bufferbloat.From(idle, loadedDown, loadedUp));
         }
     }
+
+    private Task<TransferMeter> UnderLoadAsync(Func<Task<TransferMeter>> transfer, List<double> into, CancellationToken ct) =>
+        _sampler is null ? transfer() : _sampler.WhileAsync(transfer, into, ct);
 
     /// <summary>Median time to the response headers of empty downloads, after one request to warm up the connection.</summary>
     private async Task<double> MeasureLatencyAsync(SpeedTestPlan plan, CancellationToken ct)
