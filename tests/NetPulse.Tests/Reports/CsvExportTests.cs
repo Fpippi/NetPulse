@@ -48,14 +48,16 @@ public class CsvExportTests
 
         await CsvExport.WriteSpeedTestsAsync(writer,
         [
-            new SpeedTestResult(T0, "speed.example", 12.346, 98.7654, 20.1, 25_000_000, 10_000_000, null),
+            new SpeedTestResult(T0, "speed.example", 12.346, 98.7654, 20.1, 25_000_000, 10_000_000, null,
+                new Bufferbloat(12, 55.5, 20)),
             new SpeedTestResult(T0.AddHours(6), "speed.example", null, null, null, 0, 0, "Timed out, retry"),
         ]);
 
         Assert.That(writer.ToString(), Is.EqualTo(
-            "timestamp_utc,server,download_mbps,upload_mbps,latency_ms,download_bytes,upload_bytes,error\r\n" +
-            "2026-11-12T09:00:00.000Z,speed.example,98.77,20.1,12.35,25000000,10000000,\r\n" +
-            "2026-11-12T15:00:00.000Z,speed.example,,,,0,0,\"Timed out, retry\"\r\n"));
+            "timestamp_utc,server,download_mbps,upload_mbps,latency_ms,download_bytes,upload_bytes,error," +
+            "idle_ping_ms,download_ping_ms,upload_ping_ms,bufferbloat_grade\r\n" +
+            "2026-11-12T09:00:00.000Z,speed.example,98.77,20.1,12.35,25000000,10000000,,12,55.5,20,B\r\n" +
+            "2026-11-12T15:00:00.000Z,speed.example,,,,0,0,\"Timed out, retry\",,,,\r\n"));
     }
 
     private static async IAsyncEnumerable<PingSample> Async(params PingSample[] samples)

@@ -1,0 +1,22 @@
+@* Top bar shared by every page: logo, page navigation and page-specific actions on the right. *@
+<header class="top @Class">
+    <a class="brand" href="" aria-label="NetPulse, latency dashboard">
+        <LogoMark />
+        <h1 class="wordmark">net<span>pulse</span></h1>
+    </a>
+    <SiteNav />
+    <div class="top-actions">
+        @ChildContent
+        <ThemePicker />
+    </div>
+</header>
+
+@code {
+    /// <summary>Page-specific controls (time window, scan button, …) shown at the right end of the bar.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS classes, e.g. <c>no-print</c>.</summary>
+    [Parameter]
+    public string? Class { get; set; }
+}
