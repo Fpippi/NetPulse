@@ -4,13 +4,13 @@
 @font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
 
 :root {
-    --bg: #12110e;
-    --card: #191814;
-    --border: #2c2a24;
-    --text: #ebe4d3;
-    --muted: #8a8374;
-    --accent: #f0a232;
-    --good: #93c46b;
+    --bg: #030603;
+    --card: #060c07;
+    --border: #143a1c;
+    --text: #d4f8dc;
+    --muted: #6fae80;
+    --accent: #39ff6a;
+    --good: #39ff6a;
     --sans: "Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: "Plex Mono", ui-monospace, Consolas, monospace;
     color-scheme: dark;
@@ -37,7 +37,7 @@ code { background: var(--card); border: 1px solid var(--border); border-radius: 
     position: sticky; top: 0; z-index: 1;
     display: flex; align-items: center; justify-content: space-between; gap: 1rem;
     padding: .8rem 1.5rem;
-    background: rgba(18, 17, 14, .92);
+    background: rgba(3, 6, 3, .92);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--border);
 }
@@ -68,14 +68,14 @@ h3 { font-size: 1.05rem; margin: 0 0 .4rem; }
     border: 1px solid var(--border); color: var(--text); text-decoration: none; font-weight: 600;
 }
 .btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1307; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #021004; }
 .btn.primary:hover { filter: brightness(1.1); }
 
 .shot { display: block; }
 .shot img {
     display: block; width: 100%; height: auto;
     border: 1px solid var(--border); border-radius: 2px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, .45), 0 0 0 1px rgba(240, 162, 50, .08);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45), 0 0 0 1px rgba(57, 255, 106, .1);
     transition: transform .2s;
 }
 .shot:hover img { transform: translateY(-3px); }
