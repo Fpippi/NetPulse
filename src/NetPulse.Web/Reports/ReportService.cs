@@ -2,13 +2,21 @@ using NetPulse.Core.Outages;
 using NetPulse.Core.Reports;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
+using NetPulse.Core.Traceroute;
 using NetPulse.Web.Monitoring;
 
 namespace NetPulse.Web.Reports;
 
 /// <summary>Loads the data of a period from the stores and turns it into reports and CSV files.</summary>
-public sealed class ReportService(ISampleStore samples, IOutageStore outages, ISpeedTestStore speedTests)
+public sealed class ReportService(
+    ISampleStore samples, IOutageStore outages, ISpeedTestStore speedTests, IOutageTraceStore traces)
 {
+    /// <summary>Traceroutes taken for the outages of a report.</summary>
+    public async Task<TraceLookup> GetTracesAsync(IspReport report, CancellationToken cancellationToken = default) =>
+        report.Outages.Count == 0
+            ? TraceLookup.Empty
+            : new TraceLookup(await traces.GetSinceAsync(report.Outages.Min(o => o.Outage.Start), cancellationToken));
+
     /// <summary>
     /// Builds the ISP report. Samples are streamed into per-target accumulators, so a month of data
     /// is summarized without loading it all in memory.
