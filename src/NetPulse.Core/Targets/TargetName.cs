@@ -1,28 +1,48 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using NetPulse.Core.Probing;
 
 namespace NetPulse.Core.Targets;
 
 /// <summary>
-/// Validates and normalizes user-supplied ping targets (IP addresses or host names).
+/// Validates and normalizes user-supplied targets: IP addresses and host names to ping, plus
+/// DNS (<c>dns:name[@server]</c>) and HTTP (<c>https://…</c>) targets, see <see cref="ProbeTarget"/>.
 /// </summary>
 public static class TargetName
 {
     /// <summary>Maximum length of a DNS name (RFC 1035).</summary>
     public const int MaxLength = 253;
 
+    /// <summary>Maximum length of any target as typed by the user (URLs can be longer than host names).</summary>
+    public const int MaxInputLength = ProbeTarget.MaxUrlLength;
+
     private const int MaxLabelLength = 63;
 
     /// <summary>
     /// Tries to turn <paramref name="input"/> into a canonical target name.
     /// IP addresses are re-formatted, host names are trimmed and lower-cased
-    /// (a trailing dot is removed).
+    /// (a trailing dot is removed); DNS and HTTP targets are normalized by <see cref="ProbeTarget"/>.
     /// </summary>
     /// <param name="input">Raw text typed by the user.</param>
     /// <param name="target">The normalized target when the method returns true.</param>
     /// <param name="error">A human readable reason when the method returns false.</param>
     public static bool TryNormalize(string? input, out string target, out string? error)
+    {
+        if (ProbeTarget.TryParse(input, out var parsed, out error))
+        {
+            target = parsed.Name;
+            return true;
+        }
+
+        target = string.Empty;
+        return false;
+    }
+
+    /// <summary>
+    /// Like <see cref="TryNormalize"/>, but only for a plain IP address or host name.
+    /// </summary>
+    public static bool TryNormalizeHost(string? input, out string target, out string? error)
     {
         target = string.Empty;
         var value = input?.Trim() ?? string.Empty;

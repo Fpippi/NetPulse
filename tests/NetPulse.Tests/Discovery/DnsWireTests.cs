@@ -96,6 +96,46 @@ public class DnsWireTests
         message.Add((byte)(value & 0xFF));
     }
 
+    [Test]
+    public void Builds_a_recursive_address_query()
+    {
+        var query = DnsWire.BuildAddressQuery("example.com.", transactionId: 0xBEEF);
+
+        Assert.That(BinaryPrimitives.ReadUInt16BigEndian(query.AsSpan(0)), Is.EqualTo(0xBEEF));
+        Assert.That(BinaryPrimitives.ReadUInt16BigEndian(query.AsSpan(2)), Is.EqualTo(0x0100), "recursion desired");
+        Assert.That(ReadQName(query, 12), Is.EqualTo("example.com"));
+
+        var afterName = 12 + "example.com".Length + 2;
+        Assert.That(BinaryPrimitives.ReadUInt16BigEndian(query.AsSpan(afterName)), Is.EqualTo(1), "A type");
+    }
+
+    [TestCase(0x8180, DnsWire.ResponseCode.NoError)]
+    [TestCase(0x8183, DnsWire.ResponseCode.NameError)]
+    [TestCase(0x8182, DnsWire.ResponseCode.ServerFailure)]
+    public void Reads_the_response_code(int flags, DnsWire.ResponseCode expected)
+    {
+        var response = Header(0x1234, (ushort)flags);
+
+        Assert.That(DnsWire.TryReadResponseCode(response, 0x1234, out var code), Is.True);
+        Assert.That(code, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Ignores_queries_other_ids_and_short_messages()
+    {
+        Assert.That(DnsWire.TryReadResponseCode(Header(0x1234, 0x0100), 0x1234, out _), Is.False, "a query, not a response");
+        Assert.That(DnsWire.TryReadResponseCode(Header(0x9999, 0x8180), 0x1234, out _), Is.False, "another transaction");
+        Assert.That(DnsWire.TryReadResponseCode(new byte[5], 0, out _), Is.False, "truncated");
+    }
+
+    private static byte[] Header(ushort id, ushort flags)
+    {
+        var header = new byte[12];
+        BinaryPrimitives.WriteUInt16BigEndian(header, id);
+        BinaryPrimitives.WriteUInt16BigEndian(header.AsSpan(2), flags);
+        return header;
+    }
+
     private static string ReadQName(byte[] message, int offset)
     {
         var labels = new List<string>();

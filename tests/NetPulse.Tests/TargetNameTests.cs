@@ -13,6 +13,8 @@ public class TargetNameTests
     [TestCase("example.com.", "example.com")]
     [TestCase("my-nas", "my-nas")]
     [TestCase("router.local", "router.local")]
+    [TestCase("DNS:Example.com", "dns:example.com")]
+    [TestCase("https://Example.com", "https://example.com/")]
     public void Accepts_and_normalizes_valid_targets(string input, string expected)
     {
         var ok = TargetName.TryNormalize(input, out var target, out var error);
@@ -32,7 +34,8 @@ public class TargetNameTests
     [TestCase("bad-.com")]
     [TestCase("a..b")]
     [TestCase("exa mple.com")]
-    [TestCase("http://example.com")]
+    [TestCase("ftp://example.com")]
+    [TestCase("dns:")]
     [TestCase("example.com/path")]
     [TestCase("1.1.1.1; rm -rf /")]
     public void Rejects_invalid_targets(string? input)

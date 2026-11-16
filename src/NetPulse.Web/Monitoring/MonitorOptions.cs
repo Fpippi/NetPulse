@@ -11,7 +11,14 @@ public sealed class MonitorOptions
 
     public int IntervalSeconds { get; set; } = 5;
 
+    /// <summary>Ping timeout.</summary>
     public int TimeoutMs { get; set; } = 1000;
+
+    /// <summary>Timeout of DNS targets (<c>dns:name[@server]</c>).</summary>
+    public int DnsTimeoutMs { get; set; } = 2000;
+
+    /// <summary>Timeout of HTTP targets (<c>https://…</c>), covering connection, TLS and response headers.</summary>
+    public int HttpTimeoutMs { get; set; } = 5000;
 
     /// <summary>Samples older than this are deleted automatically.</summary>
     public int RetentionDays { get; set; } = 30;
