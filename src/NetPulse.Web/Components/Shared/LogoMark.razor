@@ -1,0 +1,11 @@
+@* The NetPulse mark: an "N" drawn as a signal trace with a spike, plus the ping dot. *@
+<svg class="logo-mark" viewBox="0 0 32 32" width="@Size" height="@Size" aria-hidden="true" focusable="false">
+    <path class="trace" d="M6 25V7l9 15 3.2-6.5L20.5 20 26 7v18" />
+    <circle class="ping" cx="26" cy="7" r="2.8" />
+</svg>
+
+@code {
+    /// <summary>Rendered width and height in CSS pixels.</summary>
+    [Parameter]
+    public int Size { get; set; } = 26;
+}

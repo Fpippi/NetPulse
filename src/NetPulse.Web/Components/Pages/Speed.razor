@@ -10,11 +10,7 @@
 
 <PageTitle>Speed · NetPulse</PageTitle>
 
-<header class="top">
-    <div class="brand">
-        <h1>NetPulse</h1>
-        <SiteNav />
-    </div>
+<AppHeader>
     <div class="actions">
         <nav class="windows">
             @foreach (var window in Windows)
@@ -28,7 +24,7 @@
             @(_status.IsRunning ? "Testing…" : "Run now")
         </button>
     </div>
-</header>
+</AppHeader>
 
 <main>
     <section class="card">

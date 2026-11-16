@@ -36,6 +36,8 @@ or your ISP.
 - Continuous ping to the **default gateway** (auto-detected) and to public hosts (1.1.1.1, 8.8.8.8)
 - **Latency, jitter, packet loss** and a simple quality rating (Good / Fair / Poor) per target
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
+- **Eleven themes**: Dark, Light, Cyberpunk, Anime (shōnen), Sakura, Bizarre with four colour variants (Night, Pastel, Desert, Ink) and Medieval, picked from the top bar and remembered by the
+  browser (no JavaScript, fonts bundled, no CDN)
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
