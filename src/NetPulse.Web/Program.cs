@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NetPulse.Core.Appearance;
 using NetPulse.Core.Discovery;
 using NetPulse.Core.Outages;
 using NetPulse.Core.SpeedTest;
@@ -275,6 +276,20 @@ api.MapPost("/loadtest/stop", (LoadTestManager manager) =>
 });
 
 // --- Dashboard ------------------------------------------------------------
+
+// Theme switch without JavaScript: a plain link sets a cookie and comes back to the page.
+app.MapGet("/theme/{id}", (HttpContext http, string id, string? returnUrl) =>
+{
+    var theme = ThemeCatalog.Resolve(id);
+    http.Response.Cookies.Append(ThemeCatalog.CookieName, theme.Id, new CookieOptions
+    {
+        MaxAge = TimeSpan.FromDays(365),
+        HttpOnly = true,
+        IsEssential = true,
+        SameSite = SameSiteMode.Lax,
+    });
+    return Results.Redirect(ThemeCatalog.SafeReturnPath(returnUrl));
+}).ExcludeFromDescription();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

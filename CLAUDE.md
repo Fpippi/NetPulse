@@ -58,7 +58,10 @@ docker build -t netpulse .                 # container image
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
-  - `Components/` — dashboard; `LatencyChart`/`ThroughputChart`/`SpeedChart`/`OutageTimeline` are dependency-free SVG charts;
+  - `Components/` — dashboard; `Shared/AppHeader` (logo, `SiteNav`, `ThemePicker`) is the top bar of every page;
+    themes are token blocks in `wwwroot/themes.css` (`html[data-theme]`, set from a cookie in `App.razor`
+    via `GET /theme/{id}`, ids validated by `Core/Appearance/ThemeCatalog`); `app.css` only reads tokens.
+    `docs/dashboard.css`/`docs/themes.css` are copies for the static demo; `LatencyChart`/`ThroughputChart`/`SpeedChart`/`OutageTimeline` are dependency-free SVG charts;
     `TargetEditor` adds/removes custom targets.
 - `tests/NetPulse.Tests` — NUnit 4, constraint model (`Assert.That`).
 - `.github/workflows/release.yml` — on `v*` tags, self-contained single-file archives for win-x64,

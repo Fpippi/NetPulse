@@ -1,61 +1,19 @@
 /*
- * NetPulse theme: a warm, dark "instrument panel".
- * Graphite surfaces, hairline rules instead of shadows, one amber signal colour,
- * and IBM Plex (bundled, SIL OFL 1.1; see fonts/OFL.txt) with monospace numbers.
+ * NetPulse dashboard layout and components.
+ * Every colour, font and corner radius comes from a design token defined per theme in themes.css,
+ * so a theme is a block of tokens plus, at most, a few decorative extras.
  */
-
-@font-face {
-    font-family: "Plex Sans";
-    src: url("fonts/plex-sans-var.woff2") format("woff2");
-    font-weight: 100 700;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Plex Mono";
-    src: url("fonts/plex-mono-400.woff2") format("woff2");
-    font-weight: 400;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Plex Mono";
-    src: url("fonts/plex-mono-500.woff2") format("woff2");
-    font-weight: 500;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Plex Mono";
-    src: url("fonts/plex-mono-600.woff2") format("woff2");
-    font-weight: 600;
-    font-display: swap;
-}
-
-:root {
-    --bg: #12110e;
-    --card: #191814;
-    --border: #2c2a24;
-    --text: #ebe4d3;
-    --muted: #8a8374;
-    --faint: #5d584d;
-    --accent: #f0a232;
-    --on-accent: #1a1307;
-    --good: #93c46b;
-    --fair: #e2b23d;
-    --poor: #e4573d;
-    --radius: 2px;
-    --sans: "Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --mono: "Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
-    color-scheme: dark;
-}
 
 * { box-sizing: border-box; }
 
 body {
     margin: 0;
-    font-family: var(--sans);
-    background: var(--bg);
+    min-height: 100vh;
+    font-family: var(--font-body);
+    font-size: var(--body-size);
+    background-color: var(--bg);
+    background-image: var(--bg-image);
+    background-attachment: fixed;
     color: var(--text);
     -webkit-font-smoothing: antialiased;
 }
@@ -85,12 +43,13 @@ body {
 }
 
 .logo-mark { flex: none; }
-.logo-mark .trace { fill: none; stroke: var(--text); stroke-width: 3; stroke-linecap: square; }
+.logo-mark .trace { fill: none; stroke: var(--logo); stroke-width: 3; stroke-linecap: square; }
 .logo-mark .ping { fill: var(--accent); }
 
 .wordmark {
     margin: 0;
-    font-family: var(--mono);
+    font-family: var(--font-brand);
+    text-transform: var(--head-case);
     font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: -.02em;
@@ -117,7 +76,7 @@ h1:focus { outline: none; }
 
 .site-nav a i {
     font-style: normal;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .68rem;
     color: var(--faint);
 }
@@ -148,7 +107,7 @@ h1:focus { outline: none; }
     border: 0;
     border-radius: 0;
     padding: .3rem .7rem;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .78rem;
     cursor: pointer;
 }
@@ -164,7 +123,7 @@ button.primary {
     border: 1px solid var(--accent);
     border-radius: var(--radius);
     padding: .4rem .9rem;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .8rem;
     font-weight: 500;
     cursor: pointer;
@@ -172,6 +131,68 @@ button.primary {
 
 button.primary:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
 button.primary:disabled { opacity: .45; cursor: default; }
+
+/* Theme picker: a <details> disclosure, so it opens and closes without JavaScript. */
+.theme-picker { position: relative; }
+
+.theme-picker summary {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    list-style: none;
+    cursor: pointer;
+    padding: .3rem .6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font-num);
+    font-size: .78rem;
+    color: var(--muted);
+}
+
+.theme-picker summary::-webkit-details-marker { display: none; }
+.theme-picker summary:hover,
+.theme-picker[open] summary { color: var(--text); border-color: var(--accent); }
+
+.theme-picker ul {
+    position: absolute;
+    right: 0;
+    top: calc(100% + .4rem);
+    z-index: 10;
+    min-width: 10rem;
+    margin: 0;
+    padding: .3rem;
+    list-style: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+}
+
+.theme-picker a {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .4rem .6rem;
+    border-radius: var(--radius-card);
+    color: var(--text);
+    text-decoration: none;
+    font-size: .9rem;
+}
+
+.theme-picker a:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+.swatch {
+    flex: none;
+    width: .85rem;
+    height: .85rem;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--accent);
+}
+
+@media (max-width: 720px) {
+    .theme-picker .label { display: none; }
+}
 
 /* --- Layout and cards --------------------------------------------------- */
 
@@ -186,12 +207,14 @@ main {
 /* Let wide children (the device table) scroll inside their card instead of widening the page. */
 main > * { min-width: 0; }
 
-.empty { color: var(--muted); font-family: var(--mono); font-size: .85rem; }
+.empty { color: var(--muted); font-family: var(--font-num); font-size: .85rem; }
 
 .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background-color: var(--card);
+    background-image: var(--card-image);
+    border: var(--rule-width) var(--rule-style) var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--card-shadow);
     padding: 1rem 1.25rem;
 }
 
@@ -208,14 +231,16 @@ main > * { min-width: 0; }
 
 .card-head h2 {
     margin: 0;
-    font-family: var(--mono);
-    font-size: .95rem;
-    font-weight: 500;
+    font-family: var(--font-head);
+    font-size: var(--head-size);
+    font-weight: var(--head-weight);
+    letter-spacing: var(--head-spacing);
+    text-transform: var(--head-case);
 }
 
 .card-head h2 small {
     margin-left: .6rem;
-    font-family: var(--sans);
+    font-family: var(--font-body);
     font-size: .78rem;
     font-weight: 400;
     color: var(--muted);
@@ -223,7 +248,7 @@ main > * { min-width: 0; }
 
 /* Status read-out: a coloured square and a word, no pill. */
 .badge {
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .72rem;
     letter-spacing: .08em;
     text-transform: uppercase;
@@ -250,7 +275,7 @@ main > * { min-width: 0; }
 
 .stats dt {
     color: var(--muted);
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .66rem;
     letter-spacing: .1em;
     text-transform: uppercase;
@@ -258,7 +283,7 @@ main > * { min-width: 0; }
 
 .stats dd {
     margin: .2rem 0 0;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: 1.35rem;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
@@ -289,13 +314,14 @@ main > * { min-width: 0; }
 
 .chart .line {
     fill: none;
-    stroke: var(--accent);
-    stroke-width: 1.6;
+    stroke: var(--trace);
+    stroke-width: var(--trace-width);
+    filter: var(--trace-filter);
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
 }
 
-.chart .area { fill: var(--accent); opacity: .08; }
+.chart .area { fill: var(--accent); opacity: var(--area-opacity); }
 
 .chart .loss {
     stroke: var(--poor);
@@ -319,7 +345,7 @@ main > * { min-width: 0; }
     position: absolute;
     top: 4px;
     left: 4px;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .66rem;
     color: var(--muted);
 }
@@ -327,7 +353,7 @@ main > * { min-width: 0; }
 .chart-axis {
     display: flex;
     justify-content: space-between;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .66rem;
     color: var(--muted);
     padding-top: 4px;
@@ -335,7 +361,7 @@ main > * { min-width: 0; }
 
 .chart-empty {
     color: var(--muted);
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .8rem;
     padding: 2rem 0;
     text-align: center;
@@ -361,7 +387,7 @@ main > * { min-width: 0; }
     padding: .2rem .55rem;
     border: 1px dashed var(--border);
     border-radius: var(--radius);
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .8rem;
     color: var(--muted);
 }
@@ -397,7 +423,7 @@ input, select { accent-color: var(--accent); }
     border-radius: var(--radius);
     padding: .45rem .7rem;
     font: inherit;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .85rem;
 }
 
@@ -411,7 +437,7 @@ input, select { accent-color: var(--accent); }
     border: 1px solid var(--accent);
     border-radius: var(--radius);
     padding: .45rem 1rem;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .8rem;
     font-weight: 500;
     cursor: pointer;
@@ -487,7 +513,7 @@ table.devices {
 
 .devices .remove:hover { color: var(--poor); }
 
-.mono { font-family: var(--mono); font-size: .85em; }
+.mono { font-family: var(--font-num); font-size: .85em; }
 
 .dot {
     display: inline-block;
@@ -505,7 +531,7 @@ table.devices {
     padding: .05rem .5rem;
     border-radius: var(--radius);
     border: 1px solid currentColor;
-    font-family: var(--mono);
+    font-family: var(--font-num);
     letter-spacing: .05em;
     text-transform: uppercase;
     margin-left: .35rem;
@@ -606,7 +632,7 @@ ul.warnings {
 ul.error li { color: var(--poor); }
 
 code {
-    font-family: var(--mono);
+    font-family: var(--font-num);
     font-size: .85em;
     background: var(--bg);
     border: 1px solid var(--border);
@@ -796,7 +822,13 @@ code {
 
 /* Printing (or "Save as PDF"): only the report, black on white, no controls. */
 @media print {
-    :root {
+    /* html[data-theme] beats the theme blocks, whatever theme is active. */
+    html[data-theme] {
+        --bg-image: none;
+        --card-image: none;
+        --card-shadow: none;
+        --trace: #000;
+        --trace-filter: none;
         --bg: #fff;
         --card: #fff;
         --border: #ccc;
@@ -813,7 +845,7 @@ code {
 
     main { padding: 0; max-width: none; }
 
-    .card { border: 0; padding: 0; }
+    .card { border: 0; padding: 0; clip-path: none; }
 
     .table-wrap { overflow: visible; }
 

@@ -5,10 +5,10 @@
         <h1 class="wordmark">net<span>pulse</span></h1>
     </a>
     <SiteNav />
-    @if (ChildContent is not null)
-    {
-        <div class="top-actions">@ChildContent</div>
-    }
+    <div class="top-actions">
+        @ChildContent
+        <ThemePicker />
+    </div>
 </header>
 
 @code {

@@ -1,0 +1,28 @@
+@inject NavigationManager Navigation
+
+@* A disclosure menu of plain links: each one sets the theme cookie and reloads the current page, no JavaScript needed. *@
+<details class="theme-picker">
+    <summary aria-label="Theme">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="label">Theme</span>
+    </summary>
+    <ul>
+        @foreach (var theme in ThemeCatalog.All)
+        {
+            <li>
+                @* target="_top" makes the Blazor router leave the link alone, so the browser does a full request. *@
+                <a href="@Link(theme)" target="_top" data-theme-option="@theme.Id">
+                    <span class="swatch" aria-hidden="true"></span>@theme.Name
+                </a>
+            </li>
+        }
+    </ul>
+</details>
+
+@code {
+    private string Link(Theme theme)
+    {
+        var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+        return $"theme/{theme.Id}?returnUrl={Uri.EscapeDataString(path)}";
+    }
+}

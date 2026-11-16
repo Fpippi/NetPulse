@@ -1,0 +1,279 @@
+/*
+ * NetPulse themes. Each theme is a set of design tokens on <html data-theme="…">,
+ * plus a few decorative extras at the end of its section. app.css only ever reads tokens.
+ *
+ * Fonts are bundled (latin subset, all SIL Open Font License 1.1, see fonts/README.md),
+ * so the dashboard never calls a font CDN.
+ */
+
+/* --- Fonts -------------------------------------------------------------- */
+
+@font-face { font-family: "Plex Sans"; src: url("fonts/plex-sans-var.woff2") format("woff2"); font-weight: 100 700; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Fraunces"; src: url("fonts/fraunces-600.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Orbitron"; src: url("fonts/orbitron-700.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: "Rajdhani"; src: url("fonts/rajdhani-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Rajdhani"; src: url("fonts/rajdhani-600.woff2") format("woff2"); font-weight: 600 700; font-display: swap; }
+@font-face { font-family: "Share Tech Mono"; src: url("fonts/share-tech-mono-400.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-500.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-800.woff2") format("woff2"); font-weight: 700 900; font-display: swap; }
+@font-face { font-family: "Cinzel"; src: url("fonts/cinzel-600.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "IM Fell English"; src: url("fonts/im-fell-400.woff2") format("woff2"); font-display: swap; }
+
+/* --- Dark (default): a warm instrument panel ----------------------------- */
+
+:root {
+    --bg: #12110e;
+    --bg-image: none;
+    --card: #191814;
+    --card-image: none;
+    --card-shadow: none;
+    --border: #2c2a24;
+    --rule-width: 1px;
+    --rule-style: solid;
+    --text: #ebe4d3;
+    --muted: #8a8374;
+    --faint: #5d584d;
+    --logo: var(--text);
+    --accent: #f0a232;
+    --on-accent: #1a1307;
+    --good: #93c46b;
+    --fair: #e2b23d;
+    --poor: #e4573d;
+    --trace: var(--accent);
+    --trace-width: 1.6;
+    --trace-filter: none;
+    --area-opacity: .08;
+    --radius: 2px;
+    --radius-card: 2px;
+    --font-body: "Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-num: "Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    --font-head: var(--font-num);
+    --font-brand: var(--font-num);
+    --body-size: 1rem;
+    --head-size: .95rem;
+    --head-weight: 500;
+    --head-spacing: 0;
+    --head-case: none;
+    color-scheme: dark;
+}
+
+/* --- Light: ink on paper ------------------------------------------------- */
+
+[data-theme="light"] {
+    --bg: #f3eee2;
+    --card: #fbf8f0;
+    --border: #d9d1bd;
+    --text: #1f1c16;
+    --muted: #6f6858;
+    --faint: #a39a86;
+    --accent: #2b4fb3;
+    --on-accent: #ffffff;
+    --good: #2f7a45;
+    --fair: #a8701a;
+    --poor: #c0392b;
+    --trace: var(--text);
+    --trace-width: 1.4;
+    --area-opacity: .06;
+    --radius: 3px;
+    --radius-card: 4px;
+    --card-shadow: 0 1px 0 #e3dccb;
+    --font-head: "Fraunces", Georgia, "Times New Roman", serif;
+    --font-brand: var(--font-head);
+    --head-size: 1.15rem;
+    --head-weight: 600;
+    color-scheme: light;
+}
+
+[data-theme="light"] .wordmark { font-size: 1.3rem; letter-spacing: -.01em; }
+[data-theme="light"] .logo-mark .ping { fill: #c8402a; }
+[data-theme="light"] .site-nav a.active { box-shadow: inset 0 -2px 0 var(--text); }
+
+/* --- Cyberpunk: neon on a night city ------------------------------------- */
+
+[data-theme="cyberpunk"] {
+    --bg: #07040f;
+    --bg-image:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px),
+        radial-gradient(ellipse 80% 50% at 85% -10%, rgba(255, 43, 214, .22), transparent 70%),
+        radial-gradient(ellipse 70% 50% at 0% 110%, rgba(0, 240, 255, .16), transparent 70%);
+    --card: rgba(18, 10, 36, .82);
+    --border: #3d2470;
+    --text: #e6f6ff;
+    --muted: #9184c0;
+    --faint: #54478a;
+    --logo: #00f0ff;
+    --accent: #ff2bd6;
+    --on-accent: #07040f;
+    --good: #39ff9c;
+    --fair: #ffe14d;
+    --poor: #ff3b6b;
+    --trace: #00f0ff;
+    --trace-width: 1.8;
+    --trace-filter: drop-shadow(0 0 3px rgba(0, 240, 255, .9));
+    --area-opacity: .12;
+    --radius: 0;
+    --radius-card: 0;
+    --card-shadow: 0 0 0 1px rgba(255, 43, 214, .12), 0 0 24px rgba(255, 43, 214, .08);
+    --font-body: "Rajdhani", "Segoe UI", sans-serif;
+    --font-num: "Share Tech Mono", ui-monospace, monospace;
+    --font-head: "Orbitron", "Rajdhani", sans-serif;
+    --font-brand: var(--font-head);
+    --body-size: 1.05rem;
+    --head-size: .85rem;
+    --head-weight: 700;
+    --head-spacing: .12em;
+    --head-case: uppercase;
+    color-scheme: dark;
+}
+
+/* Cut corners, neon edges and glowing read-outs. */
+[data-theme="cyberpunk"] .card {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    border-left: 2px solid var(--accent);
+}
+[data-theme="cyberpunk"] .wordmark { font-size: .95rem; letter-spacing: .14em; text-shadow: 0 0 10px rgba(0, 240, 255, .7); }
+[data-theme="cyberpunk"] .wordmark span { color: var(--accent); text-shadow: 0 0 10px rgba(255, 43, 214, .8); }
+[data-theme="cyberpunk"] .logo-mark { filter: drop-shadow(0 0 4px rgba(0, 240, 255, .8)); }
+[data-theme="cyberpunk"] .card-head h2 { color: #00f0ff; text-shadow: 0 0 8px rgba(0, 240, 255, .6); }
+[data-theme="cyberpunk"] .stats dd { text-shadow: 0 0 10px rgba(230, 246, 255, .35); }
+[data-theme="cyberpunk"] .badge { text-shadow: 0 0 8px currentColor; }
+[data-theme="cyberpunk"] .site-nav a.active { box-shadow: inset 0 -2px 0 var(--accent), 0 8px 18px -10px var(--accent); }
+[data-theme="cyberpunk"] .windows button.active,
+[data-theme="cyberpunk"] button.primary:hover:not(:disabled) { box-shadow: 0 0 14px rgba(255, 43, 214, .6); }
+
+/* --- Anime: pastel sky, stickers and soft corners ------------------------ */
+
+[data-theme="anime"] {
+    --bg: #fff3f8;
+    --bg-image:
+        radial-gradient(circle at 12% 8%, rgba(255, 182, 213, .55) 0 120px, transparent 260px),
+        radial-gradient(circle at 92% 30%, rgba(186, 206, 255, .5) 0 140px, transparent 300px),
+        radial-gradient(rgba(255, 111, 168, .14) 1.5px, transparent 1.5px);
+    --card: #ffffff;
+    --border: #f6cfe1;
+    --rule-width: 2px;
+    --text: #4b3653;
+    --muted: #9b80a6;
+    --faint: #d7c3dd;
+    --logo: #7a5cff;
+    --accent: #ff5fa2;
+    --on-accent: #ffffff;
+    --good: #2fbf8f;
+    --fair: #f39c32;
+    --poor: #ff4d6d;
+    --trace: #7a5cff;
+    --trace-width: 2.4;
+    --area-opacity: .14;
+    --radius: 999px;
+    --radius-card: 20px;
+    --card-shadow: 0 6px 0 #f6cfe1;
+    --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+    --font-num: var(--font-body);
+    --font-head: var(--font-body);
+    --font-brand: var(--font-body);
+    --head-size: 1.05rem;
+    --head-weight: 800;
+    color-scheme: light;
+}
+
+[data-theme="anime"] body { background-size: auto, auto, 22px 22px; }
+[data-theme="anime"] .top { background: rgba(255, 255, 255, .7); border-bottom: 2px solid var(--border); }
+[data-theme="anime"] .brand,
+[data-theme="anime"] .site-nav a { border-right: 0; }
+[data-theme="anime"] .site-nav { gap: .25rem; padding: 0 .5rem; }
+[data-theme="anime"] .site-nav a { min-height: 36px; margin: auto 0; border-radius: 999px; }
+[data-theme="anime"] .site-nav a.active { background: var(--accent); color: var(--on-accent); box-shadow: 0 3px 0 #e04b8a; }
+[data-theme="anime"] .site-nav a.active i { color: var(--on-accent); }
+[data-theme="anime"] .wordmark { font-weight: 800; font-size: 1.15rem; }
+[data-theme="anime"] .card-head { border-bottom: 2px dashed var(--border); }
+[data-theme="anime"] .card-head h2::before { content: "✿ "; color: var(--accent); }
+[data-theme="anime"] .badge {
+    padding: .15rem .65rem;
+    border-radius: 999px;
+    background: currentColor;
+    letter-spacing: .04em;
+}
+[data-theme="anime"] .badge::before { content: "♥ "; }
+[data-theme="anime"] .badge.good::before { content: "★ "; }
+/* The pill takes the status colour; the text inside stays white. */
+[data-theme="anime"] .badge { color: var(--muted); }
+[data-theme="anime"] .badge.good { color: var(--good); }
+[data-theme="anime"] .badge.fair { color: var(--fair); }
+[data-theme="anime"] .badge.poor { color: var(--poor); }
+[data-theme="anime"] .badge { -webkit-text-fill-color: #fff; }
+[data-theme="anime"] .stats > div { border-left: 2px dotted var(--border); }
+[data-theme="anime"] .stats > div:first-child { border-left: 0; }
+[data-theme="anime"] .stats dd { font-weight: 800; color: #6a4bd8; }
+[data-theme="anime"] .windows { border: 2px solid var(--border); border-radius: 999px; overflow: hidden; }
+[data-theme="anime"] .windows button + button { border-left: 0; }
+[data-theme="anime"] .chart { border: 0; border-radius: 12px; background-color: #fbf7ff; }
+[data-theme="anime"] button.primary { border-width: 2px; box-shadow: 0 3px 0 var(--accent); }
+
+/* --- Medieval: an illuminated ledger on parchment ------------------------ */
+
+[data-theme="medieval"] {
+    --bg: #e6d6b4;
+    --bg-image:
+        radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(92, 60, 20, .28) 100%),
+        radial-gradient(circle at 20% 30%, rgba(160, 120, 60, .12), transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(140, 100, 50, .10), transparent 45%);
+    --card: #f3e8cf;
+    --card-image: radial-gradient(ellipse at 50% 0%, rgba(255, 250, 235, .7), transparent 70%);
+    --border: #8a6a3b;
+    --rule-width: 3px;
+    --rule-style: double;
+    --text: #2b1f12;
+    --muted: #6b5638;
+    --faint: #a68d63;
+    --logo: #2b1f12;
+    --accent: #8b1a1a;
+    --on-accent: #f3e8cf;
+    --good: #35622a;
+    --fair: #a87410;
+    --poor: #8b1a1a;
+    --trace: #2b1f12;
+    --trace-width: 1.6;
+    --area-opacity: .1;
+    --radius: 0;
+    --radius-card: 0;
+    --card-shadow: 2px 3px 0 rgba(60, 40, 15, .18);
+    --font-body: "IM Fell English", Garamond, Georgia, serif;
+    --font-num: var(--font-body);
+    --font-head: "Cinzel", "Trajan Pro", Georgia, serif;
+    --font-brand: var(--font-head);
+    --body-size: 1.08rem;
+    --head-size: 1rem;
+    --head-weight: 600;
+    --head-spacing: .08em;
+    color-scheme: light;
+}
+
+[data-theme="medieval"] .top { background: rgba(243, 232, 207, .55); border-bottom: 3px double var(--border); }
+[data-theme="medieval"] .brand,
+[data-theme="medieval"] .site-nav a { border-right-color: rgba(138, 106, 59, .4); }
+[data-theme="medieval"] .logo-mark .ping { fill: #b8860b; }
+[data-theme="medieval"] .wordmark { font-size: 1.15rem; letter-spacing: .06em; }
+[data-theme="medieval"] .wordmark span { color: var(--accent); }
+[data-theme="medieval"] .card-head { border-bottom: 1px solid rgba(138, 106, 59, .5); }
+[data-theme="medieval"] .card-head h2::before { content: "❧ "; color: var(--accent); }
+/* An illuminated initial: the first letter of each card title in crimson and gold. */
+[data-theme="medieval"] .card-head h2::first-letter { color: var(--accent); font-size: 1.35em; text-shadow: 1px 1px 0 #d4a937; }
+[data-theme="medieval"] .stats dt { font-family: var(--font-head); letter-spacing: .12em; }
+[data-theme="medieval"] .stats dd { font-size: 1.55rem; }
+[data-theme="medieval"] .stats > div { border-left-color: rgba(138, 106, 59, .4); }
+[data-theme="medieval"] .badge { font-family: var(--font-head); }
+[data-theme="medieval"] .badge::before { content: "✠ "; }
+[data-theme="medieval"] .chart { background-color: rgba(255, 250, 235, .45); border-color: rgba(138, 106, 59, .5); }
+[data-theme="medieval"] .windows button.active { font-family: var(--font-head); }
+
+/* --- Theme picker swatches: each option previews its own colours --------- */
+
+[data-theme-option] .swatch { background: var(--accent); }
+[data-theme-option="dark"] .swatch { background: linear-gradient(135deg, #12110e 50%, #f0a232 50%); }
+[data-theme-option="light"] .swatch { background: linear-gradient(135deg, #f3eee2 50%, #2b4fb3 50%); }
+[data-theme-option="cyberpunk"] .swatch { background: linear-gradient(135deg, #ff2bd6 50%, #00f0ff 50%); }
+[data-theme-option="anime"] .swatch { background: linear-gradient(135deg, #ffb6d5 50%, #7a5cff 50%); }
+[data-theme-option="medieval"] .swatch { background: linear-gradient(135deg, #e6d6b4 50%, #8b1a1a 50%); }
