@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Options;
+using NetPulse.Core.Notifications;
 using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Storage;
+
+using NetPulse.Web.Notifications;
 
 namespace NetPulse.Web.SpeedTest;
 
@@ -21,6 +24,8 @@ public sealed record SpeedTestStatus(bool IsRunning, string? Phase, DateTimeOffs
 public sealed class SpeedTestRunner(
     IHttpClientFactory httpClients,
     ISpeedTestStore store,
+    INotificationPublisher notifications,
+    IOptions<NotificationOptions> notificationOptions,
     IOptions<SpeedTestOptions> options,
     ILogger<SpeedTestRunner> logger)
 {
@@ -72,6 +77,13 @@ public sealed class SpeedTestRunner(
             else
             {
                 logger.LogWarning("Speed test against {Server} failed: {Error}", result.Server, result.Error);
+            }
+
+            var alert = NotificationFactory.SpeedTest(
+                result, notificationOptions.Value.MinDownloadMbps, notificationOptions.Value.MinUploadMbps);
+            if (alert is not null)
+            {
+                notifications.Publish(alert);
             }
 
             return result;
