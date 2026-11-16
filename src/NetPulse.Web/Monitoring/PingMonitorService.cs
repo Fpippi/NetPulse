@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NetPulse.Core.Metrics;
 using NetPulse.Core.Models;
 using NetPulse.Core.Outages;
 using NetPulse.Core.Probing;
@@ -16,6 +17,7 @@ public sealed class PingMonitorService(
     ISampleStore store,
     IOutageStore outages,
     TargetManager targets,
+    MonitorHeartbeat heartbeat,
     IOptions<MonitorOptions> options,
     IOptions<OutageOptions> outageOptions,
     ILogger<PingMonitorService> logger) : BackgroundService
@@ -49,6 +51,7 @@ public sealed class PingMonitorService(
             try
             {
                 await RunCycleAsync(timeout, stoppingToken);
+                heartbeat.Beat(DateTimeOffset.UtcNow);
 
                 if (DateTimeOffset.UtcNow - lastPurge >= PurgeInterval)
                 {
