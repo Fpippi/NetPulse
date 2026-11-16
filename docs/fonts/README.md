@@ -13,3 +13,5 @@ subset in WOFF2, and every family is licensed under the SIL Open Font License 1.
 | `mplus-rounded-*.woff2` | M PLUS Rounded 1c | Anime | © The M+ Project Authors |
 | `cinzel-600.woff2` | Cinzel | Medieval | © The Cinzel Project Authors |
 | `im-fell-400.woff2` | IM FELL English | Medieval | © Igino Marini |
+| `mplus-rounded-kana-800.woff2` | M PLUS Rounded 1c (only ネットパルス and ピン！) | Anime | © The M+ Project Authors |
+| `unifraktur-400.woff2` | UnifrakturMaguntia | Medieval | © J. 'Mach' Wust |
