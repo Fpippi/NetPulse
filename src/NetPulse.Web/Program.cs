@@ -10,6 +10,7 @@ using NetPulse.Core.Reports;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
+using NetPulse.Core.Traceroute;
 using NetPulse.Web.Components;
 using NetPulse.Core.LoadTest;
 using NetPulse.Web.Discovery;
@@ -56,6 +57,11 @@ builder.Services.AddSingleton(sp =>
 builder.Services.Configure<OutageOptions>(builder.Configuration.GetSection(OutageOptions.SectionName));
 builder.Services.AddSingleton<IOutageStore>(sp =>
     new SqliteOutageStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton<IOutageTraceStore>(sp =>
+    new SqliteOutageTraceStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton<ITraceProbe, IcmpTraceProbe>();
+builder.Services.AddSingleton<Tracer>();
+builder.Services.AddSingleton<OutageTracer>();
 builder.Services.AddSingleton(new MonitorHeartbeat(DateTimeOffset.UtcNow));
 builder.Services.AddHostedService<PingMonitorService>();
 
@@ -128,6 +134,7 @@ await app.Services.GetRequiredService<ISampleStore>().InitializeAsync();
 await app.Services.GetRequiredService<ITargetStore>().InitializeAsync();
 await app.Services.GetRequiredService<ILanDeviceStore>().InitializeAsync();
 await app.Services.GetRequiredService<IOutageStore>().InitializeAsync();
+await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
 await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
 
 app.UseAntiforgery();
@@ -180,11 +187,14 @@ api.MapGet("/stats", async (ISampleStore store, int minutes = 15) =>
     return Results.Ok(stats);
 });
 
-api.MapGet("/outages", async (IOutageStore outages, IOptions<OutageOptions> options, int hours = 24) =>
+api.MapGet("/outages", async (IOutageStore outages, IOutageTraceStore traceStore, IOptions<OutageOptions> options, int hours = 24) =>
 {
     var to = DateTimeOffset.UtcNow;
     var from = to.AddHours(-Math.Clamp(hours, 1, 24 * 366));
     var list = await outages.GetSinceAsync(from);
+    var traces = list.Count == 0
+        ? TraceLookup.Empty
+        : new TraceLookup(await traceStore.GetSinceAsync(list.Min(o => o.Start)));
 
     var summaries = list
         .GroupBy(o => o.Target, StringComparer.OrdinalIgnoreCase)
@@ -206,6 +216,9 @@ api.MapGet("/outages", async (IOutageStore outages, IOptions<OutageOptions> opti
             o.LostSamples,
             o.IsOngoing,
             durationSeconds = Math.Round(o.Duration(to).TotalSeconds, 1),
+            trace = traces.Find(o) is { } trace
+                ? new { trace.Timestamp, trace.Reached, trace.Summary, trace.Hops }
+                : null,
         }),
     });
 });

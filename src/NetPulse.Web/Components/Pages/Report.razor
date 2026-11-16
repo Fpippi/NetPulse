@@ -2,6 +2,7 @@
 @using Microsoft.Extensions.Options
 @using NetPulse.Core.Outages
 @using NetPulse.Core.Reports
+@using NetPulse.Core.Traceroute
 @using NetPulse.Web.Monitoring
 @using NetPulse.Web.Reports
 @using NetPulse.Web.SpeedTest
@@ -146,6 +147,7 @@
                                     <th scope="col">Duration</th>
                                     <th scope="col">Target</th>
                                     <th scope="col">Likely cause</th>
+                                    <th scope="col">Route during the outage</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -156,6 +158,7 @@
                                         <td>@DurationFormat.Format(outage.Duration(report.To))@(outage.IsOngoing ? " (ongoing)" : "")</td>
                                         <td>@outage.Target</td>
                                         <td><span class="cause @cause.ToString().ToLowerInvariant()">@CauseLabel(cause)</span></td>
+                                        <td>@(_traces.Find(outage)?.Summary ?? "–")</td>
                                     </tr>
                                 }
                             </tbody>
@@ -242,6 +245,7 @@
     private bool _busy;
     private string? _error;
     private IspReport? _report;
+    private TraceLookup _traces = TraceLookup.Empty;
 
     private string SpeedServer =>
         Uri.TryCreate(SpeedOptions.Value.UploadUrl, UriKind.Absolute, out var uri) ? uri.Host : "speed test server";
@@ -261,6 +265,7 @@
         try
         {
             _report = await Reports.BuildAsync(period, _download, _upload);
+            _traces = await Reports.GetTracesAsync(_report);
         }
         finally
         {
