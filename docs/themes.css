@@ -360,6 +360,192 @@
 [data-theme="anime"] .target,
 [data-theme="anime"] .tag { border: 2px solid var(--ink); color: var(--ink); }
 
+/* --- Bizarre: a saturated, menacing manga colour page --------------------- */
+
+[data-theme="bizarre"] {
+    --ink: #0b0710;
+    --purple: #5a1aa0;
+    --magenta: #e0157f;
+    --yellow: #ffe100;
+    --teal: #00b8a3;
+    --bg: #2a0b4a;
+    --bg-image:
+        repeating-linear-gradient(-45deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 9px),
+        linear-gradient(135deg, #2a0b4a 0%, #5a1aa0 38%, #b0156f 72%, #ff7a00 115%);
+    --card: #fff7d1;
+    --border: var(--ink);
+    --rule-width: 4px;
+    --text: var(--ink);
+    --muted: #5b4a6e;
+    --faint: #c7b8a0;
+    --logo: var(--ink);
+    --accent: var(--magenta);
+    --on-accent: #ffffff;
+    --good: var(--teal);
+    --fair: #ff8a00;
+    --poor: #ff1e3c;
+    --trace: var(--magenta);
+    --trace-width: 2.8;
+    --trace-filter: none;
+    --area-opacity: .18;
+    --radius: 0;
+    --radius-card: 0;
+    --card-shadow: 8px 8px 0 var(--ink), 14px 14px 0 var(--yellow);
+    --font-body: "Plex Sans", system-ui, sans-serif;
+    --font-num: "NP Shonen", "Plex Sans", sans-serif;
+    --font-head: var(--font-num);
+    --font-brand: var(--font-num);
+    --head-size: 1.2rem;
+    --head-weight: 400;
+    --head-spacing: .02em;
+    color-scheme: light;
+}
+
+/* Black top bar; the active page is a yellow slanted tab. */
+[data-theme="bizarre"] .top {
+    --text: #ffffff;
+    --muted: #c9b6e6;
+    --faint: #7d62a8;
+    --border: #2b1b40;
+    --good: var(--yellow);
+    background: var(--ink);
+    color: var(--text);
+    border-bottom: 5px solid var(--yellow);
+    box-shadow: 0 5px 0 var(--magenta);
+}
+[data-theme="bizarre"] .brand,
+[data-theme="bizarre"] .site-nav a { border-right: 0; }
+[data-theme="bizarre"] .logo-mark .trace { stroke: var(--yellow); }
+[data-theme="bizarre"] .logo-mark .ping { fill: var(--magenta); }
+[data-theme="bizarre"] .wordmark { font-size: 1.4rem; font-style: italic; color: var(--yellow); }
+[data-theme="bizarre"] .wordmark span { color: var(--magenta); }
+/* The name in katakana under the logo, like a manga title. */
+[data-theme="bizarre"] .brand { flex-wrap: wrap; row-gap: 0; align-content: center; }
+[data-theme="bizarre"] .brand::after {
+    content: "ネットパルス";
+    flex-basis: 100%;
+    margin: -.15rem 0 0 2.15rem;
+    font-family: var(--font-num);
+    font-size: .6rem;
+    letter-spacing: .4em;
+    color: var(--teal);
+}
+[data-theme="bizarre"] .site-nav { gap: .1rem; padding: 0 .3rem; align-items: center; }
+[data-theme="bizarre"] .site-nav a {
+    min-height: 34px;
+    padding: 0 .6rem;
+    font-family: var(--font-num);
+    font-size: .74rem;
+    transform: skewX(-12deg);
+}
+[data-theme="bizarre"] .site-nav a.active { background: var(--yellow); color: var(--ink); box-shadow: 4px 4px 0 var(--magenta); }
+[data-theme="bizarre"] .site-nav a.active i { color: var(--purple); }
+
+[data-theme="bizarre"] main { gap: 2.2rem; padding-top: 2.4rem; }
+
+/* Panels: thick ink frame, black and yellow offset shadows, and a menacing "ゴゴゴ" beside each one. */
+[data-theme="bizarre"] .card { position: relative; }
+[data-theme="bizarre"] .card::after {
+    content: "ゴ ゴ ゴ";
+    position: absolute;
+    top: -26px;
+    right: 26px;
+    font-family: var(--font-num);
+    font-size: 1.9rem;
+    letter-spacing: -.05em;
+    color: var(--purple);
+    -webkit-text-stroke: 2px var(--yellow);
+    paint-order: stroke fill;
+    text-shadow: 3px 3px 0 var(--ink);
+    transform: rotate(-6deg) skewX(-10deg);
+    pointer-events: none;
+}
+/* Title bar: a hard diagonal split from purple to teal, with ink hatching. */
+[data-theme="bizarre"] .card-head {
+    border-bottom: 4px solid var(--ink);
+    background:
+        repeating-linear-gradient(-45deg, rgba(11, 7, 16, .28) 0 2px, transparent 2px 7px),
+        linear-gradient(105deg, var(--purple) 0 62%, var(--ink) 62% 63%, var(--teal) 63%);
+}
+[data-theme="bizarre"] .card-head h2 {
+    color: var(--yellow);
+    font-style: italic;
+    -webkit-text-stroke: 1.5px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 3px 3px 0 var(--ink);
+}
+[data-theme="bizarre"] .card-head h2 small,
+[data-theme="bizarre"] .card-head .hint { color: #ffffff; -webkit-text-stroke: 0; text-shadow: none; }
+
+/* Status: a slanted tag. */
+[data-theme="bizarre"] .badge {
+    display: inline-block;
+    padding: .2rem .7rem;
+    border: 2px solid var(--ink);
+    background: var(--poor);
+    color: #ffffff;
+    font-family: var(--font-num);
+    letter-spacing: .06em;
+    transform: skewX(-12deg);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+[data-theme="bizarre"] .badge::before { content: "!! "; }
+[data-theme="bizarre"] .badge.good { background: var(--yellow); color: var(--ink); }
+[data-theme="bizarre"] .badge.good::before { content: "▶ "; color: var(--magenta); }
+[data-theme="bizarre"] .badge.fair { background: var(--fair); }
+[data-theme="bizarre"] .badge.unknown,
+[data-theme="bizarre"] .badge.muted { background: #5b4a6e; }
+
+[data-theme="bizarre"] .stats > div { border-left: 3px solid var(--ink); }
+[data-theme="bizarre"] .stats > div:first-child { border-left: 0; }
+[data-theme="bizarre"] .stats dt { color: var(--purple); font-weight: 700; }
+[data-theme="bizarre"] .stats dd {
+    font-size: 1.8rem;
+    font-style: italic;
+    color: var(--magenta);
+    -webkit-text-stroke: 1.5px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 3px 3px 0 var(--yellow);
+}
+[data-theme="bizarre"] .stats dd .unit { color: var(--ink); font-style: normal; -webkit-text-stroke: 0; text-shadow: none; }
+
+/* The chart is an inner panel shaded with ink hatching. */
+[data-theme="bizarre"] .chart {
+    border: 3px solid var(--ink);
+    background-color: #ffffff;
+    background-image: repeating-linear-gradient(45deg, rgba(90, 26, 160, .1) 0 1px, transparent 1px 6px);
+    background-size: auto;
+}
+[data-theme="bizarre"] .chart-max,
+[data-theme="bizarre"] .chart-axis { color: var(--ink); font-weight: 700; }
+/* The "ping!" sound effect, in katakana, slammed onto every chart. */
+[data-theme="bizarre"] .chart-wrap::after {
+    content: "ピン！";
+    position: absolute;
+    right: 8px;
+    bottom: 24px;
+    font-family: var(--font-num);
+    font-size: 1.6rem;
+    font-style: italic;
+    color: var(--yellow);
+    -webkit-text-stroke: 2px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 3px 3px 0 var(--magenta);
+    transform: rotate(-10deg);
+    pointer-events: none;
+}
+
+[data-theme="bizarre"] .windows { border: 2px solid var(--yellow); }
+[data-theme="bizarre"] .windows button { font-family: var(--font-num); color: #c9b6e6; }
+[data-theme="bizarre"] .windows button + button { border-left: 2px solid var(--yellow); }
+[data-theme="bizarre"] .windows button.active { background: var(--yellow); color: var(--ink); }
+[data-theme="bizarre"] button.primary { background: var(--magenta); color: #ffffff; border: 2px solid var(--yellow); font-family: var(--font-num); transform: skewX(-10deg); }
+[data-theme="bizarre"] .theme-picker summary { border: 2px solid var(--yellow); color: #ffffff; }
+[data-theme="bizarre"] .theme-picker ul { border: 3px solid var(--yellow); }
+[data-theme="bizarre"] .target,
+[data-theme="bizarre"] .tag { border: 2px solid var(--ink); color: var(--ink); }
+[data-theme="bizarre"] main > .empty { color: #ffffff; }
+
 /* --- Medieval: a manuscript under the banners of the realm --------------- */
 
 [data-theme="medieval"] {
@@ -542,4 +728,5 @@
 [data-theme-option="light"] .swatch { background: linear-gradient(135deg, #ffffff 50%, #111418 50%); }
 [data-theme-option="cyberpunk"] .swatch { background: linear-gradient(135deg, #ff2bd6 50%, #00f0ff 50%); }
 [data-theme-option="anime"] .swatch { background: linear-gradient(135deg, #0d0d10 50%, #e8202a 50%); }
+[data-theme-option="bizarre"] .swatch { background: linear-gradient(135deg, #5a1aa0 50%, #ffe100 50%); }
 [data-theme-option="medieval"] .swatch { background: linear-gradient(135deg, #d9b45a 50%, #8e1b1b 50%); }

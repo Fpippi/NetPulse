@@ -12,7 +12,7 @@
     // The real app keeps the theme in a cookie; the static demo takes it from ?theme=.
     const theme = new URLSearchParams(location.search).get("theme");
     document.documentElement.dataset.theme =
-      ["light", "cyberpunk", "anime", "medieval"].includes(theme) ? theme : "dark";
+      ["light", "cyberpunk", "anime", "bizarre", "medieval"].includes(theme) ? theme : "dark";
   </script>
   <style>
     .demo-bar {
@@ -76,6 +76,7 @@
           <li><a href="?theme=light" data-theme-option="light"><span class="swatch" aria-hidden="true"></span>Light</a></li>
           <li><a href="?theme=cyberpunk" data-theme-option="cyberpunk"><span class="swatch" aria-hidden="true"></span>Cyberpunk</a></li>
           <li><a href="?theme=anime" data-theme-option="anime"><span class="swatch" aria-hidden="true"></span>Anime</a></li>
+          <li><a href="?theme=bizarre" data-theme-option="bizarre"><span class="swatch" aria-hidden="true"></span>Bizarre</a></li>
           <li><a href="?theme=medieval" data-theme-option="medieval"><span class="swatch" aria-hidden="true"></span>Medieval</a></li>
         </ul>
       </details>

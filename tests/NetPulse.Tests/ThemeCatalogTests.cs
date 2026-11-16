@@ -6,11 +6,11 @@ namespace NetPulse.Tests;
 public class ThemeCatalogTests
 {
     [Test]
-    public void Offers_five_themes_with_unique_ids()
+    public void Offers_six_themes_with_unique_ids()
     {
         var ids = ThemeCatalog.All.Select(t => t.Id).ToList();
 
-        Assert.That(ids, Is.EqualTo(new[] { "dark", "light", "cyberpunk", "anime", "medieval" }));
+        Assert.That(ids, Is.EqualTo(new[] { "dark", "light", "cyberpunk", "anime", "bizarre", "medieval" }));
         Assert.That(ids, Is.Unique);
     }
 
@@ -20,6 +20,7 @@ public class ThemeCatalogTests
     [TestCase("light", "light")]
     [TestCase("CYBERPUNK", "cyberpunk")]
     [TestCase(" anime ", "anime")]
+    [TestCase("Bizarre", "bizarre")]
     [TestCase("medieval", "medieval")]
     public void Resolves_known_ids(string input, string expected) =>
         Assert.That(ThemeCatalog.Resolve(input).Id, Is.EqualTo(expected));

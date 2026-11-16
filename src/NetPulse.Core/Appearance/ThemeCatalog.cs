@@ -13,10 +13,11 @@ public static class ThemeCatalog
     public static readonly Theme Light = new("light", "Light");
     public static readonly Theme Cyberpunk = new("cyberpunk", "Cyberpunk");
     public static readonly Theme Anime = new("anime", "Anime");
+    public static readonly Theme Bizarre = new("bizarre", "Bizarre");
     public static readonly Theme Medieval = new("medieval", "Medieval");
 
     /// <summary>All themes, in the order they are offered.</summary>
-    public static IReadOnlyList<Theme> All { get; } = [Dark, Light, Cyberpunk, Anime, Medieval];
+    public static IReadOnlyList<Theme> All { get; } = [Dark, Light, Cyberpunk, Anime, Bizarre, Medieval];
 
     /// <summary>The theme used when none (or an unknown one) is chosen.</summary>
     public static Theme Default => Dark;
