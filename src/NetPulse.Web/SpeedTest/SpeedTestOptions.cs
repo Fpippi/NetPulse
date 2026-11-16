@@ -26,6 +26,12 @@ public sealed class SpeedTestOptions
 
     public long UploadBytes { get; set; } = 10_000_000;
 
+    /// <summary>
+    /// Host pinged while idle and during the transfers to measure bufferbloat (latency under load);
+    /// empty turns the measurement off. Pick a nearby, reliable host.
+    /// </summary>
+    public string BufferbloatHost { get; set; } = "1.1.1.1";
+
     /// <summary>Upper bound for a whole test; a slower test is reported as failed.</summary>
     public int TimeoutSeconds { get; set; } = 120;
 

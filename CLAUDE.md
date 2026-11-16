@@ -38,7 +38,8 @@ docker build -t netpulse .                 # container image
   - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
     `OutageSummary` (downtime/availability over a window), `DurationFormat`.
   - `SpeedTest/` — `HttpSpeedTest` (latency/download/upload over `HttpClient`), `SpeedTestPlan`
-    (validation), `TransferMeter` (Mbps with TCP warm-up skipped), `SpeedTestSchedule`, `SpeedTestSummary`.
+    (validation), `TransferMeter` (Mbps with TCP warm-up skipped), `SpeedTestSchedule`, `SpeedTestSummary`;
+    `LatencySampler` pings idle and while a transfer runs, `Bufferbloat` (medians + A+…F grade).
   - `Reports/` — `IspReportBuilder` (→ `IspReport`), `ReportPeriod` (days or from/to dates), `Csv` +
     `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601). `Outages/OutageClassifier` labels outages
     LocalNetwork / Internet / SingleHost / Unknown; `Stats/LatencyAccumulator` streams `LatencyStats`.
