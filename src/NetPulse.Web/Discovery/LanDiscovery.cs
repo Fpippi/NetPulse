@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Discovery;
+using NetPulse.Core.Notifications;
 using NetPulse.Core.Storage;
 
 namespace NetPulse.Web.Discovery;
@@ -32,6 +33,7 @@ public sealed class LanDiscovery(
     LanScanner scanner,
     ILanDeviceStore store,
     OuiDatabase vendors,
+    INotificationPublisher notifications,
     IOptions<DiscoveryOptions> options,
     ILogger<LanDiscovery> logger)
 {
@@ -81,6 +83,10 @@ public sealed class LanDiscovery(
                 foreach (var e in update.Events)
                 {
                     logger.LogInformation("Device {Kind}: {Name} ({Ip})", e.Kind, e.Name, e.Ip);
+                    if (NotificationFactory.Device(e) is { } notification)
+                    {
+                        notifications.Publish(notification);
+                    }
                 }
 
                 var duration = DateTimeOffset.UtcNow - started;

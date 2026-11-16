@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Metrics;
 using NetPulse.Core.Models;
+using NetPulse.Core.Notifications;
 using NetPulse.Core.Outages;
 using NetPulse.Core.Probing;
 using NetPulse.Core.Storage;
@@ -19,6 +20,7 @@ public sealed class PingMonitorService(
     IOutageTraceStore traces,
     OutageTracer tracer,
     TargetManager targets,
+    INotificationPublisher notifications,
     MonitorHeartbeat heartbeat,
     IOptions<MonitorOptions> options,
     IOptions<OutageOptions> outageOptions,
@@ -116,10 +118,12 @@ public sealed class PingMonitorService(
                 logger.LogWarning(
                     "Outage on {Target} ended after {Duration} ({Lost} lost pings)",
                     outage.Target, DurationFormat.Format(outage.Duration(DateTimeOffset.UtcNow)), outage.LostSamples);
+                notifications.Publish(NotificationFactory.OutageEnded(outage, DateTimeOffset.UtcNow));
             }
             else if (outage.LostSamples == _tracker.ConsecutiveLosses)
             {
                 logger.LogWarning("Outage on {Target} since {Start:u}", outage.Target, outage.Start);
+                notifications.Publish(NotificationFactory.OutageStarted(outage));
                 tracer.OnOutageStarted(outage, _stopping);
             }
         }

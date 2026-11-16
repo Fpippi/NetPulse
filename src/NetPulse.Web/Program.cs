@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Appearance;
 using NetPulse.Core.Discovery;
+using NetPulse.Core.Notifications;
 using NetPulse.Core.Metrics;
 using NetPulse.Core.Outages;
 using NetPulse.Core.SpeedTest;
@@ -16,6 +17,7 @@ using NetPulse.Web.Discovery;
 using NetPulse.Web.Health;
 using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
+using NetPulse.Web.Notifications;
 using NetPulse.Web.Reports;
 using NetPulse.Web.SpeedTest;
 using NetPulse.Web.Storage;
@@ -23,6 +25,21 @@ using NetPulse.Web.Storage;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<MonitorOptions>(builder.Configuration.GetSection(MonitorOptions.SectionName));
+
+// Alerts (ntfy, Telegram, webhook, e-mail); every channel is off until configured.
+builder.Services.Configure<NotificationOptions>(builder.Configuration.GetSection(NotificationOptions.SectionName));
+builder.Services.AddHttpClient(nameof(NotificationDispatcher), client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<NotificationOptions>>();
+    var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(NotificationDispatcher));
+    return new NotificationDispatcher(
+        NotificationChannels.Create(options.Value, http, sp.GetRequiredService<ILogger<NotificationDispatcher>>()),
+        options,
+        sp.GetRequiredService<ILogger<NotificationDispatcher>>());
+});
+builder.Services.AddSingleton<INotificationPublisher>(sp => sp.GetRequiredService<NotificationDispatcher>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<NotificationDispatcher>());
 builder.Services.AddSingleton<IPingProbe, IcmpPingProbe>();
 // DNS and HTTP targets. The HTTP client opens a new connection for every probe so each sample
 // includes DNS, TCP and TLS, like a browser's first visit, and reports redirects as they are.
@@ -290,6 +307,11 @@ export.MapGet("/speedtests.csv", (HttpContext http, ISpeedTestStore store, strin
     CsvDownload(http, from, to, days, "speedtests", async (period, writer, ct) =>
         await CsvExport.WriteSpeedTestsAsync(
             writer, (await store.GetSinceAsync(period.From, ct)).Where(r => r.Timestamp < period.To))));
+
+api.MapGet("/notifications", (NotificationDispatcher notifications) =>
+    Results.Ok(new { channels = notifications.ChannelNames }));
+api.MapPost("/notifications/test", async (NotificationDispatcher notifications, CancellationToken ct) =>
+    Results.Ok(await notifications.SendTestAsync(ct)));
 
 api.MapGet("/targets", async (TargetManager targets) =>
     Results.Ok(await targets.GetTargetsAsync()));

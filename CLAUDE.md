@@ -46,6 +46,9 @@ docker build -t netpulse .                 # container image
   - `Reports/` — `IspReportBuilder` (→ `IspReport`), `ReportPeriod` (days or from/to dates), `Csv` +
     `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601). `Outages/OutageClassifier` labels outages
     LocalNetwork / Internet / SingleHost / Unknown; `Stats/LatencyAccumulator` streams `LatencyStats`.
+  - `Notifications/` — `Notification` (+ `INotificationPublisher`, `INotificationChannel`), `NotificationFactory`
+    (outage/device/speed-test messages), `NotificationBatch` (merges bursts), `DeliveryQueue` (per-channel retry
+    with backoff and expiry), `NtfyChannel` / `TelegramChannel` / `WebhookChannel` (static `BuildRequest` for tests).
   - `Traceroute/` — `Tracer` (TTL 1…N until reached / N silent hops; `IsTraceable`), `ITraceProbe` +
     `IcmpTraceProbe` (`PingOptions.Ttl`), `TraceResult.Summary`, `OutageTrace`, `TraceLookup` (trace of an outage).
   - `Metrics/` — `PrometheusWriter` (hand-written text format, invariant numbers, label escaping),
@@ -66,6 +69,9 @@ docker build -t netpulse .                 # container image
   - `Discovery/LanDiscovery` + `LanDiscoveryService` — runs scans (periodic and "Scan now").
   - `LoadTest/` — `LoadTestReceiver` (opt-in `BackgroundService`, disabled by default; the target/agent),
     `LoadTestClient` (sender), `LoadTestManager` (orchestrates one run, live samples + `Changed` event).
+  - `Notifications/` — `NotificationOptions`, `NotificationChannels` (builds the configured ones), `EmailChannel`
+    (SMTP), `NotificationDispatcher` (publisher + `BackgroundService`: batches, delivers, retries; test endpoint).
+    Published from `PingMonitorService`, `LanDiscovery` and `SpeedTestRunner`.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).

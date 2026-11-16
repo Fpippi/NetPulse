@@ -53,6 +53,9 @@ or your ISP.
   when a new device joins or a known one goes offline
 - **Cooperative throughput testing** (iperf-style): measure real throughput and UDP loss between two of your
   own machines — both ends opt in, with duration and bandwidth safety caps
+- **Notifications** on your phone or inbox (ntfy, Telegram, any webhook incl. Slack/Discord, e-mail) when a
+  target goes down or comes back, a new device joins the network, or a speed test is slow — delivered even
+  after an Internet outage, because undelivered alerts are retried
 - **Prometheus `/metrics` and `/healthz`** for Grafana, Home Assistant, Uptime Kuma and Docker health checks
 - **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export`,
   `/api/devices`, `/api/loadtest`) for scripts and integrations
@@ -292,6 +295,29 @@ Settings live in the `LoadTest` section:
 > In Docker, publish the port (e.g. `-p 5201:5201/tcp -p 5201:5201/udp`) or use `--network host` on the
 > target so the sender can reach the receiver.
 
+### Notifications
+
+NetPulse can alert you when a target goes **down** and when it is **back** (after `ConsecutiveLosses`
+lost pings, like the Outages page), when a **new device** joins your network, and when a **speed test**
+fails or is slower than a minimum you set. All channels are free and off until configured; set as many
+as you like in the `Notifications` section:
+
+| Key                         | Description                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------|
+| `NtfyUrl`, `NtfyToken`      | [ntfy](https://ntfy.sh) topic URL (e.g. `https://ntfy.sh/netpulse-k3x9q`; use a hard-to-guess topic or your own server) and an optional access token. Install the ntfy app and subscribe to the topic. |
+| `TelegramBotToken`, `TelegramChatId` | Create a bot with @BotFather, send it a message, then read the chat id from `https://api.telegram.org/bot<token>/getUpdates`. |
+| `WebhookUrl`                | Receives a JSON `POST` (`kind`, `severity`, `title`, `message`, `timestamp`); also carries `text` and `content`, so Slack and Discord incoming webhooks work directly. Handy for Home Assistant, n8n or Node-RED. |
+| `Smtp:Host`, `Port` (587), `EnableSsl` (true), `User`, `Password`, `From`, `To` | E-mail through any SMTP server; `To` is comma-separated. With Gmail use an app password. |
+| `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:SpeedTests` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day. |
+| `MinDownloadMbps`, `MinUploadMbps` | Alert when a speed test is below these (0 = only failed tests).         |
+| `BatchSeconds` (10)         | Events closer together are merged into one alert (an ISP outage takes down every public target at once). |
+| `RetryHours` (24)           | Alerts that cannot be delivered (the Internet is down, after all) are retried with backoff for this long. |
+
+Example with environment variables: `NetPulse__Notifications__NtfyUrl=https://ntfy.sh/netpulse-k3x9q`.
+Check the setup with `curl -X POST http://localhost:5080/api/notifications/test`, which sends a test alert
+to every channel and reports the result of each. Keep tokens and passwords out of `appsettings.json` if you
+commit it: use environment variables or [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets).
+
 ### Health and metrics
 
 - `GET /healthz` answers `200 Healthy` when the monitoring loop completed a cycle recently (within three
@@ -332,6 +358,8 @@ scrape_configs:
 | `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV |
 | `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV |
 | `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV |
+| `GET /api/notifications`                 | Configured notification channels |
+| `POST /api/notifications/test`           | Send a test alert to every channel and report each result |
 | `GET /api/targets`                       | Monitored targets (`isCustom` marks the removable ones) |
 | `POST /api/targets` `{"target":"example.com"}` | Add a custom target |
 | `DELETE /api/targets/{target}`           | Remove a custom target and its samples |
