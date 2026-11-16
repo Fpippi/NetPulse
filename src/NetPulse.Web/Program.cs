@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Discovery;
+using NetPulse.Core.Metrics;
 using NetPulse.Core.Outages;
 using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Probing;
@@ -10,6 +11,7 @@ using NetPulse.Core.Targets;
 using NetPulse.Web.Components;
 using NetPulse.Core.LoadTest;
 using NetPulse.Web.Discovery;
+using NetPulse.Web.Health;
 using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
 using NetPulse.Web.Reports;
@@ -59,7 +61,13 @@ builder.Services.AddSingleton(sp =>
 builder.Services.Configure<OutageOptions>(builder.Configuration.GetSection(OutageOptions.SectionName));
 builder.Services.AddSingleton<IOutageStore>(sp =>
     new SqliteOutageStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton(new MonitorHeartbeat(DateTimeOffset.UtcNow));
 builder.Services.AddHostedService<PingMonitorService>();
+
+// Health (/healthz) for Docker, Uptime Kuma & co.: the ping loop is alive and the database readable.
+builder.Services.AddHealthChecks()
+    .AddCheck<MonitorHealthCheck>("monitor")
+    .AddCheck<DatabaseHealthCheck>("database");
 
 // LAN discovery
 builder.Services.Configure<DiscoveryOptions>(builder.Configuration.GetSection(DiscoveryOptions.SectionName));
@@ -131,6 +139,26 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 
 // --- REST API -------------------------------------------------------------
+
+app.MapHealthChecks("/healthz");
+
+// Prometheus metrics (Grafana, Home Assistant): current state, latency stats over the last 5 minutes.
+app.MapGet("/metrics", async (
+    ISampleStore samples, IOutageStore outages, ISpeedTestStore speedTests, ILanDeviceStore devices,
+    TargetManager targets, CancellationToken ct) =>
+{
+    var window = TimeSpan.FromMinutes(5);
+    var now = DateTimeOffset.UtcNow;
+    var snapshot = new MetricsSnapshot(
+        window,
+        await samples.GetSinceAsync(now - window, cancellationToken: ct),
+        await targets.GetEffectiveTargetsAsync(ct),
+        (await outages.GetSinceAsync(now, ct)).Where(o => o.IsOngoing).ToList(),
+        await speedTests.GetLatestAsync(ct),
+        await devices.GetDevicesAsync(ct));
+
+    return Results.Text(NetPulseMetrics.Render(snapshot), PrometheusWriter.ContentType);
+});
 
 var api = app.MapGroup("/api");
 
