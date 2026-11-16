@@ -5,13 +5,12 @@ subset in WOFF2, and every family is licensed under the SIL Open Font License 1.
 
 | File | Family | Used by | Copyright |
 | --- | --- | --- | --- |
-| `plex-sans-var.woff2` | IBM Plex Sans | Light | © IBM Corp. |
+| `plex-sans-var.woff2` | IBM Plex Sans | Light, Anime | © IBM Corp. |
 | `plex-mono-*.woff2` | IBM Plex Mono | all except Cyberpunk | © IBM Corp. |
 | `orbitron-700.woff2` | Orbitron | Cyberpunk | © The Orbitron Project Authors |
 | `rajdhani-*.woff2` | Rajdhani | Cyberpunk | © Indian Type Foundry |
 | `share-tech-mono-400.woff2` | Share Tech Mono | Cyberpunk | © Carrois Apostrophe |
-| `mplus-rounded-*.woff2` | M PLUS Rounded 1c | Anime | © The M+ Project Authors |
+| `dela-gothic-one-subset.woff2` | Dela Gothic One (latin, digits, ネットパルス ピン！) | Anime | © Dela Gothic One Project Authors |
 | `cinzel-600.woff2` | Cinzel | Medieval | © The Cinzel Project Authors |
 | `im-fell-400.woff2` | IM FELL English | Medieval | © Igino Marini |
-| `mplus-rounded-kana-800.woff2` | M PLUS Rounded 1c (only ネットパルス and ピン！) | Anime | © The M+ Project Authors |
 | `unifraktur-400.woff2` | UnifrakturMaguntia | Medieval | © J. 'Mach' Wust |

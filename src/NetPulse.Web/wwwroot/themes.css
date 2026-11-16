@@ -16,11 +16,9 @@
 @font-face { font-family: "Rajdhani"; src: url("fonts/rajdhani-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "Rajdhani"; src: url("fonts/rajdhani-600.woff2") format("woff2"); font-weight: 600 700; font-display: swap; }
 @font-face { font-family: "Share Tech Mono"; src: url("fonts/share-tech-mono-400.woff2") format("woff2"); font-display: swap; }
-@font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-500.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
-@font-face { font-family: "M PLUS Rounded 1c"; src: url("fonts/mplus-rounded-800.woff2") format("woff2"); font-weight: 700 900; font-display: swap; }
 @font-face { font-family: "Cinzel"; src: url("fonts/cinzel-600.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
-/* Only the katakana NetPulse uses (ネットパルス, ピン！), subset to a few kilobytes. */
-@font-face { font-family: "NP Kana"; src: url("fonts/mplus-rounded-kana-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+/* Dela Gothic One, subset to latin letters, digits and the katakana NetPulse uses (ネットパルス, ピン！). */
+@font-face { font-family: "NP Shonen"; src: url("fonts/dela-gothic-one-subset.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "NP Blackletter"; src: url("fonts/unifraktur-400.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "IM Fell English"; src: url("fonts/im-fell-400.woff2") format("woff2"); font-display: swap; }
 
@@ -195,185 +193,172 @@
 [data-theme="cyberpunk"] .windows button.active,
 [data-theme="cyberpunk"] button.primary:hover:not(:disabled) { box-shadow: 0 0 14px rgba(255, 43, 214, .6); }
 
-/* --- Anime: a shoujo manga page under falling sakura --------------------- */
+/* --- Anime: a shōnen manga page, all ink, red and speed lines ------------- */
 
 [data-theme="anime"] {
-    --ink: #1d1626;
-    --sakura: #ff6fae;
-    --bg: #ffeaf4;
+    --ink: #0d0d10;
+    --red: #e8202a;
+    --bg: #f2f0ea;
     --bg-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg fill='%23ffffff' opacity='.55'%3E%3Ccircle cx='20' cy='30' r='1.6'/%3E%3Ccircle cx='110' cy='20' r='1.2'/%3E%3Ccircle cx='70' cy='90' r='1.4'/%3E%3Ccircle cx='140' cy='120' r='1.8'/%3E%3Ccircle cx='30' cy='140' r='1.1'/%3E%3C/g%3E%3C/svg%3E"),
-        linear-gradient(180deg, #bfe4ff 0%, #e4dcff 45%, #ffe1ef 100%);
+        repeating-conic-gradient(from 0deg at 50% 35%, rgba(13, 13, 16, .07) 0 .6deg, transparent .6deg 3.2deg),
+        radial-gradient(ellipse 60% 45% at 50% 35%, #f2f0ea 0 35%, transparent 70%),
+        radial-gradient(rgba(13, 13, 16, .12) 1px, transparent 1.3px);
     --card: #ffffff;
     --border: var(--ink);
     --rule-width: 3px;
     --text: var(--ink);
-    --muted: #7b6a8c;
-    --faint: #cdbfdc;
+    --muted: #5d5d66;
+    --faint: #b9b9c2;
     --logo: var(--ink);
-    --accent: var(--sakura);
+    --accent: var(--red);
     --on-accent: #ffffff;
-    --good: #12b886;
-    --fair: #ff9f1c;
-    --poor: #ff3860;
-    --trace: #6c4cf5;
+    --good: #0d0d10;
+    --fair: #e88a00;
+    --poor: var(--red);
+    --trace: var(--red);
     --trace-width: 2.4;
     --trace-filter: none;
-    --area-opacity: .16;
-    --radius: 999px;
-    --radius-card: 16px;
-    --card-shadow: 6px 6px 0 var(--ink);
-    --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
-    --font-num: var(--font-body);
-    --font-head: var(--font-body);
-    --font-brand: var(--font-body);
-    --head-size: 1.1rem;
-    --head-weight: 800;
+    --area-opacity: 0;
+    --radius: 0;
+    --radius-card: 0;
+    --card-shadow: 8px 8px 0 var(--ink);
+    --font-body: "Plex Sans", system-ui, sans-serif;
+    --font-num: "NP Shonen", "Plex Sans", sans-serif;
+    --font-head: var(--font-num);
+    --font-brand: var(--font-num);
+    --head-size: 1.15rem;
+    --head-weight: 400;
+    --head-spacing: .02em;
     color-scheme: light;
 }
 
-/* Sakura petals drifting down behind the page (still when reduced motion is requested). */
-[data-theme="anime"] body::before {
-    content: "";
-    position: fixed;
-    inset: -200px 0 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='300'%3E%3Cg fill='%23ffb3d1' stroke='%23ff7fb6' stroke-width='.8'%3E%3Cpath d='M30 40c8-10 22-8 24 2 2 9-8 18-22 18 6-6 4-12-2-20z'/%3E%3Cpath d='M180 120c6-12 20-12 24-3 3 8-5 18-19 20 5-7 3-12-5-17z' transform='rotate(35 190 130)'/%3E%3Cpath d='M90 220c7-9 19-7 21 2 2 8-7 15-19 15 5-5 3-10-2-17z' transform='rotate(-25 100 225)'/%3E%3C/g%3E%3C/svg%3E"),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='420'%3E%3Cg fill='%23ffc9de' stroke='%23ff9cc6' stroke-width='.6'%3E%3Cpath d='M60 90c5-7 15-6 17 1 1 6-6 12-15 12 4-4 3-8-2-13z' transform='rotate(60 70 95)'/%3E%3Cpath d='M250 300c5-7 15-6 17 1 1 6-6 12-15 12 4-4 3-8-2-13z' transform='rotate(-40 258 305)'/%3E%3C/g%3E%3C/svg%3E");
-    animation: np-petals 26s linear infinite;
+[data-theme="anime"] body { background-size: auto, auto, 6px 6px; }
+
+/* Black top bar; the active page is a red slanted tab. */
+[data-theme="anime"] .top {
+    --text: #ffffff;
+    --muted: #a7a7b0;
+    --faint: #5d5d66;
+    --border: #2a2a30;
+    --good: #ffffff;
+    background: var(--ink);
+    color: var(--text);
+    border-bottom: 4px solid var(--red);
 }
-
-@keyframes np-petals {
-    from { background-position: 0 0, 0 0; }
-    to { background-position: 260px 900px, -340px 840px; }
-}
-
-[data-theme="anime"] .top,
-[data-theme="anime"] main { position: relative; z-index: 1; }
-
-[data-theme="anime"] .top { background: #ffffff; border-bottom: 3px solid var(--ink); }
 [data-theme="anime"] .brand,
 [data-theme="anime"] .site-nav a { border-right: 0; }
-[data-theme="anime"] .wordmark { font-size: 1.25rem; font-weight: 800; }
+[data-theme="anime"] .logo-mark .trace { stroke: #ffffff; }
+[data-theme="anime"] .logo-mark .ping { fill: var(--red); }
+[data-theme="anime"] .wordmark { font-size: 1.35rem; font-style: italic; letter-spacing: .01em; color: #ffffff; }
+[data-theme="anime"] .wordmark span { color: var(--red); }
 /* The name in katakana under the logo, like a manga title. */
 [data-theme="anime"] .brand { flex-wrap: wrap; row-gap: 0; align-content: center; }
 [data-theme="anime"] .brand::after {
     content: "ネットパルス";
     flex-basis: 100%;
-    margin: -.2rem 0 0 2.1rem;
-    font-family: "NP Kana", var(--font-body);
-    font-size: .62rem;
-    font-weight: 800;
-    letter-spacing: .25em;
-    color: var(--sakura);
+    margin: -.15rem 0 0 2.15rem;
+    font-family: var(--font-num);
+    font-size: .6rem;
+    letter-spacing: .4em;
+    color: var(--red);
 }
-[data-theme="anime"] .site-nav { gap: .15rem; padding: 0 .25rem; align-items: center; }
+[data-theme="anime"] .site-nav { gap: .1rem; padding: 0 .3rem; align-items: center; }
 [data-theme="anime"] .site-nav a {
     min-height: 34px;
-    padding: 0 .75rem;
-    border: 2px solid transparent;
-    border-radius: 999px;
-    font-weight: 600;
+    padding: 0 .6rem;
+    font-family: var(--font-num);
+    font-size: .74rem;
+    transform: skewX(-12deg);
 }
-[data-theme="anime"] .site-nav a.active {
-    background: var(--sakura);
-    color: #ffffff;
-    border-color: var(--ink);
-    box-shadow: 3px 3px 0 var(--ink);
-}
+[data-theme="anime"] .site-nav a.active { background: var(--red); color: #ffffff; box-shadow: 4px 4px 0 #ffffff; }
 [data-theme="anime"] .site-nav a.active i { color: #ffffff; }
 
-/* Cards are manga panels: thick ink frame, hard shadow, a screentone title strip and a sparkle. */
-[data-theme="anime"] .card { position: relative; }
-[data-theme="anime"] .card::after {
-    content: "✦";
-    position: absolute;
-    top: -18px;
-    right: -12px;
-    font-size: 30px;
-    line-height: 1;
-    color: #ffd23f;
-    -webkit-text-stroke: 2px var(--ink);
-    transform: rotate(12deg);
-    pointer-events: none;
-}
+/* Cards are manga panels: heavy ink frame and a hard drop shadow. */
+[data-theme="anime"] main { gap: 1.6rem; }
+
 [data-theme="anime"] .card-head {
-    border-bottom: 3px solid var(--ink);
-    border-radius: 13px 13px 0 0;
-    background-color: #ffd6e8;
-    background-image: radial-gradient(rgba(255, 111, 174, .55) 1.2px, transparent 1.4px);
-    background-size: 7px 7px;
+    background: var(--ink);
+    color: #ffffff;
+    border-bottom: 0;
+    /* Screentone fading in from the right of the title bar. */
+    background-image:
+        radial-gradient(rgba(255, 255, 255, .22) 1.1px, transparent 1.3px),
+        linear-gradient(90deg, var(--ink) 55%, transparent);
+    background-size: 6px 6px, 100% 100%;
+    background-blend-mode: normal;
 }
-[data-theme="anime"] .card-head h2 { color: var(--ink); }
-[data-theme="anime"] .card-head h2::before { content: "♡ "; color: var(--sakura); }
-
-/* Status as a speech bubble. */
-[data-theme="anime"] .badge {
-    position: relative;
-    padding: .2rem .7rem;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    background: #ffffff;
-    font-weight: 800;
-    letter-spacing: .04em;
-}
-[data-theme="anime"] .badge::before { content: "♥ "; }
-[data-theme="anime"] .badge.good::before { content: "★ "; }
-[data-theme="anime"] .badge::after {
+[data-theme="anime"] .card-head h2 { color: #ffffff; font-style: italic; }
+[data-theme="anime"] .card-head h2::before {
     content: "";
-    position: absolute;
-    left: 12px;
-    bottom: -7px;
-    width: 9px;
-    height: 9px;
-    background: #ffffff;
-    border-right: 2px solid var(--ink);
-    border-bottom: 2px solid var(--ink);
-    transform: rotate(45deg);
+    display: inline-block;
+    width: .45em;
+    height: 1em;
+    margin-right: .55em;
+    vertical-align: -.1em;
+    background: var(--red);
+    transform: skewX(-15deg);
 }
+[data-theme="anime"] .card-head h2 small,
+[data-theme="anime"] .card-head .hint { color: #c9c9d1; }
 
-[data-theme="anime"] .stats > div { border-left: 2px dashed var(--faint); }
+/* Status: a slanted red (or black) tag. */
+[data-theme="anime"] .badge {
+    display: inline-block;
+    padding: .2rem .7rem;
+    background: var(--red);
+    color: #ffffff;
+    font-family: var(--font-num);
+    letter-spacing: .06em;
+    transform: skewX(-12deg);
+}
+[data-theme="anime"] .badge::before { content: "!! "; }
+[data-theme="anime"] .badge.good { background: #ffffff; color: var(--ink); }
+[data-theme="anime"] .badge.good::before { content: "★ "; color: var(--red); }
+[data-theme="anime"] .badge.fair { background: var(--fair); }
+[data-theme="anime"] .badge.unknown,
+[data-theme="anime"] .badge.muted { background: #5d5d66; }
+
+[data-theme="anime"] .stats > div { border-left: 3px solid var(--ink); }
 [data-theme="anime"] .stats > div:first-child { border-left: 0; }
-[data-theme="anime"] .stats dd {
-    font-weight: 800;
-    font-size: 1.6rem;
-    color: var(--ink);
-    text-shadow: 2px 2px 0 #ffc2dc;
-}
-[data-theme="anime"] .stats dd .unit { text-shadow: none; color: var(--sakura); }
+[data-theme="anime"] .stats dt { color: var(--ink); font-weight: 600; }
+[data-theme="anime"] .stats dd { font-size: 1.75rem; font-style: italic; }
+[data-theme="anime"] .stats dd .unit { color: var(--red); font-style: normal; }
 
+/* The chart sits in its own inner panel, with screentone shading at the bottom. */
 [data-theme="anime"] .chart {
-    border: 2px solid var(--ink);
-    border-radius: 12px;
-    background-color: #f7f3ff;
+    border: 3px solid var(--ink);
+    background-color: #ffffff;
+    background-image: radial-gradient(rgba(13, 13, 16, .16) 1px, transparent 1.2px);
+    background-size: 5px 5px;
 }
-/* The "ping!" sound effect, in katakana, stamped on every chart. */
+[data-theme="anime"] .chart-max,
+[data-theme="anime"] .chart-axis { color: var(--ink); font-weight: 600; }
+/* The "ping!" sound effect, in katakana, slammed onto every chart. */
 [data-theme="anime"] .chart-wrap::after {
     content: "ピン！";
     position: absolute;
-    bottom: 4px;
-    right: -10px;
-    font-family: "NP Kana", var(--font-body);
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: #ffd23f;
-    -webkit-text-stroke: 1.5px var(--ink);
+    right: 6px;
+    top: -34px;
+    font-family: var(--font-num);
+    font-size: 1.7rem;
+    font-style: italic;
+    color: var(--red);
+    -webkit-text-stroke: 2px var(--ink);
     paint-order: stroke fill;
-    transform: rotate(-8deg);
+    text-shadow: 3px 3px 0 #ffffff;
+    transform: rotate(-10deg);
     pointer-events: none;
 }
-[data-theme="anime"] .windows { border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; }
-[data-theme="anime"] .windows button + button { border-left: 2px solid var(--ink); }
-[data-theme="anime"] .windows button { font-weight: 800; }
-[data-theme="anime"] button.primary,
-[data-theme="anime"] .theme-picker summary { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); color: var(--ink); }
-[data-theme="anime"] button.primary { background: #ffd23f; }
 
-@media (prefers-reduced-motion: reduce) {
-    [data-theme="anime"] body::before { animation: none; }
-}
+[data-theme="anime"] .windows { border: 2px solid #ffffff; }
+[data-theme="anime"] .windows button { font-family: var(--font-num); color: #a7a7b0; }
+[data-theme="anime"] .windows button + button { border-left: 2px solid #ffffff; }
+[data-theme="anime"] .windows button.active { background: var(--red); color: #ffffff; }
+[data-theme="anime"] button.primary { background: var(--red); color: #ffffff; border: 2px solid #ffffff; font-family: var(--font-num); transform: skewX(-10deg); }
+[data-theme="anime"] .theme-picker summary { border: 2px solid #ffffff; color: #ffffff; }
+[data-theme="anime"] .theme-picker ul { border: 3px solid var(--ink); }
+[data-theme="anime"] .target,
+[data-theme="anime"] .tag { border: 2px solid var(--ink); color: var(--ink); }
 
 /* --- Medieval: a manuscript under the banners of the realm --------------- */
 
@@ -556,5 +541,5 @@
 [data-theme-option="dark"] .swatch { background: linear-gradient(135deg, #000000 50%, #00ff66 50%); }
 [data-theme-option="light"] .swatch { background: linear-gradient(135deg, #ffffff 50%, #111418 50%); }
 [data-theme-option="cyberpunk"] .swatch { background: linear-gradient(135deg, #ff2bd6 50%, #00f0ff 50%); }
-[data-theme-option="anime"] .swatch { background: linear-gradient(135deg, #ff6fae 50%, #bfe4ff 50%); }
+[data-theme-option="anime"] .swatch { background: linear-gradient(135deg, #0d0d10 50%, #e8202a 50%); }
 [data-theme-option="medieval"] .swatch { background: linear-gradient(135deg, #d9b45a 50%, #8e1b1b 50%); }
