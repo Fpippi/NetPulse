@@ -5,9 +5,8 @@ subset in WOFF2, and every family is licensed under the SIL Open Font License 1.
 
 | File | Family | Used by | Copyright |
 | --- | --- | --- | --- |
-| `plex-sans-var.woff2` | IBM Plex Sans | Dark, Light | © IBM Corp. |
-| `plex-mono-*.woff2` | IBM Plex Mono | Dark, Light | © IBM Corp. |
-| `fraunces-600.woff2` | Fraunces | Light | © The Fraunces Project Authors |
+| `plex-sans-var.woff2` | IBM Plex Sans | Light | © IBM Corp. |
+| `plex-mono-*.woff2` | IBM Plex Mono | all except Cyberpunk | © IBM Corp. |
 | `orbitron-700.woff2` | Orbitron | Cyberpunk | © The Orbitron Project Authors |
 | `rajdhani-*.woff2` | Rajdhani | Cyberpunk | © Indian Type Foundry |
 | `share-tech-mono-400.woff2` | Share Tech Mono | Cyberpunk | © Carrois Apostrophe |
