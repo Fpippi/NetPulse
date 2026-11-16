@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NetPulse.Core.Models;
 
 namespace NetPulse.Core.Stats;
@@ -68,31 +69,33 @@ public sealed record LatencyStats(
     }
 
     /// <summary>
-    /// Rough quality rating, tuned for typical home connections (gaming / video calls).
+    /// Rough quality rating with the ping thresholds, tuned for typical home connections (gaming / video calls).
     /// </summary>
-    public ConnectionQuality Quality
+    /// <remarks>Not serialized: API responses carry the rating for the target's own probe kind.</remarks>
+    [JsonIgnore]
+    public ConnectionQuality Quality => Rate(QualityThresholds.Ping);
+
+    /// <summary>Quality rating against the given thresholds (see <see cref="QualityThresholds.For"/>).</summary>
+    public ConnectionQuality Rate(QualityThresholds thresholds)
     {
-        get
+        if (Count == 0)
         {
-            if (Count == 0)
-            {
-                return ConnectionQuality.Unknown;
-            }
-
-            var avg = AvgMs ?? double.MaxValue;
-            var jitter = JitterMs ?? 0;
-
-            if (LossPercent >= 5 || jitter >= 30 || avg >= 150)
-            {
-                return ConnectionQuality.Poor;
-            }
-
-            if (LossPercent > 0 || jitter >= 10 || avg >= 80)
-            {
-                return ConnectionQuality.Fair;
-            }
-
-            return ConnectionQuality.Good;
+            return ConnectionQuality.Unknown;
         }
+
+        var avg = AvgMs ?? double.MaxValue;
+        var jitter = JitterMs ?? 0;
+
+        if (LossPercent >= thresholds.PoorLossPercent || jitter >= thresholds.PoorJitterMs || avg >= thresholds.PoorAvgMs)
+        {
+            return ConnectionQuality.Poor;
+        }
+
+        if (LossPercent > 0 || jitter >= thresholds.FairJitterMs || avg >= thresholds.FairAvgMs)
+        {
+            return ConnectionQuality.Fair;
+        }
+
+        return ConnectionQuality.Good;
     }
 }

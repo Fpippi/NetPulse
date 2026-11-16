@@ -20,6 +20,29 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<MonitorOptions>(builder.Configuration.GetSection(MonitorOptions.SectionName));
 builder.Services.AddSingleton<IPingProbe, IcmpPingProbe>();
+// DNS and HTTP targets. The HTTP client opens a new connection for every probe so each sample
+// includes DNS, TCP and TLS, like a browser's first visit, and reports redirects as they are.
+builder.Services.AddHttpClient(nameof(HttpProbe), client =>
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("NetPulse (+https://github.com/Fpippi/NetPulse)"))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.Zero,
+        AllowAutoRedirect = false,
+        UseCookies = false,
+    });
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<MonitorOptions>>().Value;
+    var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(HttpProbe));
+    return new TargetProbe(
+        sp.GetRequiredService<IPingProbe>(),
+        new DnsProbe(),
+        new HttpProbe(http),
+        new ProbeTimeouts(
+            TimeSpan.FromMilliseconds(Math.Max(100, options.TimeoutMs)),
+            TimeSpan.FromMilliseconds(Math.Max(100, options.DnsTimeoutMs)),
+            TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))));
+});
 builder.Services.AddSingleton<ISampleStore>(sp =>
     new SqliteSampleStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
 builder.Services.AddSingleton<ITargetStore>(sp =>
@@ -128,7 +151,13 @@ api.MapGet("/stats", async (ISampleStore store, int minutes = 15) =>
         .Select(g =>
         {
             var s = LatencyStats.From(g.ToList());
-            return new { target = g.Key, quality = s.Quality.ToString(), stats = s };
+            return new
+            {
+                target = g.Key,
+                kind = ProbeTarget.KindOf(g.Key).ToString().ToLowerInvariant(),
+                quality = s.Rate(QualityThresholds.ForTarget(g.Key)).ToString(),
+                stats = s,
+            };
         });
 
     return Results.Ok(stats);
