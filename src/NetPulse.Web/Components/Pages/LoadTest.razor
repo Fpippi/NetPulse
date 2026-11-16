@@ -7,11 +7,7 @@
 
 <PageTitle>Throughput · NetPulse</PageTitle>
 
-<header class="top">
-    <div class="brand">
-        <h1>NetPulse</h1>
-        <SiteNav />
-    </div>
+<AppHeader>
     @if (_status.IsRunning)
     {
         <button type="button" class="primary stop" @onclick="Stop">Stop test</button>
@@ -20,7 +16,7 @@
     {
         <button type="button" class="primary" @onclick="Start">Start test</button>
     }
-</header>
+</AppHeader>
 
 <main>
     <section class="card warn" role="note">
