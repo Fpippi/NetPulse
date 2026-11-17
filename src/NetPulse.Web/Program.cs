@@ -21,10 +21,19 @@ using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
 using NetPulse.Web.Notifications;
 using NetPulse.Web.Reports;
+using NetPulse.Web.Security;
 using NetPulse.Web.SpeedTest;
 using NetPulse.Web.Storage;
 
+if (args is [HashPasswordCommand.Name, ..])
+{
+    return HashPasswordCommand.Run();
+}
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Optional dashboard password (NetPulse:Auth); off unless configured.
+builder.AddDashboardAuth();
 
 builder.Services.Configure<MonitorOptions>(builder.Configuration.GetSection(MonitorOptions.SectionName));
 
@@ -170,12 +179,15 @@ await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
 await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
 await app.Services.GetRequiredService<ILinkStore>().InitializeAsync();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
+app.MapDashboardAuth();
 
 // --- REST API -------------------------------------------------------------
 
-app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/healthz").AllowAnonymous();
 
 // Prometheus metrics (Grafana, Home Assistant): current state, latency stats over the last 5 minutes.
 app.MapGet("/metrics", async (
@@ -411,12 +423,13 @@ app.MapGet("/theme/{id}", (HttpContext http, string id, string? returnUrl) =>
         SameSite = SameSiteMode.Lax,
     });
     return Results.Redirect(ThemeCatalog.SafeReturnPath(returnUrl));
-}).ExcludeFromDescription();
+}).AllowAnonymous().ExcludeFromDescription();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+return 0;
 
 // Streams a CSV download named e.g. "netpulse-samples-2026-10-14_2026-11-13.csv".
 static IResult CsvDownload(HttpContext http, string? from, string? to, int? days, string name,

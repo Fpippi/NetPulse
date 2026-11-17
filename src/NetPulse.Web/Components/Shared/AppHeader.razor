@@ -1,13 +1,32 @@
+@using Microsoft.Extensions.Options
+@using NetPulse.Web.Security
+@inject IOptions<AuthOptions> Auth
+
 @* Top bar shared by every page: logo, page navigation and page-specific actions on the right. *@
 <header class="top @Class">
     <a class="brand" href="" aria-label="NetPulse, latency dashboard">
         <LogoMark />
         <h1 class="wordmark">net<span>pulse</span></h1>
     </a>
-    <SiteNav />
+    @if (!Minimal)
+    {
+        <SiteNav />
+    }
     <div class="top-actions">
         @ChildContent
         <ThemePicker />
+        @if (Auth.Value.Enabled && !Minimal)
+        {
+            @* A plain form, so the browser posts it (and follows the redirect) like any sign-out link. *@
+            <form class="sign-out" method="post" action="auth/logout" data-enhance="false">
+                <AntiforgeryToken />
+                <button type="submit" title="Sign out" aria-label="Sign out">
+                    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                        <path d="M6 2.5H3v11h3M10.5 5 13.5 8l-3 3M13.5 8H6" />
+                    </svg>
+                </button>
+            </form>
+        }
     </div>
 </header>
 
@@ -19,4 +38,8 @@
     /// <summary>Extra CSS classes, e.g. <c>no-print</c>.</summary>
     [Parameter]
     public string? Class { get; set; }
+
+    /// <summary>Only the logo and the theme picker (sign-in page).</summary>
+    [Parameter]
+    public bool Minimal { get; set; }
 }
