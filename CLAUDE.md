@@ -37,7 +37,8 @@ docker build -t netpulse .                 # container image
     `HttpProbe` (GET until headers), `TargetProbe` dispatches by kind with `ProbeTimeouts`.
     `Stats/QualityThresholds` gives each kind its own Good/Fair/Poor scale (`LatencyStats.Rate`).
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
-  - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices).
+  - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices);
+    `RetentionPolicy` (days per `DataKind`, 0 = forever), `CompactionPolicy` (VACUUM after big deletes), `DataSize`.
   - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
     `OutageSummary` (downtime/availability over a window), `DurationFormat`.
   - `SpeedTest/` — `HttpSpeedTest` (latency/download/upload over `HttpClient`), `SpeedTestPlan`
@@ -72,6 +73,8 @@ docker build -t netpulse .                 # container image
   - `Notifications/` — `NotificationOptions`, `NotificationChannels` (builds the configured ones), `EmailChannel`
     (SMTP), `NotificationDispatcher` (publisher + `BackgroundService`: batches, delivers, retries; test endpoint).
     Published from `PingMonitorService`, `LanDiscovery` and `SpeedTestRunner`.
+  - `Retention/DataRetentionService` — the only place that purges old data (all stores, hourly) and compacts
+    via `Storage/SqliteMaintenance`; `RetentionStatus` feeds the Report page card and `/api/retention`.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).

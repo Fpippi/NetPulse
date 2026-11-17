@@ -20,7 +20,7 @@ public sealed class MonitorOptions
     /// <summary>Timeout of HTTP targets (<c>https://…</c>), covering connection, TLS and response headers.</summary>
     public int HttpTimeoutMs { get; set; } = 5000;
 
-    /// <summary>Samples older than this are deleted automatically.</summary>
+    /// <summary>Samples older than this are deleted automatically; 0 keeps them forever.</summary>
     public int RetentionDays { get; set; } = 30;
 
     public string DatabasePath { get; set; } = "data/netpulse.db";

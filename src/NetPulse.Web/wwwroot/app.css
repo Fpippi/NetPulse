@@ -813,6 +813,9 @@ code {
 
 .downloads a { color: var(--accent); }
 
+/* Retention summary under the report: room for the inline setting names. */
+.stored-data > p.hint { margin: .75rem 0 0; line-height: 1.8; }
+
 .printable h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
 
 .report-head h2 { margin: 0; font-size: 1.3rem; }

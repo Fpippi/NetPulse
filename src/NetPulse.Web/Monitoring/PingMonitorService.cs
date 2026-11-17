@@ -17,7 +17,6 @@ public sealed class PingMonitorService(
     TargetProbe probe,
     ISampleStore store,
     IOutageStore outages,
-    IOutageTraceStore traces,
     OutageTracer tracer,
     TargetManager targets,
     INotificationPublisher notifications,
@@ -26,8 +25,6 @@ public sealed class PingMonitorService(
     IOptions<OutageOptions> outageOptions,
     ILogger<PingMonitorService> logger) : BackgroundService
 {
-    private static readonly TimeSpan PurgeInterval = TimeSpan.FromHours(1);
-
     private CancellationToken _stopping;
 
     private readonly OutageTracker _tracker = new(Math.Max(1, outageOptions.Value.ConsecutiveLosses));
@@ -36,7 +33,6 @@ public sealed class PingMonitorService(
     {
         _stopping = stoppingToken;
         var opt = options.Value;
-        var lastPurge = DateTimeOffset.MinValue;
 
         // Outages left open by a previous run cannot be followed: nobody watched in between.
         var closed = await outages.CloseOpenAsync(stoppingToken);
@@ -58,22 +54,6 @@ public sealed class PingMonitorService(
             {
                 await RunCycleAsync(stoppingToken);
                 heartbeat.Beat(DateTimeOffset.UtcNow);
-
-                if (DateTimeOffset.UtcNow - lastPurge >= PurgeInterval)
-                {
-                    var deleted = await store.PurgeOlderThanAsync(
-                        DateTimeOffset.UtcNow.AddDays(-Math.Max(1, opt.RetentionDays)), stoppingToken);
-                    lastPurge = DateTimeOffset.UtcNow;
-
-                    if (deleted > 0)
-                    {
-                        logger.LogInformation("Purged {Count} old samples", deleted);
-                    }
-
-                    var outageCutoff = DateTimeOffset.UtcNow.AddDays(-Math.Max(1, outageOptions.Value.RetentionDays));
-                    await outages.PurgeOlderThanAsync(outageCutoff, stoppingToken);
-                    await traces.PurgeOlderThanAsync(outageCutoff, stoppingToken);
-                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

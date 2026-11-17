@@ -53,11 +53,7 @@ public sealed class SpeedTestService(
                 {
                     // A manual test is running; it counts as this run once it is stored.
                     await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
-                    continue;
                 }
-
-                await store.PurgeOlderThanAsync(
-                    DateTimeOffset.UtcNow.AddDays(-Math.Max(1, opt.RetentionDays)), stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

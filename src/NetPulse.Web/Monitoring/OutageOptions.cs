@@ -13,6 +13,7 @@ public sealed class OutageOptions
 
     /// <summary>
     /// Outages are kept longer than raw samples by default, so the history can back a report to the ISP.
+    /// 0 keeps them forever.
     /// </summary>
     public int RetentionDays { get; set; } = 365;
 
