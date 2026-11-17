@@ -62,6 +62,18 @@
     --head-spacing: 0;
     --head-case: none;
     color-scheme: dark;
+
+    /* Derived tokens. A custom property that refers to another is resolved where it is declared,
+       here on <html>, so these keep the page's values even inside the top bar, which several
+       themes recolour by overriding --text, --muted and friends on .top. */
+    --field: var(--bg);              /* inputs and inline code */
+    --good-text: var(--good);        /* status colours used as text on a card; */
+    --fair-text: var(--fair);        /* the plain tokens stay for chart marks and dots */
+    --poor-text: var(--poor);
+    --menu-bg: var(--card);          /* the theme dropdown */
+    --menu-text: var(--text);
+    --menu-border: var(--border);
+    --menu-accent: var(--accent);
 }
 
 /* A shell prompt on every card, bracketed status and a blinking block cursor after the name. */
@@ -100,11 +112,14 @@
     --muted: #5f6873;
     --faint: #a3abb5;
     --logo: #111418;
-    --accent: #00a650;
+    --accent: #00753c;
     --on-accent: #ffffff;
     --good: #00a650;
     --fair: #c98a00;
     --poor: #d92d20;
+    --good-text: #00703a;
+    --fair-text: #8f6200;
+    --poor-text: #c4261b;
     --trace: #111418;
     --trace-width: 1.5;
     --area-opacity: .1;
@@ -201,7 +216,7 @@
 
 [data-theme="anime"] {
     --ink: #0d0d10;
-    --red: #e8202a;
+    --red: #dc1c26;
     --bg: #f2f0ea;
     --bg-image:
         repeating-conic-gradient(from 0deg at 50% 35%, rgba(13, 13, 16, .07) 0 .6deg, transparent .6deg 3.2deg),
@@ -219,6 +234,8 @@
     --good: #0d0d10;
     --fair: #e88a00;
     --poor: var(--red);
+    --fair-text: #a35f00;
+    --poor-text: #c0121c;
     --trace: var(--red);
     --trace-width: 2.4;
     --trace-filter: none;
@@ -315,10 +332,12 @@
     letter-spacing: .06em;
     transform: skewX(-12deg);
 }
+/* app.css colours .badge.poor and friends by status; on a filled tag the text stays white. */
+[data-theme="anime"] .badge:is(.poor, .fair, .unknown, .muted) { color: #ffffff; }
 [data-theme="anime"] .badge::before { content: "!! "; }
 [data-theme="anime"] .badge.good { background: #ffffff; color: var(--ink); }
 [data-theme="anime"] .badge.good::before { content: "★ "; color: var(--red); }
-[data-theme="anime"] .badge.fair { background: var(--fair); }
+[data-theme="anime"] .badge.fair { background: var(--fair-text); }
 [data-theme="anime"] .badge.unknown,
 [data-theme="anime"] .badge.muted { background: #5d5d66; }
 
@@ -384,11 +403,15 @@
     --muted: #5b4a6e;
     --faint: #c7b8a0;
     --logo: var(--ink);
-    --accent: var(--magenta);
+    --accent: #c7106f;
     --on-accent: #ffffff;
     --good: var(--teal);
     --fair: #ff8a00;
     --poor: #ff1e3c;
+    --good-text: #007566;
+    --fair-text: #a35300;
+    --poor-text: #c4001f;
+    --field: #ffffff;
     --trace: var(--magenta);
     --trace-width: 2.8;
     --trace-filter: none;
@@ -479,8 +502,10 @@
     paint-order: stroke fill;
     text-shadow: 3px 3px 0 var(--ink);
 }
+/* The hint sits on whichever side of the split the title leaves it, so it gets its own ink chip. */
 [data-theme^="bizarre"] .card-head h2 small,
 [data-theme^="bizarre"] .card-head .hint { color: #ffffff; -webkit-text-stroke: 0; text-shadow: none; }
+[data-theme^="bizarre"] .card-head .hint { background: var(--ink); padding: .05rem .45rem; }
 
 /* Status: a slanted tag. */
 [data-theme^="bizarre"] .badge {
@@ -488,12 +513,15 @@
     padding: .2rem .7rem;
     border: 2px solid var(--ink);
     background: var(--poor);
-    color: #ffffff;
+    color: var(--ink);
     font-family: var(--font-num);
     letter-spacing: .06em;
     transform: skewX(-12deg);
     box-shadow: 3px 3px 0 var(--ink);
 }
+/* Ink text on the neon tags; the selector beats app.css's per-status text colour. */
+[data-theme^="bizarre"] .badge:is(.good, .fair, .poor) { color: var(--ink); }
+[data-theme^="bizarre"] .badge:is(.unknown, .muted) { color: #ffffff; }
 [data-theme^="bizarre"] .badge::before { content: "!! "; }
 [data-theme^="bizarre"] .badge.good { background: var(--yellow); color: var(--ink); }
 [data-theme^="bizarre"] .badge.good::before { content: "▶ "; color: var(--magenta); }
@@ -555,14 +583,14 @@
 [data-theme="bizarre-night"] {
   --bg:#0a0612; --bg-image: repeating-linear-gradient(-45deg, rgba(160,255,60,.05) 0 2px, transparent 2px 10px), radial-gradient(ellipse at 80% 0%, rgba(122,40,255,.45), transparent 60%), radial-gradient(ellipse at 0% 100%, rgba(160,255,60,.25), transparent 55%);
   --card:#15101f; --text:#f4f0ff; --muted:#a99cc4; --faint:#3b2f52; --border:#000;
-  --accent:#a0ff3c; --trace:#a0ff3c; --area-opacity:.12; --good:#a0ff3c; --poor:#ff2d6b; --fair:#ffb000;
+  --accent:#a0ff3c; --on-accent:#0a0612; --trace:#a0ff3c; --area-opacity:.12; --good:#a0ff3c; --poor:#ff2d6b; --fair:#ffb000;
+  --good-text:#a0ff3c; --fair-text:#ffb000; --poor-text:#ff5c8a; --field:#0a0612;
   --card-shadow: 8px 8px 0 #000, 14px 14px 0 #7a28ff;
 }
 [data-theme="bizarre-night"] body::after { content:"ゴ\Aゴ\Aゴ\Aゴ\Aゴ"; white-space:pre; line-height:.95; position:fixed; right:-1rem; top:5rem; font-family:"NP Shonen"; font-size:9rem; color:transparent; -webkit-text-stroke:3px rgba(160,255,60,.18); pointer-events:none; z-index:0; }
 [data-theme="bizarre-night"] main { position:relative; z-index:1; }
 [data-theme="bizarre-night"] .card-head { background: repeating-linear-gradient(-45deg, rgba(0,0,0,.35) 0 2px, transparent 2px 7px), linear-gradient(105deg, #7a28ff 0 62%, #000 62% 63%, #a0ff3c 63%); }
 [data-theme="bizarre-night"] .card-head h2 { color:#a0ff3c; }
-[data-theme="bizarre-night"] .card-head .hint { color:#0a0612; }
 [data-theme="bizarre-night"] .stats dt { color:#a0ff3c; }
 [data-theme="bizarre-night"] .stats dd { color:#f4f0ff; text-shadow:3px 3px 0 #7a28ff; }
 [data-theme="bizarre-night"] .stats dd .unit { color:#a0ff3c; }
@@ -571,11 +599,13 @@
 [data-theme="bizarre-night"] .chart-max, [data-theme="bizarre-night"] .chart-axis { color:#a99cc4; }
 [data-theme="bizarre-night"] .card::after { color:#000; -webkit-text-stroke:2px #a0ff3c; text-shadow:3px 3px 0 #7a28ff; }
 [data-theme="bizarre-night"] .badge.good { background:#a0ff3c; }
+[data-theme="bizarre-night"] .target, [data-theme="bizarre-night"] .tag { color:var(--text); border-color:var(--muted); }
 
 /* Bizarre Pastel: candy pink, mint and lilac. */
 [data-theme="bizarre-pastel"] {
   --bg:#ffc7e0; --bg-image: repeating-linear-gradient(-45deg, rgba(0,0,0,.06) 0 2px, transparent 2px 9px), linear-gradient(160deg, #ff9fcb 0%, #c7a6ff 50%, #7ff0d0 100%);
-  --card:#ffffff; --text:#120a18; --muted:#6a4d78; --accent:#ff2f8e; --trace:#7a2cff; --area-opacity:.15; --good:#00c79a;
+  --card:#ffffff; --text:#120a18; --muted:#6a4d78; --accent:#d6006b; --trace:#7a2cff; --area-opacity:.15; --good:#00c79a;
+  --good-text:#007a5f;
   --card-shadow: 8px 8px 0 #120a18, 14px 14px 0 #00e0b0;
 }
 [data-theme="bizarre-pastel"] .card-head { background: repeating-linear-gradient(-45deg, rgba(18,10,24,.18) 0 2px, transparent 2px 7px), linear-gradient(105deg, #ff2f8e 0 58%, #120a18 58% 59%, #ffe14d 59%); }
@@ -591,6 +621,7 @@
 [data-theme="bizarre-desert"] {
   --bg:#f5b400; --bg-image: repeating-conic-gradient(from 0deg at 50% 0%, rgba(120,30,0,.12) 0 1.2deg, transparent 1.2deg 5deg), linear-gradient(180deg, #ffd23a 0%, #f58a00 60%, #b8320a 100%);
   --card:#fff3d6; --text:#2a1206; --muted:#7a4a22; --accent:#c2200a; --trace:#c2200a; --area-opacity:.14; --good:#1f7a3a; --border:#2a1206;
+  --good-text:#1f7a3a; --field:#fffaf0;
   --card-shadow: 8px 8px 0 #2a1206, 14px 14px 0 #c2200a;
 }
 [data-theme="bizarre-desert"] .card-head { background: repeating-linear-gradient(-45deg, rgba(42,18,6,.3) 0 2px, transparent 2px 7px), linear-gradient(105deg, #2a1206 0 62%, #c2200a 62% 64%, #ffd23a 64%); }
@@ -605,15 +636,14 @@
 /* Bizarre Ink: black and white hatching with one fuchsia accent. */
 [data-theme="bizarre-ink"] {
   --bg:#f4f1ea; --bg-image: repeating-linear-gradient(-45deg, rgba(0,0,0,.13) 0 1.5px, transparent 1.5px 6px), repeating-linear-gradient(45deg, rgba(0,0,0,.06) 0 1px, transparent 1px 6px);
-  --card:#ffffff; --text:#000; --muted:#444; --accent:#ff0a78; --trace:#000; --area-opacity:0; --good:#000;
+  --card:#ffffff; --text:#000; --muted:#444; --accent:#d4005f; --trace:#000; --area-opacity:0; --good:#000; --good-text:#000;
   --card-shadow: 8px 8px 0 #000, 14px 14px 0 #ff0a78;
 }
 [data-theme="bizarre-ink"] .card-head { background: repeating-linear-gradient(-45deg, #000 0 3px, #fff 3px 6px); }
 [data-theme="bizarre-ink"] .card-head h2 { color:#fff; background:#000; padding:.1rem .6rem; -webkit-text-stroke:0; text-shadow:4px 4px 0 #ff0a78; }
-[data-theme="bizarre-ink"] .card-head .hint { background:#000; padding:0 .4rem; }
 [data-theme="bizarre-ink"] .stats dt { color:#000; }
 [data-theme="bizarre-ink"] .stats dd { color:#000; text-shadow:3px 3px 0 #ff0a78; -webkit-text-stroke:0; }
-[data-theme="bizarre-ink"] .stats dd .unit { color:#ff0a78; }
+[data-theme="bizarre-ink"] .stats dd .unit { color:var(--accent); }
 [data-theme="bizarre-ink"] .chart { background-image: repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 1px, transparent 1px 5px); }
 [data-theme="bizarre-ink"] .card::after { color:#fff; -webkit-text-stroke:2.5px #000; text-shadow:4px 4px 0 #ff0a78; font-size:2.3rem; }
 [data-theme="bizarre-ink"] .chart-wrap::after { color:#ff0a78; text-shadow:3px 3px 0 #000; }
@@ -635,14 +665,17 @@
     --border: var(--ink);
     --rule-width: 3px;
     --text: var(--ink);
-    --muted: #7b6a8c;
+    --muted: #66557a;
     --faint: #cdbfdc;
     --logo: var(--ink);
-    --accent: var(--sakura);
+    --accent: #c2185b;
     --on-accent: #ffffff;
     --good: #12b886;
     --fair: #ff9f1c;
     --poor: #ff3860;
+    --good-text: #0b7a5a;
+    --fair-text: #a35f00;
+    --poor-text: #d1173f;
     --trace: #6c4cf5;
     --trace-width: 2.4;
     --trace-filter: none;
@@ -680,7 +713,8 @@
 [data-theme="sakura"] .top,
 [data-theme="sakura"] main { position: relative; z-index: 1; }
 
-[data-theme="sakura"] .top { background: #ffffff; border-bottom: 3px solid var(--ink); }
+/* Above main, so the theme dropdown is not covered by the cards. */
+[data-theme="sakura"] .top { z-index: 2; background: #ffffff; border-bottom: 3px solid var(--ink); }
 [data-theme="sakura"] .brand,
 [data-theme="sakura"] .site-nav a { border-right: 0; }
 [data-theme="sakura"] .wordmark { font-size: 1.25rem; font-weight: 800; }
@@ -706,11 +740,11 @@
 }
 [data-theme="sakura"] .site-nav a.active {
     background: var(--sakura);
-    color: #ffffff;
+    color: var(--ink);
     border-color: var(--ink);
     box-shadow: 3px 3px 0 var(--ink);
 }
-[data-theme="sakura"] .site-nav a.active i { color: #ffffff; }
+[data-theme="sakura"] .site-nav a.active i { color: var(--ink); }
 
 /* Cards are manga panels: thick ink frame, hard shadow, a screentone title strip and a sparkle. */
 [data-theme="sakura"] .card { position: relative; }
@@ -769,7 +803,7 @@
     color: var(--ink);
     text-shadow: 2px 2px 0 #ffc2dc;
 }
-[data-theme="sakura"] .stats dd .unit { text-shadow: none; color: var(--sakura); }
+[data-theme="sakura"] .stats dd .unit { text-shadow: none; color: var(--accent); }
 
 [data-theme="sakura"] .chart {
     border: 2px solid var(--ink);
@@ -831,6 +865,8 @@
     --good: #2f5d1f;
     --fair: #9a6a00;
     --poor: var(--crimson);
+    --fair-text: #7a5300;
+    --field: #fbf4e2;
     --trace: #2a1a0c;
     --trace-width: 1.7;
     --trace-filter: none;
@@ -974,8 +1010,9 @@
 [data-theme="medieval"] button.primary,
 [data-theme="medieval"] .theme-picker summary { font-family: "Cinzel", serif; color: var(--gold); border-color: var(--gold); }
 [data-theme="medieval"] button.primary:hover:not(:disabled) { background: var(--gold); color: var(--leather); }
-[data-theme="medieval"] .theme-picker ul { background: #f1e4c3; }
-[data-theme="medieval"] .theme-picker a { color: #2a1a0c; }
+/* Gold reads on the leather bar, not on parchment: buttons inside a card are inked in crimson. */
+[data-theme="medieval"] .card button.primary { color: var(--crimson); border-color: var(--crimson); }
+[data-theme="medieval"] .card button.primary:hover:not(:disabled) { background: var(--crimson); color: var(--on-accent); }
 
 /* --- Theme picker swatches: each option previews its own colours --------- */
 
