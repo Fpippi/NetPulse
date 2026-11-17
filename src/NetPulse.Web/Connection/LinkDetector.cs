@@ -96,7 +96,7 @@ public sealed class LinkDetector(ILogger<LinkDetector> logger)
     {
         try
         {
-            return nic.Speed > 0 ? nic.Speed / 1_000_000d : null;
+            return LinkSpeed.FromBitsPerSecond(nic.Speed);
         }
         catch (Exception ex) when (ex is NetworkInformationException or PlatformNotSupportedException or IOException)
         {
