@@ -250,6 +250,9 @@ main > * { min-width: 0; }
     color: var(--muted);
 }
 
+/* IP version next to a target name when IPv4 and IPv6 are both monitored. */
+.card-head h2 small.family { font-family: var(--font-num); letter-spacing: .06em; }
+
 /* Status read-out: a coloured square and a word, no pill. */
 .badge {
     font-family: var(--font-num);

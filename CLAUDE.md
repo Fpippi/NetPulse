@@ -32,8 +32,9 @@ docker build -t netpulse .                 # container image
 
 - `src/NetPulse.Core` — domain logic, **no external dependencies**.
   - `Models/PingSample` — one measurement.
-  - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver`; `ProbeTarget` parses a target into
-    ping / `dns:name[@server]` / `http(s)://` (`ProbeKind`); `DnsProbe` (raw UDP A query via `DnsWire`),
+  - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver` (IPv4/IPv6 router, `HasGlobalIpv6Address`);
+    `ProbeTarget` parses a target into ping (`ping4:`/`ping6:` pin a host name to an `IpFamily`, resolved by
+    `IHostResolver`; `gateway`/`gateway6`; `FamilyOf(name)`) / `dns:name[@server]` / `http(s)://` (`ProbeKind`); `DnsProbe` (raw UDP A query via `DnsWire`),
     `HttpProbe` (GET until headers), `TargetProbe` dispatches by kind with `ProbeTimeouts`.
     `Stats/QualityThresholds` gives each kind its own Good/Fair/Poor scale (`LatencyStats.Rate`).
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
@@ -53,7 +54,9 @@ docker build -t netpulse .                 # container image
     `IcmpTraceProbe` (`PingOptions.Ttl`), `TraceResult.Summary`, `OutageTrace`, `TraceLookup` (trace of an outage).
   - `Metrics/` — `PrometheusWriter` (hand-written text format, invariant numbers, label escaping),
     `NetPulseMetrics` (renders a `MetricsSnapshot`), `MonitorHeartbeat` (last monitoring cycle, `IsAlive`).
-  - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
+  - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets),
+    `Ipv6Defaults` (adds `gateway6` + public IPv6 hosts per `Ipv6Mode`). `OutageClassifier` compares IPv6
+    targets only with IPv6 targets and `gateway6`.
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
     (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
