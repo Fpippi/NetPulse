@@ -31,6 +31,6 @@ public sealed class DiscoveryOptions
     /// <summary>Consecutive missed scans before a device is reported offline.</summary>
     public int OfflineAfterMissedScans { get; set; } = 2;
 
-    /// <summary>Device events older than this are deleted automatically.</summary>
+    /// <summary>Device events older than this are deleted automatically; 0 keeps them forever.</summary>
     public int EventRetentionDays { get; set; } = 90;
 }

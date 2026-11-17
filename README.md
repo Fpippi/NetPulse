@@ -64,7 +64,7 @@ or your ISP.
 - **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export`,
   `/api/devices`, `/api/loadtest`) for scripts and integrations
 - Optional **password** for the dashboard and API (hashed with PBKDF2, brute-force throttling, API token for scripts)
-- Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
+- Local **SQLite** storage with a retention period per kind of data (or keep forever) and automatic compaction — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
 
 ## Quick start
@@ -120,7 +120,7 @@ or, for lists, `NetPulse__Targets__0=gateway` and `NetPulse__Targets__1=192.168.
 | `TimeoutMs`       | `1000`                            | Ping timeout                                  |
 | `DnsTimeoutMs`    | `2000`                            | Timeout of DNS targets                        |
 | `HttpTimeoutMs`   | `5000`                            | Timeout of HTTP targets                       |
-| `RetentionDays`   | `30`                              | Older samples are deleted automatically       |
+| `RetentionDays`   | `30`                              | Older samples are deleted automatically (0 = keep forever), see [Data retention](#data-retention) |
 | `DatabasePath`    | `data/netpulse.db`                | SQLite file                                   |
 | `Targets`         | `gateway`, `1.1.1.1`, `8.8.8.8`   | Targets to monitor (`gateway` = default router), see below |
 | `MaxCustomTargets`| `20`                              | How many extra targets can be added from the dashboard |
@@ -150,6 +150,24 @@ docker run --rm -it netpulse hash-password                    # Docker
 For example `NetPulse__Auth__Password='pbkdf2-sha256$600000$…'` (single quotes keep the `$` signs). After
 five wrong passwords from the same address, sign-in is refused for 15 minutes. NetPulse speaks plain HTTP:
 outside your home network, put it behind a reverse proxy with HTTPS (Caddy, Traefik, nginx).
+
+### Data retention
+
+Every kind of history has its own retention period, so the database stays small while the outage history
+can still back a report to your ISP months later:
+
+| History                        | Setting                              | Default |
+|--------------------------------|--------------------------------------|---------|
+| Ping, DNS and HTTP samples, Wi-Fi/wired history | `NetPulse:RetentionDays` | 30 days |
+| Outages and their traceroutes  | `NetPulse:Outages:RetentionDays`     | 1 year  |
+| Speed tests                    | `NetPulse:SpeedTest:RetentionDays`   | 1 year  |
+| LAN device events              | `NetPulse:Discovery:EventRetentionDays` | 90 days |
+
+`0` keeps that history forever. Old data is deleted a minute after startup and then every hour, whether or
+not the feature that produced it is still enabled. After a large clean-up (e.g. when you shorten a period)
+the SQLite file is compacted once, so the space goes back to the disk. The **Stored data** card at the
+bottom of the Report page, and `GET /api/retention`, show the periods, what the last clean-up deleted and
+the database size.
 
 ### Target types
 
@@ -237,7 +255,7 @@ Settings live in the `Outages` section, e.g. `NetPulse__Outages__ConsecutiveLoss
 | Key                 | Default | Description                                         |
 |---------------------|---------|-----------------------------------------------------|
 | `ConsecutiveLosses` | `3`     | Lost pings in a row that make an outage             |
-| `RetentionDays`     | `365`   | Older outages are deleted automatically             |
+| `RetentionDays`     | `365`   | Older outages are deleted automatically (0 = forever) |
 | `TraceRoute`        | `true`  | Traceroute towards a public target when its outage starts |
 | `TraceMaxHops`      | `20`    | Farthest hop the traceroute probes                  |
 
@@ -276,7 +294,7 @@ Settings live in the `SpeedTest` section, e.g. `NetPulse__SpeedTest__IntervalMin
 | `UploadUrl`       | `https://speed.cloudflare.com/__up`                | Endpoint that accepts the upload as a POST body |
 | `BufferbloatHost` | `1.1.1.1`                                          | Host pinged idle and under load; empty turns bufferbloat off |
 | `TimeoutSeconds`  | `120`                                              | A slower test is recorded as failed       |
-| `RetentionDays`   | `365`                                              | Older results are deleted automatically   |
+| `RetentionDays`   | `365`                                              | Older results are deleted automatically (0 = forever) |
 
 ### Reports for your ISP
 
@@ -330,7 +348,7 @@ Settings live in the `Discovery` section, e.g. `NetPulse__Discovery__IntervalSec
 | `PingTimeoutMs`           | `500`   | Ping timeout during the sweep                            |
 | `MaxParallelism`          | `64`    | Pings and DNS lookups in flight at the same time         |
 | `OfflineAfterMissedScans` | `2`     | Missed scans before a device is reported offline         |
-| `EventRetentionDays`      | `90`    | Older device events are deleted automatically            |
+| `EventRetentionDays`      | `90`    | Older device events are deleted automatically (0 = forever) |
 
 The vendor list is `src/NetPulse.Core/Data/oui.txt`; refresh it with `python3 tools/update-oui.py`.
 
@@ -429,6 +447,7 @@ scrape_configs:
 | `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV |
 | `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV |
 | `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV |
+| `GET /api/retention`                     | Retention period per kind of data, last clean-up and database size |
 | `GET /api/link?hours=24`                 | Current link (Wi-Fi/wired, network, signal, speed) and its history |
 | `GET /api/notifications`                 | Configured notification channels |
 | `POST /api/notifications/test`           | Send a test alert to every channel and report each result |

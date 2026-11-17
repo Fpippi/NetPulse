@@ -21,6 +21,7 @@ using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
 using NetPulse.Web.Notifications;
 using NetPulse.Web.Reports;
+using NetPulse.Web.Retention;
 using NetPulse.Web.Security;
 using NetPulse.Web.SpeedTest;
 using NetPulse.Web.Storage;
@@ -149,6 +150,17 @@ builder.Services.AddHostedService<SpeedTestService>();
 
 // Reports and CSV export
 builder.Services.AddSingleton<ReportService>();
+
+// Retention: one service deletes old data of every kind and compacts the database after large clean-ups.
+builder.Services.AddSingleton(sp => new RetentionPolicy(
+    sp.GetRequiredService<IOptions<MonitorOptions>>().Value.RetentionDays,
+    sp.GetRequiredService<IOptions<OutageOptions>>().Value.RetentionDays,
+    sp.GetRequiredService<IOptions<SpeedTestOptions>>().Value.RetentionDays,
+    sp.GetRequiredService<IOptions<DiscoveryOptions>>().Value.EventRetentionDays));
+builder.Services.AddSingleton(sp =>
+    new SqliteMaintenance(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton<RetentionStatus>();
+builder.Services.AddHostedService<DataRetentionService>();
 
 // Wi-Fi or cable: the link to the router, so Wi-Fi problems can be told apart from router and ISP ones.
 builder.Services.AddSingleton<ILinkStore>(sp =>
@@ -337,6 +349,27 @@ export.MapGet("/speedtests.csv", (HttpContext http, ISpeedTestStore store, strin
     CsvDownload(http, from, to, days, "speedtests", async (period, writer, ct) =>
         await CsvExport.WriteSpeedTestsAsync(
             writer, (await store.GetSinceAsync(period.From, ct)).Where(r => r.Timestamp < period.To))));
+
+api.MapGet("/retention", (RetentionPolicy policy, RetentionStatus status) =>
+{
+    var current = status.Current;
+    return Results.Ok(new
+    {
+        kinds = Enum.GetValues<DataKind>().Select(kind => new
+        {
+            kind,
+            keepDays = policy.KeepsForever(kind) ? (int?)null : policy.DaysFor(kind),
+            keep = policy.Describe(kind),
+            lastDeleted = current.LastDeleted.GetValueOrDefault(kind),
+        }),
+        current.LastRun,
+        current.NextRun,
+        current.DeletedSinceStart,
+        current.LastCompaction,
+        current.DatabaseBytes,
+        current.Error,
+    });
+});
 
 api.MapGet("/link", async (LinkMonitor monitor, ILinkStore store, int hours = 24) =>
 {

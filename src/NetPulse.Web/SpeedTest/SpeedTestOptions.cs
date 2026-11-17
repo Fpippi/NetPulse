@@ -35,7 +35,7 @@ public sealed class SpeedTestOptions
     /// <summary>Upper bound for a whole test; a slower test is reported as failed.</summary>
     public int TimeoutSeconds { get; set; } = 120;
 
-    /// <summary>Results older than this are deleted automatically.</summary>
+    /// <summary>Results older than this are deleted automatically; 0 keeps them forever.</summary>
     public int RetentionDays { get; set; } = 365;
 
     public SpeedTestPlan ToPlan() => new(DownloadUrl, UploadUrl, DownloadBytes, UploadBytes);
