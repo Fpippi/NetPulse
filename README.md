@@ -63,6 +63,7 @@ or your ISP.
 - **Prometheus `/metrics` and `/healthz`** for Grafana, Home Assistant, Uptime Kuma and Docker health checks
 - **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export`,
   `/api/devices`, `/api/loadtest`) for scripts and integrations
+- Optional **password** for the dashboard and API (hashed with PBKDF2, brute-force throttling, API token for scripts)
 - Local **SQLite** storage with automatic retention — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
 
@@ -124,6 +125,31 @@ or, for lists, `NetPulse__Targets__0=gateway` and `NetPulse__Targets__1=192.168.
 | `Targets`         | `gateway`, `1.1.1.1`, `8.8.8.8`   | Targets to monitor (`gateway` = default router), see below |
 | `MaxCustomTargets`| `20`                              | How many extra targets can be added from the dashboard |
 | `Ipv6`            | `Auto`                            | Also monitor IPv6, see below (`Auto`, `On`, `Off`) |
+
+### Password protection
+
+Out of the box anyone who can reach the dashboard can use it, including adding and removing targets and
+starting tests. On a shared network, set a password: every page and API call then needs a signed-in
+session (or the API token), and a **Sign out** button appears in the top bar. Only the sign-in page,
+static files and `/healthz` stay open.
+
+Create a hash, so the configuration never holds the password itself:
+
+```bash
+./NetPulse.Web hash-password                                  # release archive: asks twice, prints the hash
+dotnet run --project src/NetPulse.Web -- hash-password        # from source
+docker run --rm -it netpulse hash-password                    # Docker
+```
+
+| Key (`NetPulse:Auth`) | Default | Description |
+|-----------------------|---------|-------------|
+| `Password`            | empty   | The `pbkdf2-sha256$…` hash printed above (a plain password works too, but is stored in clear). Empty = no sign-in |
+| `ApiToken`            | empty   | Optional long random token for scripts, Prometheus and Home Assistant: `Authorization: Bearer <token>` on `/api/*` and `/metrics` |
+| `SessionDays`         | `30`    | A session lasts this long since the last visit |
+
+For example `NetPulse__Auth__Password='pbkdf2-sha256$600000$…'` (single quotes keep the `$` signs). After
+five wrong passwords from the same address, sign-in is refused for 15 minutes. NetPulse speaks plain HTTP:
+outside your home network, put it behind a reverse proxy with HTTPS (Caddy, Traefik, nginx).
 
 ### Target types
 
@@ -387,6 +413,7 @@ scrape_configs:
     scrape_interval: 30s
     static_configs:
       - targets: ["netpulse-host:5080"]
+    # With a dashboard password, also: authorization: { credentials: "<ApiToken>" }
 ```
 
 ## API
@@ -416,6 +443,9 @@ scrape_configs:
 | `GET /api/loadtest`                      | Sender run state and receiver status |
 | `POST /api/loadtest/start` `{"protocol":"Tcp","host":"...","port":5201,"durationSeconds":10,"targetMbps":0,"parallelStreams":4}` | Start a load test |
 | `POST /api/loadtest/stop`                | Stop the current load test |
+
+When a password is set, API calls need the session cookie or `Authorization: Bearer <ApiToken>`;
+without either they get `401`.
 
 `minutes` defaults to 15 and is clamped between 1 minute and 7 days. Reports and exports take either
 `days` (default 30, at most 366) or `from` and `to` as dates (`yyyy-MM-dd`, both inclusive, whole days in

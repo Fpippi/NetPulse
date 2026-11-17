@@ -378,7 +378,8 @@
 [data-theme="anime"] .windows button + button { border-left: 2px solid #ffffff; }
 [data-theme="anime"] .windows button.active { background: var(--red); color: #ffffff; }
 [data-theme="anime"] button.primary { background: var(--red); color: #ffffff; border: 2px solid #ffffff; font-family: var(--font-num); transform: skewX(-10deg); }
-[data-theme="anime"] .theme-picker summary { border: 2px solid #ffffff; color: #ffffff; }
+[data-theme="anime"] .theme-picker summary,
+[data-theme="anime"] .sign-out button { border: 2px solid #ffffff; color: #ffffff; }
 [data-theme="anime"] .theme-picker ul { border: 3px solid var(--ink); }
 [data-theme="anime"] .target,
 [data-theme="anime"] .tag { border: 2px solid var(--ink); color: var(--ink); }
@@ -575,7 +576,8 @@
 [data-theme^="bizarre"] .windows button + button { border-left: 2px solid var(--yellow); }
 [data-theme^="bizarre"] .windows button.active { background: var(--yellow); color: var(--ink); }
 [data-theme^="bizarre"] button.primary { background: var(--magenta); color: #ffffff; border: 2px solid var(--yellow); font-family: var(--font-num); transform: skewX(-10deg); }
-[data-theme^="bizarre"] .theme-picker summary { border: 2px solid var(--yellow); color: #ffffff; }
+[data-theme^="bizarre"] .theme-picker summary,
+[data-theme^="bizarre"] .sign-out button { border: 2px solid var(--yellow); color: #ffffff; }
 [data-theme^="bizarre"] .theme-picker ul { border: 3px solid var(--yellow); }
 [data-theme^="bizarre"] .target,
 [data-theme^="bizarre"] .tag { border: 2px solid var(--ink); color: var(--ink); }
@@ -831,7 +833,8 @@
 [data-theme="sakura"] .windows button + button { border-left: 2px solid var(--ink); }
 [data-theme="sakura"] .windows button { font-weight: 800; }
 [data-theme="sakura"] button.primary,
-[data-theme="sakura"] .theme-picker summary { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); color: var(--ink); }
+[data-theme="sakura"] .theme-picker summary,
+[data-theme="sakura"] .sign-out button { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); color: var(--ink); }
 [data-theme="sakura"] button.primary { background: #ffd23f; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1010,7 +1013,8 @@
 [data-theme="medieval"] .windows button + button { border-left-color: #5a3a20; }
 [data-theme="medieval"] .windows button.active { background: var(--crimson); color: #fff3cf; }
 [data-theme="medieval"] button.primary,
-[data-theme="medieval"] .theme-picker summary { font-family: "Cinzel", serif; color: var(--gold); border-color: var(--gold); }
+[data-theme="medieval"] .theme-picker summary,
+[data-theme="medieval"] .sign-out button { font-family: "Cinzel", serif; color: var(--gold); border-color: var(--gold); }
 [data-theme="medieval"] button.primary:hover:not(:disabled) { background: var(--gold); color: var(--leather); }
 /* Gold reads on the leather bar, not on parchment: buttons inside a card are inked in crimson. */
 [data-theme="medieval"] .card button.primary { color: var(--crimson); border-color: var(--crimson); }
