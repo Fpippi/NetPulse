@@ -44,7 +44,7 @@ docker build -t netpulse .                 # container image
     (validation), `TransferMeter` (Mbps with TCP warm-up skipped), `SpeedTestSchedule`, `SpeedTestSummary`;
     `LatencySampler` pings idle and while a transfer runs, `Bufferbloat` (medians + A+…F grade).
   - `Reports/` — `IspReportBuilder` (→ `IspReport`), `ReportPeriod` (days or from/to dates), `Csv` +
-    `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601). `Outages/OutageClassifier` labels outages
+    `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601), `JsonExport` (streamed arrays, same fields as CSV). `Outages/OutageClassifier` labels outages
     LocalNetwork / Internet / SingleHost / Unknown; `Stats/LatencyAccumulator` streams `LatencyStats`.
   - `Notifications/` — `Notification` (+ `INotificationPublisher`, `INotificationChannel`), `NotificationFactory`
     (outage/device/speed-test messages), `NotificationBatch` (merges bursts), `DeliveryQueue` (per-channel retry
@@ -74,7 +74,7 @@ docker build -t netpulse .                 # container image
     Published from `PingMonitorService`, `LanDiscovery` and `SpeedTestRunner`.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
-  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
+  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv|json`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
   - `Components/` — dashboard; `Shared/AppHeader` (logo, `SiteNav`, `ThemePicker`) is the top bar of every page;
     themes are token blocks in `wwwroot/themes.css` (`html[data-theme]`, set from a cookie in `App.razor`
     via `GET /theme/{id}`, ids validated by `Core/Appearance/ThemeCatalog`); `app.css` only reads tokens.

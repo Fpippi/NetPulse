@@ -49,10 +49,15 @@
         }
 
         <p class="downloads">
-            <span class="hint">Raw data (CSV) for this period:</span>
-            <a href="@ExportUrl("samples")" download>Ping samples</a>
-            <a href="@ExportUrl("outages")" download>Outages</a>
-            <a href="@ExportUrl("speedtests")" download>Speed tests</a>
+            <span class="hint">Raw data for this period:</span>
+            @foreach (var (kind, label) in Exports)
+            {
+                <span class="download">
+                    @label
+                    <a href="@ExportUrl(kind, "csv")" download aria-label="@label as CSV">CSV</a>
+                    <a href="@ExportUrl(kind, "json")" download aria-label="@label as JSON">JSON</a>
+                </span>
+            }
         </p>
     </section>
 
@@ -273,7 +278,10 @@
         }
     }
 
-    private string ExportUrl(string kind) => $"api/export/{kind}.csv?from={Iso(_from)}&to={Iso(_to)}";
+    private static readonly (string Kind, string Label)[] Exports =
+        [("samples", "Ping samples"), ("outages", "Outages"), ("speedtests", "Speed tests")];
+
+    private string ExportUrl(string kind, string format) => $"api/export/{kind}.{format}?from={Iso(_from)}&to={Iso(_to)}";
 
     private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 

@@ -48,7 +48,7 @@ or your ISP.
 - **Bufferbloat grade** (A+ to F): ping idle vs. during the download and upload, the hidden reason calls and
   games lag on a "fast" connection
 - **ISP report**: a printable report (save it as PDF from the browser) with Internet outages, downtime,
-  availability and speed against your contract, plus **CSV export** of all raw data
+  availability and speed against your contract, plus **CSV and JSON export** of all raw data
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
   when a new device joins or a known one goes offline
 - **Cooperative throughput testing** (iperf-style): measure real throughput and UDP loss between two of your
@@ -226,9 +226,16 @@ provider. Pick the dates and, optionally, the download and upload speeds in your
 - **Speed tests**, with how many measured less than half the contracted speed.
 - **How this was measured**: interval, timeout, outage threshold and speed test method.
 
-The page also links the raw data of the same period as **CSV**: ping samples, outages (with cause) and
-speed tests. Files use commas, a `.` decimal separator and UTC timestamps in ISO 8601, so they import the
-same way everywhere (in Excel with an Italian locale, use *Data → From Text/CSV*).
+The page also links the raw data of the same period as **CSV** and **JSON**: ping samples, outages (with
+cause) and speed tests. CSV files use commas, a `.` decimal separator and UTC timestamps in ISO 8601, so
+they import the same way everywhere (in Excel with an Italian locale, use *Data → From Text/CSV*). JSON
+files are an array of flat objects with the same fields as the CSV columns, with real numbers, booleans
+and `null` for missing values, ready for scripts:
+
+```bash
+curl -s "http://localhost:5080/api/export/samples.json?days=7&target=1.1.1.1" | jq '[.[] | select(.success | not)] | length'
+python -c "import pandas as pd; print(pd.read_json('netpulse-samples-2026-11-10_2026-11-17.json').describe())"
+```
 
 ### LAN discovery
 
@@ -355,9 +362,9 @@ scrape_configs:
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
 | `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload` = contracted Mbps, optional) |
-| `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV |
-| `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV |
-| `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV |
+| `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV (`samples.json` for JSON) |
+| `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV (`outages.json` for JSON) |
+| `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV (`speedtests.json` for JSON) |
 | `GET /api/notifications`                 | Configured notification channels |
 | `POST /api/notifications/test`           | Send a test alert to every channel and report each result |
 | `GET /api/targets`                       | Monitored targets (`isCustom` marks the removable ones) |

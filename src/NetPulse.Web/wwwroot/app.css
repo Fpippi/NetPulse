@@ -813,6 +813,10 @@ code {
 
 .downloads a { color: var(--accent); }
 
+/* "Ping samples CSV JSON": the formats read as small links after the name. */
+.downloads .download { display: inline-flex; align-items: baseline; gap: .45rem; }
+.downloads .download a { font-family: var(--font-num); font-size: .78rem; }
+
 .printable h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
 
 .report-head h2 { margin: 0; font-size: 1.3rem; }
