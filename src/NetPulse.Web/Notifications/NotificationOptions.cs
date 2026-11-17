@@ -45,6 +45,7 @@ public sealed class NotificationOptions
         NotificationKind.OutageStarted or NotificationKind.OutageEnded => Events.Outages,
         NotificationKind.NewDevice => Events.NewDevices,
         NotificationKind.DeviceOffline or NotificationKind.DeviceOnline => Events.DeviceOffline,
+        NotificationKind.WatchedDeviceLeft or NotificationKind.WatchedDeviceBack => Events.WatchedDevices,
         NotificationKind.SpeedTest => Events.SpeedTests,
         _ => true,
     };
@@ -63,6 +64,9 @@ public sealed class NotificationEvents
 
     /// <summary>A speed test failed or was below the minimums.</summary>
     public bool SpeedTests { get; set; } = true;
+
+    /// <summary>A device on the watch list (Devices page) drops off or comes back.</summary>
+    public bool WatchedDevices { get; set; } = true;
 }
 
 /// <summary>E-mail through any SMTP server (your provider's, or Gmail with an app password).</summary>

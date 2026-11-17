@@ -31,6 +31,14 @@ public sealed class DiscoveryOptions
     /// <summary>Consecutive missed scans before a device is reported offline.</summary>
     public int OfflineAfterMissedScans { get; set; } = 2;
 
-    /// <summary>Device events older than this are deleted automatically; 0 keeps them forever.</summary>
+    /// <summary>Time between two pings of each watched device (Devices page, eye button).</summary>
+    public int WatchIntervalSeconds { get; set; } = 10;
+
+    /// <summary>Missed pings in a row before a watched device counts as dropped off.</summary>
+    public int WatchMissesToDrop { get; set; } = 3;
+
+    public int WatchTimeoutMs { get; set; } = 1000;
+
+    /// <summary>Device events (and watched devices' absences) older than this are deleted automatically; 0 keeps them forever.</summary>
     public int EventRetentionDays { get; set; } = 90;
 }
