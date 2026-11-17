@@ -842,6 +842,10 @@ code {
 
 .downloads a { color: var(--accent); }
 
+/* "Ping samples CSV JSON": the formats read as small links after the name. */
+.downloads .download { display: inline-flex; align-items: baseline; gap: .45rem; }
+.downloads .download a { font-family: var(--font-num); font-size: .78rem; }
+
 /* Retention summary under the report: room for the inline setting names. */
 .stored-data > p.hint { margin: .75rem 0 0; line-height: 1.8; }
 

@@ -148,7 +148,7 @@ builder.Services.AddHttpClient(SpeedTestRunner.HttpClientName, client =>
 builder.Services.AddSingleton<SpeedTestRunner>();
 builder.Services.AddHostedService<SpeedTestService>();
 
-// Reports and CSV export
+// Reports and CSV/JSON export
 builder.Services.AddSingleton<ReportService>();
 
 // Retention: one service deletes old data of every kind and compacts the database after large clean-ups.
@@ -305,7 +305,7 @@ api.MapPost("/speedtests/run", async (SpeedTestRunner runner, CancellationToken 
         ? Results.Ok(result)
         : Results.Conflict(new { error = "A speed test is already running." }));
 
-// --- Reports and CSV export ------------------------------------------------
+// --- Reports and CSV/JSON export -------------------------------------------
 // Period: ?days=30 (default), or ?from=yyyy-MM-dd&to=yyyy-MM-dd (whole days in the server's time zone).
 
 api.MapGet("/report", async (ReportService reports, string? from, string? to, int? days,
@@ -334,21 +334,35 @@ api.MapGet("/report", async (ReportService reports, string? from, string? to, in
 
 var export = api.MapGroup("/export");
 
+// Each export comes as CSV (spreadsheets) and JSON (scripts, jq, pandas) with the same fields.
 export.MapGet("/samples.csv", (HttpContext http, ISampleStore store, string? from, string? to, int? days, string? target) =>
-    CsvDownload(http, from, to, days, "samples", (period, writer, ct) =>
-        CsvExport.WriteSamplesAsync(writer, store.StreamAsync(period.From, period.To, target, ct), ct)));
+    Download(http, from, to, days, "samples", ExportFormat.Csv, (period, stream, ct) =>
+        WriteCsvAsync(stream, writer => CsvExport.WriteSamplesAsync(writer, store.StreamAsync(period.From, period.To, target, ct), ct))));
 
-export.MapGet("/outages.csv", (HttpContext http, ReportService reports, TargetManager targets, string? from, string? to, int? days) =>
-    CsvDownload(http, from, to, days, "outages", async (period, writer, ct) =>
-        await CsvExport.WriteOutagesAsync(
-            writer,
-            await reports.GetClassifiedOutagesAsync(period, await targets.GetEffectiveTargetsAsync(ct), ct),
-            period.To)));
+export.MapGet("/samples.json", (HttpContext http, ISampleStore store, string? from, string? to, int? days, string? target) =>
+    Download(http, from, to, days, "samples", ExportFormat.Json, (period, stream, ct) =>
+        JsonExport.WriteSamplesAsync(stream, store.StreamAsync(period.From, period.To, target, ct), ct)));
 
-export.MapGet("/speedtests.csv", (HttpContext http, ISpeedTestStore store, string? from, string? to, int? days) =>
-    CsvDownload(http, from, to, days, "speedtests", async (period, writer, ct) =>
-        await CsvExport.WriteSpeedTestsAsync(
-            writer, (await store.GetSinceAsync(period.From, ct)).Where(r => r.Timestamp < period.To))));
+foreach (var format in new[] { ExportFormat.Csv, ExportFormat.Json })
+{
+    export.MapGet($"/outages.{format.Extension}", (HttpContext http, ReportService reports, TargetManager targets, string? from, string? to, int? days) =>
+        Download(http, from, to, days, "outages", format, async (period, stream, ct) =>
+        {
+            var outages = await reports.GetClassifiedOutagesAsync(period, await targets.GetEffectiveTargetsAsync(ct), ct);
+            await (format == ExportFormat.Json
+                ? JsonExport.WriteOutagesAsync(stream, outages, period.To, ct)
+                : WriteCsvAsync(stream, writer => CsvExport.WriteOutagesAsync(writer, outages, period.To)));
+        }));
+
+    export.MapGet($"/speedtests.{format.Extension}", (HttpContext http, ISpeedTestStore store, string? from, string? to, int? days) =>
+        Download(http, from, to, days, "speedtests", format, async (period, stream, ct) =>
+        {
+            var results = (await store.GetSinceAsync(period.From, ct)).Where(r => r.Timestamp < period.To).ToList();
+            await (format == ExportFormat.Json
+                ? JsonExport.WriteSpeedTestsAsync(stream, results, ct)
+                : WriteCsvAsync(stream, writer => CsvExport.WriteSpeedTestsAsync(writer, results)));
+        }));
+}
 
 api.MapGet("/retention", (RetentionPolicy policy, RetentionStatus status) =>
 {
@@ -472,9 +486,9 @@ app.MapRazorComponents<App>()
 app.Run();
 return 0;
 
-// Streams a CSV download named e.g. "netpulse-samples-2026-10-14_2026-11-13.csv".
-static IResult CsvDownload(HttpContext http, string? from, string? to, int? days, string name,
-    Func<ReportPeriod, TextWriter, CancellationToken, Task> write)
+// Streams a download named e.g. "netpulse-samples-2026-10-14_2026-11-13.csv".
+static IResult Download(HttpContext http, string? from, string? to, int? days, string name, ExportFormat format,
+    Func<ReportPeriod, Stream, CancellationToken, Task> write)
 {
     if (!ReportPeriod.TryResolve(from, to, days, DateTimeOffset.UtcNow, TimeZoneInfo.Local, out var period, out var error))
     {
@@ -485,13 +499,23 @@ static IResult CsvDownload(HttpContext http, string? from, string? to, int? days
         t.ToLocalTime().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
     http.Response.Headers.ContentDisposition =
-        $"attachment; filename=\"netpulse-{name}-{Day(period.From)}_{Day(period.To)}.csv\"";
+        $"attachment; filename=\"netpulse-{name}-{Day(period.From)}_{Day(period.To)}.{format.Extension}\"";
 
-    return Results.Stream(async stream =>
-    {
-        await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
-        await write(period, writer, http.RequestAborted);
-    }, "text/csv; charset=utf-8");
+    return Results.Stream(stream => write(period, stream, http.RequestAborted), format.ContentType);
+}
+
+// CSV goes through a UTF-8 (no BOM) text writer on top of the response stream.
+static async Task WriteCsvAsync(Stream stream, Func<TextWriter, Task> write)
+{
+    await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false), leaveOpen: true);
+    await write(writer);
+}
+
+/// <summary>A download format of <c>/api/export</c>.</summary>
+internal sealed record ExportFormat(string Extension, string ContentType)
+{
+    public static readonly ExportFormat Csv = new("csv", "text/csv; charset=utf-8");
+    public static readonly ExportFormat Json = new("json", "application/json; charset=utf-8");
 }
 
 /// <summary>Body of <c>POST /api/targets</c>.</summary>
