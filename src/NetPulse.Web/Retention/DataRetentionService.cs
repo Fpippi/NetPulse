@@ -15,6 +15,7 @@ public sealed class DataRetentionService(
     IOutageTraceStore traces,
     ISpeedTestStore speedTests,
     ILanDeviceStore devices,
+    ILinkStore links,
     SqliteMaintenance database,
     RetentionStatus status,
     ILogger<DataRetentionService> logger) : BackgroundService
@@ -95,7 +96,8 @@ public sealed class DataRetentionService(
 
     private async Task<int> PurgeAsync(DataKind kind, DateTimeOffset cutoff, CancellationToken ct) => kind switch
     {
-        DataKind.Samples => await samples.PurgeOlderThanAsync(cutoff, ct),
+        // The Wi-Fi/wired history explains the samples, so it is kept just as long.
+        DataKind.Samples => await samples.PurgeOlderThanAsync(cutoff, ct) + await links.PurgeOlderThanAsync(cutoff, ct),
         DataKind.Outages => await outages.PurgeOlderThanAsync(cutoff, ct) + await traces.PurgeOlderThanAsync(cutoff, ct),
         DataKind.SpeedTests => await speedTests.PurgeOlderThanAsync(cutoff, ct),
         DataKind.DeviceEvents => await devices.PurgeEventsOlderThanAsync(cutoff, ct),

@@ -11,7 +11,7 @@ public enum DataKind
 
 /// <summary>
 /// How long each kind of history is kept, in days; 0 (or less) keeps it forever. Outage traceroutes
-/// follow <see cref="DataKind.Outages"/>.
+/// follow <see cref="DataKind.Outages"/>, the Wi-Fi/wired link history follows <see cref="DataKind.Samples"/>.
 /// </summary>
 public sealed record RetentionPolicy(int SamplesDays, int OutagesDays, int SpeedTestsDays, int DeviceEventsDays)
 {

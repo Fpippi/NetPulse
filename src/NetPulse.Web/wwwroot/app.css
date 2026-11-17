@@ -296,6 +296,12 @@ main > * { min-width: 0; }
 
 .stats dd .unit { margin-left: .15rem; font-size: .72rem; font-weight: 400; color: var(--muted); }
 
+/* Names (Wi-Fi network, interface) instead of numbers: smaller, cut with an ellipsis if long. */
+.stats dd.text { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; }
+
+/* The connection card has no chart under its read-outs. */
+.connection .stats { margin-bottom: 0; }
+
 /* --- Charts ------------------------------------------------------------- */
 
 .chart-wrap { position: relative; }
@@ -828,6 +834,10 @@ code {
 .cause.internet { color: var(--poor-text); }
 .cause.localnetwork { color: var(--fair-text); }
 .cause.singlehost, .cause.unknown { color: var(--muted); }
+
+/* Link an outage happened on: a weak Wi-Fi signal stands out. */
+.link.fair { color: var(--fair-text); }
+.link.poor { color: var(--poor-text); }
 
 /* Printing (or "Save as PDF"): only the report, black on white, no controls. */
 @media print {

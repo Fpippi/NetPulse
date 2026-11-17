@@ -541,6 +541,8 @@
     text-shadow: 3px 3px 0 var(--yellow);
 }
 [data-theme^="bizarre"] .stats dd .unit { color: var(--ink); font-style: normal; -webkit-text-stroke: 0; text-shadow: none; }
+/* Names (Wi-Fi network, interface) are too small for the outlined poster numerals: plain ink. */
+[data-theme^="bizarre"] .stats dd.text { color: var(--text); -webkit-text-stroke: 0; text-shadow: none; }
 
 /* The chart is an inner panel shaded with ink hatching. */
 [data-theme^="bizarre"] .chart {

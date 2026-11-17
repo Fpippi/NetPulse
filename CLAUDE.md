@@ -54,6 +54,9 @@ docker build -t netpulse .                 # container image
     `IcmpTraceProbe` (`PingOptions.Ttl`), `TraceResult.Summary`, `OutageTrace`, `TraceLookup` (trace of an outage).
   - `Metrics/` — `PrometheusWriter` (hand-written text format, invariant numbers, label escaping),
     `NetPulseMetrics` (renders a `MetricsSnapshot`), `MonitorHeartbeat` (last monitoring cycle, `IsAlive`).
+  - `Connection/` — `LinkInfo` (`LinkType` Wired/WiFi/Unknown, SSID, signal dBm, speed), `WifiSignal` (rating,
+    Windows % → dBm), `WirelessParsers` (`/proc/net/wireless`, `iw dev X link`, `netsh wlan` in any language),
+    `LinkHistory` (link at a moment), `LinkDiagnosis` (Wi-Fi vs router vs ISP hint for an outage).
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
@@ -75,6 +78,9 @@ docker build -t netpulse .                 # container image
     Published from `PingMonitorService`, `LanDiscovery` and `SpeedTestRunner`.
   - `Retention/DataRetentionService` — the only place that purges old data (all stores, hourly) and compacts
     via `Storage/SqliteMaintenance`; `RetentionStatus` feeds the Report page card and `/api/retention`.
+  - `Connection/LinkDetector` (default-route interface, `/sys`, `iw`, `netsh`) + `LinkMonitor` (`BackgroundService`,
+    every 30 s, stores a `link_samples` row a minute via `Storage/SqliteLinkStore`); `Shared/ConnectionCard` on `/`,
+    Connection column on `/outages` and in the report.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
