@@ -60,4 +60,61 @@ public class OutageClassifierTests
 
         Assert.That(CauseOf(cloudflare, [cloudflare, google], ["1.1.1.1", "8.8.8.8"]), Is.EqualTo(OutageCause.Unknown));
     }
+
+    private static readonly string[] DualStack =
+        ["gateway", "1.1.1.1", "8.8.8.8", "gateway6", "2606:4700:4700::1111", "2001:4860:4860::8888"];
+
+    [Test]
+    public void Ipv6_hosts_down_together_while_ipv4_works_is_an_ipv6_internet_outage()
+    {
+        var cloudflare6 = Down("2606:4700:4700::1111", 10, 20);
+        var google6 = Down("2001:4860:4860::8888", 10, 20);
+
+        Assert.That(CauseOf(cloudflare6, [cloudflare6, google6], DualStack), Is.EqualTo(OutageCause.Internet));
+    }
+
+    [Test]
+    public void Ipv4_hosts_are_not_compared_with_ipv6_ones()
+    {
+        var cloudflare = Down("1.1.1.1", 10, 20);
+        var google = Down("8.8.8.8", 10, 20);
+
+        Assert.That(CauseOf(cloudflare, [cloudflare, google], DualStack), Is.EqualTo(OutageCause.Internet));
+    }
+
+    [Test]
+    public void One_ipv6_host_down_is_that_host()
+    {
+        var google6 = Down("2001:4860:4860::8888", 10, 20);
+
+        Assert.That(CauseOf(google6, [google6], DualStack), Is.EqualTo(OutageCause.SingleHost));
+    }
+
+    [Test]
+    public void Ipv6_router_outages_are_local()
+    {
+        var router6 = Down("gateway6", 0, 5);
+        var cloudflare6 = Down("2606:4700:4700::1111", 1, 4);
+        var all = new[] { router6, cloudflare6, Down("2001:4860:4860::8888", 1, 4) };
+
+        Assert.That(CauseOf(router6, all, DualStack), Is.EqualTo(OutageCause.LocalNetwork));
+        Assert.That(CauseOf(cloudflare6, all, DualStack), Is.EqualTo(OutageCause.LocalNetwork));
+    }
+
+    [Test]
+    public void The_ipv6_router_does_not_decide_ipv4_outages()
+    {
+        var cloudflare = Down("1.1.1.1", 10, 20);
+        var all = new[] { Down("gateway6", 0, 30), cloudflare, Down("8.8.8.8", 10, 20) };
+
+        Assert.That(CauseOf(cloudflare, all, DualStack), Is.EqualTo(OutageCause.Internet));
+    }
+
+    [Test]
+    public void The_ipv4_router_down_makes_ipv6_outages_local_too()
+    {
+        var cloudflare6 = Down("2606:4700:4700::1111", 10, 20);
+
+        Assert.That(CauseOf(cloudflare6, [Down("gateway", 0, 30), cloudflare6], DualStack), Is.EqualTo(OutageCause.LocalNetwork));
+    }
 }

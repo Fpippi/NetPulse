@@ -1,9 +1,12 @@
+using NetPulse.Core.Probing;
+
 namespace NetPulse.Core.Outages;
 
 /// <summary>
 /// Tells router problems from ISP problems from single-host problems by comparing overlapping
 /// outages across targets: if the gateway was down too, the problem is local; if every public
-/// host was down while the gateway answered, it is the Internet connection.
+/// host was down while the gateway answered, it is the Internet connection. IPv6 targets are compared
+/// with each other and with <c>gateway6</c>, so a broken IPv6 path reads as an Internet outage of its own.
 /// </summary>
 public static class OutageClassifier
 {
@@ -33,17 +36,24 @@ public static class OutageClassifier
         bool gatewayMonitored,
         DateTimeOffset now)
     {
-        if (Same(outage.Target, gateway))
+        var gateway6 = ProbeTarget.Gateway6;
+        if (Same(outage.Target, gateway) || Same(outage.Target, gateway6))
         {
             return OutageCause.LocalNetwork;
         }
 
-        if (gatewayMonitored && all.Any(o => Same(o.Target, gateway) && Overlap(o, outage, now)))
+        // IPv6 targets are judged against the IPv6 router (and the IPv4 one: if it is down, so is the LAN)
+        // and against the other IPv6 targets only, so an IPv6-only problem is not blamed on single hosts.
+        var isIpv6 = IsIpv6(outage.Target);
+        var gateways = isIpv6 ? new[] { gateway, gateway6 } : [gateway];
+        if (gateways.Any(g => targets.Contains(g) && all.Any(o => Same(o.Target, g) && Overlap(o, outage, now))))
         {
             return OutageCause.LocalNetwork;
         }
 
-        var others = targets.Where(t => !Same(t, gateway) && !Same(t, outage.Target)).ToList();
+        var others = targets
+            .Where(t => !Same(t, gateway) && !Same(t, gateway6) && !Same(t, outage.Target) && IsIpv6(t) == isIpv6)
+            .ToList();
         var allOthersDown = others.All(t => all.Any(o => Same(o.Target, t) && Overlap(o, outage, now)));
 
         if (others.Count > 0 && !allOthersDown)
@@ -52,8 +62,11 @@ public static class OutageClassifier
         }
 
         // Every public host was down: the connection, if the router answered; unknown without a gateway.
-        return gatewayMonitored ? OutageCause.Internet : OutageCause.Unknown;
+        var routerMonitored = isIpv6 ? gatewayMonitored || targets.Contains(gateway6) : gatewayMonitored;
+        return routerMonitored ? OutageCause.Internet : OutageCause.Unknown;
     }
+
+    private static bool IsIpv6(string target) => ProbeTarget.FamilyOf(target) == IpFamily.IPv6;
 
     private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 

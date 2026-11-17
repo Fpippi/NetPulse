@@ -73,7 +73,8 @@ builder.Services.AddSingleton(sp =>
         new ProbeTimeouts(
             TimeSpan.FromMilliseconds(Math.Max(100, options.TimeoutMs)),
             TimeSpan.FromMilliseconds(Math.Max(100, options.DnsTimeoutMs)),
-            TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))));
+            TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))),
+        new SystemHostResolver());
 });
 builder.Services.AddSingleton<ISampleStore>(sp =>
     new SqliteSampleStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
@@ -82,8 +83,9 @@ builder.Services.AddSingleton<ITargetStore>(sp =>
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<IOptions<MonitorOptions>>().Value;
+    // IPv6 next to IPv4: the IPv6 router and public hosts are added when the network has IPv6.
     return new TargetManager(
-        options.EffectiveTargets,
+        Ipv6Defaults.Apply(options.EffectiveTargets, options.Ipv6, GatewayResolver.HasGlobalIpv6Address()),
         sp.GetRequiredService<ITargetStore>(),
         sp.GetRequiredService<ISampleStore>(),
         Math.Max(0, options.MaxCustomTargets));
@@ -230,6 +232,12 @@ api.MapGet("/stats", async (ISampleStore store, int minutes = 15) =>
             {
                 target = g.Key,
                 kind = ProbeTarget.KindOf(g.Key).ToString().ToLowerInvariant(),
+                family = ProbeTarget.FamilyOf(g.Key) switch
+                {
+                    IpFamily.IPv4 => "ipv4",
+                    IpFamily.IPv6 => "ipv6",
+                    _ => null,
+                },
                 quality = s.Rate(QualityThresholds.ForTarget(g.Key)).ToString(),
                 stats = s,
             };

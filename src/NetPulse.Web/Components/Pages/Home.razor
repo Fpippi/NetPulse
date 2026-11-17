@@ -1,5 +1,6 @@
 @page "/"
 @implements IDisposable
+@using NetPulse.Core.Probing
 @using NetPulse.Core.Targets
 @inject ISampleStore Store
 @inject TargetManager Targets
@@ -32,7 +33,13 @@
     {
         <section class="card">
             <div class="card-head">
-                <h2>@series.Target</h2>
+                <h2>
+                    @series.Target
+                    @if (_dualStack && series.Family != IpFamily.Any)
+                    {
+                        <small class="family">@series.Family</small>
+                    }
+                </h2>
                 <span class="badge @series.Quality.ToString().ToLowerInvariant()">@series.Quality</span>
             </div>
 
@@ -66,10 +73,15 @@
     private DateTimeOffset _to;
     private List<Series> _series = [];
 
+    /// <summary>True when IPv6 targets are monitored: then every card says which IP version it measures.</summary>
+    private bool _dualStack;
+
     private sealed record Series(string Target, IReadOnlyList<PingSample> Samples, LatencyStats Stats)
     {
         /// <summary>Rated on the scale of the target's probe kind (ping, DNS or HTTP).</summary>
         public ConnectionQuality Quality => Stats.Rate(QualityThresholds.ForTarget(Target));
+
+        public IpFamily Family => ProbeTarget.FamilyOf(Target);
     }
 
     protected override async Task OnInitializedAsync()
@@ -122,6 +134,7 @@
                 return new Series(g.Key, list, LatencyStats.From(list));
             })
             .ToList();
+        _dualStack = _series.Any(s => s.Family == IpFamily.IPv6);
     }
 
     private static string Ms(double? value) =>
