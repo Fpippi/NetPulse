@@ -1,12 +1,14 @@
 @page "/outages"
 @implements IDisposable
 @using Microsoft.Extensions.Options
+@using NetPulse.Core.Connection
 @using NetPulse.Core.Outages
 @using NetPulse.Core.Targets
 @using NetPulse.Web.Monitoring
 @using NetPulse.Core.Traceroute
 @inject IOutageStore Store
 @inject IOutageTraceStore TraceStore
+@inject ILinkStore LinkStore
 @inject TargetManager Targets
 @inject IOptions<OutageOptions> Options
 @inject IOptions<MonitorOptions> MonitorOptions
@@ -105,6 +107,7 @@
                             <th scope="col">Ended</th>
                             <th scope="col">Duration</th>
                             <th scope="col">Lost pings</th>
+                            <th scope="col">Connection</th>
                             <th scope="col">Route</th>
                         </tr>
                     </thead>
@@ -126,6 +129,16 @@
                                 </td>
                                 <td>@DurationFormat.Format(outage.Duration(_to))</td>
                                 <td>@outage.LostSamples</td>
+                                <td>
+                                    @if (_links.At(outage.Start) is { } link)
+                                    {
+                                        <span class="link @LinkClass(link)">@link.Summary</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="hint">–</span>
+                                    }
+                                </td>
                                 <td>
                                     @if (_traces.Find(outage) is { } trace)
                                     {
@@ -226,11 +239,25 @@
             ? TraceLookup.Empty
             : new TraceLookup(await TraceStore.GetSinceAsync(_outages.Min(o => o.Start)));
 
+        _links = _outages.Count == 0
+            ? LinkHistory.Empty
+            : new LinkHistory(await LinkStore.GetSinceAsync(_outages.Min(o => o.Start) - LinkHistory.MaxAge));
+
         // Monitored targets first, then targets that are gone but had outages in the window.
         _targets = TargetList.Merge(
             await Targets.GetEffectiveTargetsAsync(),
             _outages.Select(o => o.Target).ToList()).ToList();
     }
+
+    private LinkHistory _links = LinkHistory.Empty;
+
+    /// <summary>A weak Wi-Fi signal is coloured as poor, so Wi-Fi trouble stands out in the history.</summary>
+    private static string? LinkClass(LinkInfo link) => link.SignalQuality switch
+    {
+        ConnectionQuality.Poor => "poor",
+        ConnectionQuality.Fair => "fair",
+        _ => null,
+    };
 
     private OutageSummary Summary(string target) => OutageSummary.From(
         _outages.Where(o => string.Equals(o.Target, target, StringComparison.OrdinalIgnoreCase)), _from, _to);

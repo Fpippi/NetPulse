@@ -12,6 +12,8 @@ using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
 using NetPulse.Core.Traceroute;
 using NetPulse.Web.Components;
+using NetPulse.Web.Connection;
+using NetPulse.Core.Connection;
 using NetPulse.Core.LoadTest;
 using NetPulse.Web.Discovery;
 using NetPulse.Web.Health;
@@ -146,6 +148,13 @@ builder.Services.AddHostedService<SpeedTestService>();
 // Reports and CSV export
 builder.Services.AddSingleton<ReportService>();
 
+// Wi-Fi or cable: the link to the router, so Wi-Fi problems can be told apart from router and ISP ones.
+builder.Services.AddSingleton<ILinkStore>(sp =>
+    new SqliteLinkStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton<LinkDetector>();
+builder.Services.AddSingleton<LinkMonitor>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<LinkMonitor>());
+
 // Cooperative load testing (sender + opt-in receiver)
 builder.Services.Configure<LoadTestServerOptions>(builder.Configuration.GetSection(LoadTestServerOptions.SectionName));
 builder.Services.AddSingleton<LoadTestClient>();
@@ -168,6 +177,7 @@ await app.Services.GetRequiredService<ILanDeviceStore>().InitializeAsync();
 await app.Services.GetRequiredService<IOutageStore>().InitializeAsync();
 await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
 await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
+await app.Services.GetRequiredService<ILinkStore>().InitializeAsync();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -319,6 +329,26 @@ export.MapGet("/speedtests.csv", (HttpContext http, ISpeedTestStore store, strin
     CsvDownload(http, from, to, days, "speedtests", async (period, writer, ct) =>
         await CsvExport.WriteSpeedTestsAsync(
             writer, (await store.GetSinceAsync(period.From, ct)).Where(r => r.Timestamp < period.To))));
+
+api.MapGet("/link", async (LinkMonitor monitor, ILinkStore store, int hours = 24) =>
+{
+    var history = await store.GetSinceAsync(DateTimeOffset.UtcNow.AddHours(-Math.Clamp(hours, 1, 24 * 31)));
+    return Results.Ok(new
+    {
+        current = monitor.Current is { } link ? Describe(link) : null,
+        history = history.Select(s => new { s.Timestamp, link = Describe(s.Link) }),
+    });
+
+    static object Describe(LinkInfo link) => new
+    {
+        link.Interface,
+        link.Type,
+        link.Ssid,
+        link.SignalDbm,
+        signalQuality = link.SignalQuality,
+        link.SpeedMbps,
+    };
+});
 
 api.MapGet("/notifications", (NotificationDispatcher notifications) =>
     Results.Ok(new { channels = notifications.ChannelNames }));

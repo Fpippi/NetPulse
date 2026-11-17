@@ -55,6 +55,9 @@ docker build -t netpulse .                 # container image
     `NetPulseMetrics` (renders a `MetricsSnapshot`), `MonitorHeartbeat` (last monitoring cycle, `IsAlive`).
   - `Security/` — `PasswordHash` (PBKDF2-SHA256 `pbkdf2-sha256$iter$salt$key` or plain, constant-time),
     `LoginThrottle` (per-client failure window).
+  - `Connection/` — `LinkInfo` (`LinkType` Wired/WiFi/Unknown, SSID, signal dBm, speed), `WifiSignal` (rating,
+    Windows % → dBm), `WirelessParsers` (`/proc/net/wireless`, `iw dev X link`, `netsh wlan` in any language),
+    `LinkHistory` (link at a moment), `LinkDiagnosis` (Wi-Fi vs router vs ISP hint for an outage).
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
@@ -78,6 +81,9 @@ docker build -t netpulse .                 # container image
     behind a fallback "authenticated" policy; `/login` (static SSR page, see `App.razor` render mode),
     `POST /auth/login|logout`; `HashPasswordCommand` (`NetPulse.Web hash-password`). Open endpoints must
     call `.AllowAnonymous()`.
+  - `Connection/LinkDetector` (default-route interface, `/sys`, `iw`, `netsh`) + `LinkMonitor` (`BackgroundService`,
+    every 30 s, stores a `link_samples` row a minute via `Storage/SqliteLinkStore`); `Shared/ConnectionCard` on `/`,
+    Connection column on `/outages` and in the report.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).

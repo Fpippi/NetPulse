@@ -1,5 +1,6 @@
 @page "/report"
 @using Microsoft.Extensions.Options
+@using NetPulse.Core.Connection
 @using NetPulse.Core.Outages
 @using NetPulse.Core.Reports
 @using NetPulse.Core.Traceroute
@@ -7,6 +8,7 @@
 @using NetPulse.Web.Reports
 @using NetPulse.Web.SpeedTest
 @inject ReportService Reports
+@inject ILinkStore LinkStore
 @inject IOptions<MonitorOptions> MonitorOptions
 @inject IOptions<OutageOptions> OutageOptions
 @inject IOptions<SpeedTestOptions> SpeedOptions
@@ -147,6 +149,7 @@
                                     <th scope="col">Duration</th>
                                     <th scope="col">Target</th>
                                     <th scope="col">Likely cause</th>
+                                    <th scope="col">Connection</th>
                                     <th scope="col">Route during the outage</th>
                                 </tr>
                             </thead>
@@ -158,6 +161,16 @@
                                         <td>@DurationFormat.Format(outage.Duration(report.To))@(outage.IsOngoing ? " (ongoing)" : "")</td>
                                         <td>@outage.Target</td>
                                         <td><span class="cause @cause.ToString().ToLowerInvariant()">@CauseLabel(cause)</span></td>
+                                        <td>
+                                            @if (_links.At(outage.Start) is { } link)
+                                            {
+                                                <span title="@LinkDiagnosis.Hint(cause, link)">@link.Summary</span>
+                                            }
+                                            else
+                                            {
+                                                @("–")
+                                            }
+                                        </td>
                                         <td>@(_traces.Find(outage)?.Summary ?? "–")</td>
                                     </tr>
                                 }
@@ -167,6 +180,10 @@
                     @if (report.Outages.Count > MaxRows)
                     {
                         <p class="hint">Showing the first @MaxRows of @report.Outages.Count outages; the CSV export has them all.</p>
+                    }
+                    @if (_links.Count > 0)
+                    {
+                        <p class="report-note">@LinkNote(report)</p>
                     }
                 }
             </section>
@@ -266,11 +283,36 @@
         {
             _report = await Reports.BuildAsync(period, _download, _upload);
             _traces = await Reports.GetTracesAsync(_report);
+            _links = new LinkHistory(await LinkStore.GetSinceAsync(period.From - LinkHistory.MaxAge));
         }
         finally
         {
             _busy = false;
         }
+    }
+
+    private LinkHistory _links = LinkHistory.Empty;
+
+    /// <summary>
+    /// Tells the reader whether the local outages could be the Wi-Fi of this machine rather than the
+    /// router, and whether the Internet outages happened while the local link was fine.
+    /// </summary>
+    private string LinkNote(IspReport report)
+    {
+        var local = report.Outages.Count(o => o.Cause == OutageCause.LocalNetwork);
+        var onWifi = LinkDiagnosis.LocalOnWifi(report.Outages, _links);
+        var wired = report.Outages.Any(o => _links.At(o.Outage.Start)?.Type == LinkType.Wired);
+        var connection = "The Connection column is how this NetPulse machine reached the router when each outage started. ";
+
+        if (local > 0 && onWifi > 0)
+        {
+            return connection + $"{onWifi} of {local} local-network outages happened while it was on Wi-Fi: "
+                + "those may be the Wi-Fi rather than the router or the ISP. Internet outages are not affected: the router answered.";
+        }
+
+        return connection + (wired
+            ? "It was wired, so Wi-Fi problems are ruled out."
+            : "Internet outages are counted only while the router answered, so they are not caused by the local link.");
     }
 
     private string ExportUrl(string kind) => $"api/export/{kind}.csv?from={Iso(_from)}&to={Iso(_to)}";
