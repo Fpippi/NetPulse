@@ -53,6 +53,8 @@ docker build -t netpulse .                 # container image
     `IcmpTraceProbe` (`PingOptions.Ttl`), `TraceResult.Summary`, `OutageTrace`, `TraceLookup` (trace of an outage).
   - `Metrics/` — `PrometheusWriter` (hand-written text format, invariant numbers, label escaping),
     `NetPulseMetrics` (renders a `MetricsSnapshot`), `MonitorHeartbeat` (last monitoring cycle, `IsAlive`).
+  - `Security/` — `PasswordHash` (PBKDF2-SHA256 `pbkdf2-sha256$iter$salt$key` or plain, constant-time),
+    `LoginThrottle` (per-client failure window).
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
@@ -72,6 +74,10 @@ docker build -t netpulse .                 # container image
   - `Notifications/` — `NotificationOptions`, `NotificationChannels` (builds the configured ones), `EmailChannel`
     (SMTP), `NotificationDispatcher` (publisher + `BackgroundService`: batches, delivers, retries; test endpoint).
     Published from `PingMonitorService`, `LanDiscovery` and `SpeedTestRunner`.
+  - `Security/` — `DashboardAuth` (optional, `NetPulse:Auth`): cookie sign-in + `ApiTokenHandler` (Bearer)
+    behind a fallback "authenticated" policy; `/login` (static SSR page, see `App.razor` render mode),
+    `POST /auth/login|logout`; `HashPasswordCommand` (`NetPulse.Web hash-password`). Open endpoints must
+    call `.AllowAnonymous()`.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
