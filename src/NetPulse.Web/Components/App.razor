@@ -25,10 +25,11 @@
 
     private Theme _theme = ThemeCatalog.Default;
 
-    // The sign-in page is a plain HTML form posted to /auth/login, so it is rendered statically;
-    // every other page is interactive.
+    // The sign-in page is a plain HTML form posted to /auth/login and the check page measures the
+    // browser's own connection with a script, so both are rendered statically; every other page is interactive.
     private IComponentRenderMode? PageRenderMode =>
-        HttpContext?.Request.Path.StartsWithSegments(NetPulse.Web.Security.DashboardAuth.LoginPath) == true
+        HttpContext?.Request.Path is { } path
+        && (path.StartsWithSegments(NetPulse.Web.Security.DashboardAuth.LoginPath) || path.StartsWithSegments("/check"))
             ? null
             : InteractiveServer;
 

@@ -11,6 +11,7 @@ using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
 using NetPulse.Core.Traceroute;
+using NetPulse.Web.ClientCheck;
 using NetPulse.Web.Components;
 using NetPulse.Web.Connection;
 using NetPulse.Core.Connection;
@@ -175,6 +176,9 @@ builder.Services.AddSingleton<LoadTestClient>();
 builder.Services.AddSingleton<LoadTestManager>();
 builder.Services.AddSingleton<LoadTestReceiver>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LoadTestReceiver>());
+
+// Checks run from another device's browser (a phone on the Wi-Fi), opened with a QR code.
+builder.Services.AddClientCheck(builder.Configuration);
 
 // Enums (e.g. device event kinds) as strings in the API.
 builder.Services.ConfigureHttpJsonOptions(o =>
@@ -446,6 +450,8 @@ api.MapPut("/devices/{key}/label", async (ILanDeviceStore devices, string key, S
 
 api.MapDelete("/devices/{key}", async (ILanDeviceStore devices, string key) =>
     await devices.DeleteDeviceAsync(key) ? Results.NoContent() : Results.NotFound());
+
+api.MapClientCheck();
 
 api.MapGet("/loadtest", (LoadTestManager manager, LoadTestReceiver receiver) =>
     Results.Ok(new { sender = manager.Status, receiver = receiver.Status }));

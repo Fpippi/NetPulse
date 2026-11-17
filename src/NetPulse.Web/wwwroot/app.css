@@ -907,3 +907,50 @@ details.trace summary { cursor: pointer; }
 details.trace ol { margin: .4rem 0 0; padding-left: 1.6rem; font-variant-numeric: tabular-nums; }
 details.trace li { margin: .1rem 0; }
 details.trace li .hint { margin-left: .4rem; }
+
+/* Connection check from another device (Check page) */
+main.check { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+main.check .check-history { grid-column: 1 / -1; }
+
+@media (max-width: 760px) {
+    main.check { grid-template-columns: minmax(0, 1fr); padding: 1rem; }
+}
+
+.card-note { margin: 0 0 1rem; line-height: 1.5; }
+
+.check-steps { list-style: none; margin: 1rem 0 0; padding: 0; }
+
+.check-steps li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .45rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.check-steps li:last-child { border-bottom: 0; }
+.check-steps output { font-family: var(--font-num); font-size: .85rem; color: var(--muted); text-align: right; }
+
+.verdict {
+    margin-top: 1rem;
+    padding: .8rem 1rem;
+    border: var(--rule-width) var(--rule-style) var(--accent);
+    border-radius: var(--radius-card);
+}
+
+.verdict-head { margin: 0; line-height: 1.5; }
+.verdict-head .badge { margin-right: .3rem; }
+.verdict ul { margin: .6rem 0 0; padding-left: 1.2rem; line-height: 1.5; }
+.verdict li + li { margin-top: .25rem; }
+
+/* The code is always dark on white, whatever the theme: phone cameras expect that. */
+.qr {
+    display: block;
+    width: min(100%, 15rem);
+    margin: 0 auto;
+    background: #fff;
+    border-radius: var(--radius);
+}
+
+.qr svg { display: block; width: 100%; height: auto; }
+.qr-url { text-align: center; word-break: break-all; margin: .75rem 0; }

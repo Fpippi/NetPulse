@@ -64,10 +64,15 @@ docker build -t netpulse .                 # container image
     Windows % → dBm), `WirelessParsers` (`/proc/net/wireless`, `iw dev X link`, `netsh wlan` in any language),
     `LinkHistory` (link at a moment), `LinkDiagnosis` (Wi-Fi vs router vs ISP hint for an outage).
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
+  - `Qr/` — `QrCode` (byte mode, versions 1–10, all ECC levels, checked against Nayuki's reference
+    encoder), `QrSvg` (path data, quiet zone); `ReedSolomon` (GF(256)).
+  - `ClientCheck/` — check run from another device's browser: `LanUrl` (address phones open, from Kestrel
+    bindings + LAN IP), `ClientCheckMeasurement` (sanitized input), `HostInternet`, `ClientCheckDiagnosis`
+    (verdict + advice), `ClientCheckLog` (recent checks, in memory).
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
     (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
-- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`, `/report`
+- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`, `/report`, `/check` (phone check + QR)
   (printable; `@media print` in `app.css`).
   - `Monitoring/PingMonitorService` — `BackgroundService` that probes all targets every N seconds and feeds
     `OutageTracker`; open outages from a previous run are closed at startup.
@@ -91,6 +96,9 @@ docker build -t netpulse .                 # container image
   - `Connection/LinkDetector` (default-route interface, `/sys`, `iw`, `netsh`) + `LinkMonitor` (`BackgroundService`,
     every 30 s, stores a `link_samples` row a minute via `Storage/SqliteLinkStore`); `Shared/ConnectionCard` on `/`,
     Connection column on `/outages` and in the report.
+  - `ClientCheck/ClientCheckEndpoints` — `/api/check/*` (ping, download, upload, result); the `/check` page is
+    static SSR (like `/login`, see `App.razor`) with `wwwroot/check.js`, the only script; `ClientCheckHistory`
+    is an interactive island. Nav link uses `target="_top"` so the interactive router does a full load.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv|json`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
