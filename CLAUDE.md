@@ -32,12 +32,14 @@ docker build -t netpulse .                 # container image
 
 - `src/NetPulse.Core` — domain logic, **no external dependencies**.
   - `Models/PingSample` — one measurement.
-  - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver`; `ProbeTarget` parses a target into
-    ping / `dns:name[@server]` / `http(s)://` (`ProbeKind`); `DnsProbe` (raw UDP A query via `DnsWire`),
+  - `Probing/` — `IPingProbe` + `IcmpPingProbe`, `GatewayResolver` (IPv4/IPv6 router, `HasGlobalIpv6Address`);
+    `ProbeTarget` parses a target into ping (`ping4:`/`ping6:` pin a host name to an `IpFamily`, resolved by
+    `IHostResolver`; `gateway`/`gateway6`; `FamilyOf(name)`) / `dns:name[@server]` / `http(s)://` (`ProbeKind`); `DnsProbe` (raw UDP A query via `DnsWire`),
     `HttpProbe` (GET until headers), `TargetProbe` dispatches by kind with `ProbeTimeouts`.
     `Stats/QualityThresholds` gives each kind its own Good/Fair/Poor scale (`LatencyStats.Rate`).
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
-  - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices).
+  - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices);
+    `RetentionPolicy` (days per `DataKind`, 0 = forever), `CompactionPolicy` (VACUUM after big deletes), `DataSize`.
   - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
     `OutageSummary` (downtime/availability over a window), `DurationFormat`.
   - `SpeedTest/` — `HttpSpeedTest` (latency/download/upload over `HttpClient`), `SpeedTestPlan`
@@ -53,6 +55,11 @@ docker build -t netpulse .                 # container image
     `IcmpTraceProbe` (`PingOptions.Ttl`), `TraceResult.Summary`, `OutageTrace`, `TraceLookup` (trace of an outage).
   - `Metrics/` — `PrometheusWriter` (hand-written text format, invariant numbers, label escaping),
     `NetPulseMetrics` (renders a `MetricsSnapshot`), `MonitorHeartbeat` (last monitoring cycle, `IsAlive`).
+  - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets),
+    `Ipv6Defaults` (adds `gateway6` + public IPv6 hosts per `Ipv6Mode`). `OutageClassifier` compares IPv6
+    targets only with IPv6 targets and `gateway6`.
+  - `Security/` — `PasswordHash` (PBKDF2-SHA256 `pbkdf2-sha256$iter$salt$key` or plain, constant-time),
+    `LoginThrottle` (per-client failure window).
   - `Connection/` — `LinkInfo` (`LinkType` Wired/WiFi/Unknown, SSID, signal dBm, speed), `WifiSignal` (rating,
     Windows % → dBm), `WirelessParsers` (`/proc/net/wireless`, `iw dev X link`, `netsh wlan` in any language),
     `LinkHistory` (link at a moment), `LinkDiagnosis` (Wi-Fi vs router vs ISP hint for an outage).
@@ -75,6 +82,12 @@ docker build -t netpulse .                 # container image
   - `Notifications/` — `NotificationOptions`, `NotificationChannels` (builds the configured ones), `EmailChannel`
     (SMTP), `NotificationDispatcher` (publisher + `BackgroundService`: batches, delivers, retries; test endpoint).
     Published from `PingMonitorService`, `LanDiscovery` and `SpeedTestRunner`.
+  - `Retention/DataRetentionService` — the only place that purges old data (all stores, hourly) and compacts
+    via `Storage/SqliteMaintenance`; `RetentionStatus` feeds the Report page card and `/api/retention`.
+  - `Security/` — `DashboardAuth` (optional, `NetPulse:Auth`): cookie sign-in + `ApiTokenHandler` (Bearer)
+    behind a fallback "authenticated" policy; `/login` (static SSR page, see `App.razor` render mode),
+    `POST /auth/login|logout`; `HashPasswordCommand` (`NetPulse.Web hash-password`). Open endpoints must
+    call `.AllowAnonymous()`.
   - `Connection/LinkDetector` (default-route interface, `/sys`, `iw`, `netsh`) + `LinkMonitor` (`BackgroundService`,
     every 30 s, stores a `link_samples` row a minute via `Storage/SqliteLinkStore`); `Shared/ConnectionCard` on `/`,
     Connection column on `/outages` and in the report.

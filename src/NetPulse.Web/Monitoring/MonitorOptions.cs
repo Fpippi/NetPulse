@@ -1,3 +1,5 @@
+using NetPulse.Core.Targets;
+
 namespace NetPulse.Web.Monitoring;
 
 public sealed class MonitorOptions
@@ -20,7 +22,7 @@ public sealed class MonitorOptions
     /// <summary>Timeout of HTTP targets (<c>https://…</c>), covering connection, TLS and response headers.</summary>
     public int HttpTimeoutMs { get; set; } = 5000;
 
-    /// <summary>Samples older than this are deleted automatically.</summary>
+    /// <summary>Samples older than this are deleted automatically; 0 keeps them forever.</summary>
     public int RetentionDays { get; set; } = 30;
 
     public string DatabasePath { get; set; } = "data/netpulse.db";
@@ -30,6 +32,12 @@ public sealed class MonitorOptions
     /// existing lists, so defaults are applied in code when nothing is configured.
     /// </summary>
     public List<string> Targets { get; set; } = [];
+
+    /// <summary>
+    /// Adds the IPv6 router and two public IPv6 hosts (<see cref="Ipv6Defaults"/>) next to the targets:
+    /// Auto when this machine has a global IPv6 address at startup, On always, Off never.
+    /// </summary>
+    public Ipv6Mode Ipv6 { get; set; } = Ipv6Mode.Auto;
 
     /// <summary>How many extra targets users may add from the dashboard.</summary>
     public int MaxCustomTargets { get; set; } = 20;

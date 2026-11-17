@@ -8,11 +8,11 @@
     <link rel="icon" type="image/svg+xml" href="@Assets["favicon.svg"]" />
     <link rel="stylesheet" href="@Assets["themes.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="PageRenderMode" />
     <script src="_framework/blazor.web.js"></script>
 </body>
 
@@ -24,6 +24,13 @@
     private HttpContext? HttpContext { get; set; }
 
     private Theme _theme = ThemeCatalog.Default;
+
+    // The sign-in page is a plain HTML form posted to /auth/login, so it is rendered statically;
+    // every other page is interactive.
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext?.Request.Path.StartsWithSegments(NetPulse.Web.Security.DashboardAuth.LoginPath) == true
+            ? null
+            : InteractiveServer;
 
     protected override void OnInitialized() =>
         _theme = ThemeCatalog.Resolve(HttpContext?.Request.Cookies[ThemeCatalog.CookieName]);

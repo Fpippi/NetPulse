@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Outages;
+using NetPulse.Core.Probing;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Traceroute;
 
@@ -21,7 +22,8 @@ public sealed class OutageTracer(
     /// <summary>Starts a traceroute for the outage if it makes sense; returns immediately.</summary>
     public void OnOutageStarted(Outage outage, CancellationToken stoppingToken)
     {
-        if (!options.Value.TraceRoute || !Tracer.IsTraceable(outage.Target, MonitorOptions.GatewayTarget))
+        if (!options.Value.TraceRoute || !Tracer.IsTraceable(outage.Target, MonitorOptions.GatewayTarget)
+            || string.Equals(outage.Target, ProbeTarget.Gateway6, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

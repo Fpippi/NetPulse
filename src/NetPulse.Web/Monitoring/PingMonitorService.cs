@@ -17,7 +17,6 @@ public sealed class PingMonitorService(
     TargetProbe probe,
     ISampleStore store,
     IOutageStore outages,
-    IOutageTraceStore traces,
     OutageTracer tracer,
     TargetManager targets,
     INotificationPublisher notifications,
@@ -26,9 +25,9 @@ public sealed class PingMonitorService(
     IOptions<OutageOptions> outageOptions,
     ILogger<PingMonitorService> logger) : BackgroundService
 {
-    private static readonly TimeSpan PurgeInterval = TimeSpan.FromHours(1);
-
     private CancellationToken _stopping;
+
+    private readonly HashSet<string> _missingGateways = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly OutageTracker _tracker = new(Math.Max(1, outageOptions.Value.ConsecutiveLosses));
 
@@ -36,7 +35,6 @@ public sealed class PingMonitorService(
     {
         _stopping = stoppingToken;
         var opt = options.Value;
-        var lastPurge = DateTimeOffset.MinValue;
 
         // Outages left open by a previous run cannot be followed: nobody watched in between.
         var closed = await outages.CloseOpenAsync(stoppingToken);
@@ -58,22 +56,6 @@ public sealed class PingMonitorService(
             {
                 await RunCycleAsync(stoppingToken);
                 heartbeat.Beat(DateTimeOffset.UtcNow);
-
-                if (DateTimeOffset.UtcNow - lastPurge >= PurgeInterval)
-                {
-                    var deleted = await store.PurgeOlderThanAsync(
-                        DateTimeOffset.UtcNow.AddDays(-Math.Max(1, opt.RetentionDays)), stoppingToken);
-                    lastPurge = DateTimeOffset.UtcNow;
-
-                    if (deleted > 0)
-                    {
-                        logger.LogInformation("Purged {Count} old samples", deleted);
-                    }
-
-                    var outageCutoff = DateTimeOffset.UtcNow.AddDays(-Math.Max(1, outageOptions.Value.RetentionDays));
-                    await outages.PurgeOlderThanAsync(outageCutoff, stoppingToken);
-                    await traces.PurgeOlderThanAsync(outageCutoff, stoppingToken);
-                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -132,16 +114,25 @@ public sealed class PingMonitorService(
     /// <summary>Parses a target and replaces "gateway" with the current default router; null to skip it.</summary>
     private ProbeTarget? Resolve(string target)
     {
-        if (string.Equals(target, MonitorOptions.GatewayTarget, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(target, ProbeTarget.Gateway4, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(target, ProbeTarget.Gateway6, StringComparison.OrdinalIgnoreCase))
         {
-            var gateway = GatewayResolver.GetDefaultGateway();
+            var ipv6 = string.Equals(target, ProbeTarget.Gateway6, StringComparison.OrdinalIgnoreCase);
+            var gateway = GatewayResolver.GetDefaultGateway(
+                ipv6 ? System.Net.Sockets.AddressFamily.InterNetworkV6 : System.Net.Sockets.AddressFamily.InterNetwork);
             if (gateway is null)
             {
-                logger.LogWarning("No default gateway found, skipping gateway target");
+                // Logged once: a network without IPv6 would otherwise warn every cycle.
+                if (_missingGateways.Add(target))
+                {
+                    logger.LogWarning("No default {Family} gateway found, skipping {Target}", ipv6 ? "IPv6" : "IPv4", target);
+                }
+
                 return null;
             }
 
-            return ProbeTarget.Ping(MonitorOptions.GatewayTarget, gateway.ToString());
+            _missingGateways.Remove(target);
+            return ProbeTarget.Ping(target.ToLowerInvariant(), gateway.ToString());
         }
 
         if (!ProbeTarget.TryParse(target, out var parsed, out var error))

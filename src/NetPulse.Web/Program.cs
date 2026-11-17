@@ -21,10 +21,20 @@ using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
 using NetPulse.Web.Notifications;
 using NetPulse.Web.Reports;
+using NetPulse.Web.Retention;
+using NetPulse.Web.Security;
 using NetPulse.Web.SpeedTest;
 using NetPulse.Web.Storage;
 
+if (args is [HashPasswordCommand.Name, ..])
+{
+    return HashPasswordCommand.Run();
+}
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Optional dashboard password (NetPulse:Auth); off unless configured.
+builder.AddDashboardAuth();
 
 builder.Services.Configure<MonitorOptions>(builder.Configuration.GetSection(MonitorOptions.SectionName));
 
@@ -64,7 +74,8 @@ builder.Services.AddSingleton(sp =>
         new ProbeTimeouts(
             TimeSpan.FromMilliseconds(Math.Max(100, options.TimeoutMs)),
             TimeSpan.FromMilliseconds(Math.Max(100, options.DnsTimeoutMs)),
-            TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))));
+            TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))),
+        new SystemHostResolver());
 });
 builder.Services.AddSingleton<ISampleStore>(sp =>
     new SqliteSampleStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
@@ -73,8 +84,9 @@ builder.Services.AddSingleton<ITargetStore>(sp =>
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<IOptions<MonitorOptions>>().Value;
+    // IPv6 next to IPv4: the IPv6 router and public hosts are added when the network has IPv6.
     return new TargetManager(
-        options.EffectiveTargets,
+        Ipv6Defaults.Apply(options.EffectiveTargets, options.Ipv6, GatewayResolver.HasGlobalIpv6Address()),
         sp.GetRequiredService<ITargetStore>(),
         sp.GetRequiredService<ISampleStore>(),
         Math.Max(0, options.MaxCustomTargets));
@@ -139,6 +151,17 @@ builder.Services.AddHostedService<SpeedTestService>();
 // Reports and CSV/JSON export
 builder.Services.AddSingleton<ReportService>();
 
+// Retention: one service deletes old data of every kind and compacts the database after large clean-ups.
+builder.Services.AddSingleton(sp => new RetentionPolicy(
+    sp.GetRequiredService<IOptions<MonitorOptions>>().Value.RetentionDays,
+    sp.GetRequiredService<IOptions<OutageOptions>>().Value.RetentionDays,
+    sp.GetRequiredService<IOptions<SpeedTestOptions>>().Value.RetentionDays,
+    sp.GetRequiredService<IOptions<DiscoveryOptions>>().Value.EventRetentionDays));
+builder.Services.AddSingleton(sp =>
+    new SqliteMaintenance(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton<RetentionStatus>();
+builder.Services.AddHostedService<DataRetentionService>();
+
 // Wi-Fi or cable: the link to the router, so Wi-Fi problems can be told apart from router and ISP ones.
 builder.Services.AddSingleton<ILinkStore>(sp =>
     new SqliteLinkStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
@@ -170,12 +193,15 @@ await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
 await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
 await app.Services.GetRequiredService<ILinkStore>().InitializeAsync();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
+app.MapDashboardAuth();
 
 // --- REST API -------------------------------------------------------------
 
-app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/healthz").AllowAnonymous();
 
 // Prometheus metrics (Grafana, Home Assistant): current state, latency stats over the last 5 minutes.
 app.MapGet("/metrics", async (
@@ -218,6 +244,12 @@ api.MapGet("/stats", async (ISampleStore store, int minutes = 15) =>
             {
                 target = g.Key,
                 kind = ProbeTarget.KindOf(g.Key).ToString().ToLowerInvariant(),
+                family = ProbeTarget.FamilyOf(g.Key) switch
+                {
+                    IpFamily.IPv4 => "ipv4",
+                    IpFamily.IPv6 => "ipv6",
+                    _ => null,
+                },
                 quality = s.Rate(QualityThresholds.ForTarget(g.Key)).ToString(),
                 stats = s,
             };
@@ -332,6 +364,27 @@ foreach (var format in new[] { ExportFormat.Csv, ExportFormat.Json })
         }));
 }
 
+api.MapGet("/retention", (RetentionPolicy policy, RetentionStatus status) =>
+{
+    var current = status.Current;
+    return Results.Ok(new
+    {
+        kinds = Enum.GetValues<DataKind>().Select(kind => new
+        {
+            kind,
+            keepDays = policy.KeepsForever(kind) ? (int?)null : policy.DaysFor(kind),
+            keep = policy.Describe(kind),
+            lastDeleted = current.LastDeleted.GetValueOrDefault(kind),
+        }),
+        current.LastRun,
+        current.NextRun,
+        current.DeletedSinceStart,
+        current.LastCompaction,
+        current.DatabaseBytes,
+        current.Error,
+    });
+});
+
 api.MapGet("/link", async (LinkMonitor monitor, ILinkStore store, int hours = 24) =>
 {
     var history = await store.GetSinceAsync(DateTimeOffset.UtcNow.AddHours(-Math.Clamp(hours, 1, 24 * 31)));
@@ -425,12 +478,13 @@ app.MapGet("/theme/{id}", (HttpContext http, string id, string? returnUrl) =>
         SameSite = SameSiteMode.Lax,
     });
     return Results.Redirect(ThemeCatalog.SafeReturnPath(returnUrl));
-}).ExcludeFromDescription();
+}).AllowAnonymous().ExcludeFromDescription();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+return 0;
 
 // Streams a download named e.g. "netpulse-samples-2026-10-14_2026-11-13.csv".
 static IResult Download(HttpContext http, string? from, string? to, int? days, string name, ExportFormat format,

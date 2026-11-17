@@ -1,12 +1,10 @@
 using Microsoft.Extensions.Options;
-using NetPulse.Core.Storage;
 
 namespace NetPulse.Web.Discovery;
 
-/// <summary>Scans the LAN periodically and purges old device events.</summary>
+/// <summary>Scans the LAN periodically (old device events are purged by <c>DataRetentionService</c>).</summary>
 public sealed class LanDiscoveryService(
     LanDiscovery discovery,
-    ILanDeviceStore store,
     IOptions<DiscoveryOptions> options,
     ILogger<LanDiscoveryService> logger) : BackgroundService
 {
@@ -26,16 +24,6 @@ public sealed class LanDiscoveryService(
         do
         {
             await discovery.ScanAsync(stoppingToken);
-
-            try
-            {
-                await store.PurgeEventsOlderThanAsync(
-                    DateTimeOffset.UtcNow.AddDays(-Math.Max(1, opt.EventRetentionDays)), stoppingToken);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Purging device events failed");
-            }
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
