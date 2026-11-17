@@ -40,6 +40,8 @@ or your ISP.
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
 - **Eleven themes**: Dark, Light, Cyberpunk, Anime (shōnen), Sakura, Bizarre with four colour variants (Night, Pastel, Desert, Ink) and Medieval, picked from the top bar and remembered by the
   browser (no JavaScript, fonts bundled, no CDN)
+- **Wi-Fi or cable**: shows how the machine reaches the router (Wi-Fi network and signal, or wired) and, for
+  every outage, the link it happened on, to tell Wi-Fi problems apart from router and ISP problems
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
@@ -142,6 +144,29 @@ Besides the configured targets, you can add your own targets of any type (e.g. y
 a game server, `dns:example.com@8.8.8.8`, `https://your-site.example/`) from the **Targets** card on the dashboard. They are saved in the SQLite
 database, so they survive restarts. Click **×** on a custom target to stop monitoring it and delete
 its history. Configured targets can only be changed in the configuration.
+
+### Wi-Fi or cable
+
+When the connection drops, the first question is whether it was the Wi-Fi of the machine running
+NetPulse, the router or the ISP. NetPulse checks every 30 seconds which interface carries the default route
+and shows it in a **Connection** card on the latency page: Wi-Fi (network name, signal in dBm rated
+good / fair / poor, link rate) or wired (link speed). One reading a minute is stored, so the Outages page
+and the ISP report show, for each outage, how the machine was connected when it started:
+
+- an outage of the router (*local network*) **on Wi-Fi**, especially with a weak signal, is most likely the
+  Wi-Fi rather than the router or the ISP;
+- an **Internet** outage happened while the router answered, so the local link was fine either way;
+- on a **wired** machine, Wi-Fi problems are ruled out.
+
+| Platform | Link type | Wi-Fi network and signal |
+|----------|-----------|--------------------------|
+| Linux    | `/sys/class/net` | `iw` if installed (network, signal, rate), else `/proc/net/wireless` (signal only) |
+| Windows  | .NET interface type | `netsh wlan show interfaces` (any display language) |
+| macOS    | .NET interface type, often reported as Ethernet | not read |
+
+In Docker on the default bridge network the container only sees a virtual interface, so the link type is
+*Unknown*: use `--network host` (Linux). History of the link follows `RetentionDays` of the samples.
+`GET /api/link?hours=24` returns the current link and its recent history.
 
 ### Outages
 
@@ -365,6 +390,7 @@ scrape_configs:
 | `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV (`samples.json` for JSON) |
 | `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV (`outages.json` for JSON) |
 | `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV (`speedtests.json` for JSON) |
+| `GET /api/link?hours=24`                 | Current link (Wi-Fi/wired, network, signal, speed) and its history |
 | `GET /api/notifications`                 | Configured notification channels |
 | `POST /api/notifications/test`           | Send a test alert to every channel and report each result |
 | `GET /api/targets`                       | Monitored targets (`isCustom` marks the removable ones) |
