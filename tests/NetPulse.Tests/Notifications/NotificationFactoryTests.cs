@@ -70,4 +70,23 @@ public class NotificationFactoryTests
         Assert.That(n!.Title, Is.EqualTo("Slow connection"));
         Assert.That(n.Message, Does.Contain("download 45.3 Mbps (minimum 100.0 Mbps)").And.Contain("upload 19.0 Mbps"));
     }
+
+    [Test]
+    public void Watched_device_left_and_back()
+    {
+        var start = new DateTimeOffset(2026, 11, 17, 20, 40, 0, TimeSpan.Zero);
+        var away = new DeviceAbsence("pixel", "192.168.1.112", start, start.AddSeconds(20), null, 3);
+
+        var left = NotificationFactory.WatchedDevice(away, "Pixel", start.AddSeconds(30));
+        var back = NotificationFactory.WatchedDevice(away with { End = start.AddMinutes(5) }, "Pixel", start.AddMinutes(5));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(left.Kind, Is.EqualTo(NotificationKind.WatchedDeviceLeft));
+            Assert.That(left.Title, Is.EqualTo("Pixel dropped off the network"));
+            Assert.That(left.Timestamp, Is.EqualTo(start));
+            Assert.That(back.Kind, Is.EqualTo(NotificationKind.WatchedDeviceBack));
+            Assert.That(back.Message, Does.Contain("192.168.1.112").And.Contain("after 5"));
+        });
+    }
 }
