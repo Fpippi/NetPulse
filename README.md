@@ -40,6 +40,8 @@ or your ISP.
 - Live **Blazor dashboard** with 15m / 1h / 24h views; spikes and lost packets stay visible on the chart
 - **Eleven themes**: Dark, Light, Cyberpunk, Anime (shōnen), Sakura, Bizarre with four colour variants (Night, Pastel, Desert, Ink) and Medieval, picked from the top bar and remembered by the
   browser (no JavaScript, fonts bundled, no CDN)
+- **IPv6 next to IPv4**: the IPv6 router and public IPv6 hosts are monitored automatically on dual-stack
+  networks, and outages are classified per IP version
 - **Wi-Fi or cable**: shows how the machine reaches the router (Wi-Fi network and signal, or wired) and, for
   every outage, the link it happened on, to tell Wi-Fi problems apart from router and ISP problems
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
@@ -61,6 +63,7 @@ or your ISP.
 - **Prometheus `/metrics` and `/healthz`** for Grafana, Home Assistant, Uptime Kuma and Docker health checks
 - **REST API** (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export`,
   `/api/devices`, `/api/loadtest`) for scripts and integrations
+- Optional **password** for the dashboard and API (hashed with PBKDF2, brute-force throttling, API token for scripts)
 - Local **SQLite** storage with a retention period per kind of data (or keep forever) and automatic compaction — no cloud, no account, no tracking
 - Runs on **Windows, Linux, macOS** and in **Docker** (Raspberry Pi included)
 
@@ -121,6 +124,32 @@ or, for lists, `NetPulse__Targets__0=gateway` and `NetPulse__Targets__1=192.168.
 | `DatabasePath`    | `data/netpulse.db`                | SQLite file                                   |
 | `Targets`         | `gateway`, `1.1.1.1`, `8.8.8.8`   | Targets to monitor (`gateway` = default router), see below |
 | `MaxCustomTargets`| `20`                              | How many extra targets can be added from the dashboard |
+| `Ipv6`            | `Auto`                            | Also monitor IPv6, see below (`Auto`, `On`, `Off`) |
+
+### Password protection
+
+Out of the box anyone who can reach the dashboard can use it, including adding and removing targets and
+starting tests. On a shared network, set a password: every page and API call then needs a signed-in
+session (or the API token), and a **Sign out** button appears in the top bar. Only the sign-in page,
+static files and `/healthz` stay open.
+
+Create a hash, so the configuration never holds the password itself:
+
+```bash
+./NetPulse.Web hash-password                                  # release archive: asks twice, prints the hash
+dotnet run --project src/NetPulse.Web -- hash-password        # from source
+docker run --rm -it netpulse hash-password                    # Docker
+```
+
+| Key (`NetPulse:Auth`) | Default | Description |
+|-----------------------|---------|-------------|
+| `Password`            | empty   | The `pbkdf2-sha256$…` hash printed above (a plain password works too, but is stored in clear). Empty = no sign-in |
+| `ApiToken`            | empty   | Optional long random token for scripts, Prometheus and Home Assistant: `Authorization: Bearer <token>` on `/api/*` and `/metrics` |
+| `SessionDays`         | `30`    | A session lasts this long since the last visit |
+
+For example `NetPulse__Auth__Password='pbkdf2-sha256$600000$…'` (single quotes keep the `$` signs). After
+five wrong passwords from the same address, sign-in is refused for 15 minutes. NetPulse speaks plain HTTP:
+outside your home network, put it behind a reverse proxy with HTTPS (Caddy, Traefik, nginx).
 
 ### Data retention
 
@@ -145,6 +174,8 @@ the database size.
 | Target                     | Measures                                                                     |
 |----------------------------|------------------------------------------------------------------------------|
 | `1.1.1.1`, `my-nas`        | **Ping** (ICMP echo) round-trip time                                         |
+| `2606:4700:4700::1111`, `gateway6` | **Ping over IPv6**: an IPv6 address, or the IPv6 default router      |
+| `ping6:example.com`, `ping4:example.com` | **Ping** a host name over IPv6 (or IPv4) only, whatever the system would prefer |
 | `dns:example.com`          | **DNS**: time for the system's DNS server (usually your router) to answer an A query for the name |
 | `dns:example.com@1.1.1.1`  | **DNS** against a specific server, e.g. to compare your ISP's resolver with a public one |
 | `https://example.com/`     | **HTTP**: a GET on a fresh connection until the response headers arrive (DNS + TCP + TLS + server time), like a browser's first visit; any status below 500 counts as up |
@@ -153,8 +184,22 @@ All types share the same charts, statistics, outage detection and reports. The q
 that fits each type (an HTTPS request at 200 ms is fine, a ping at 200 ms is not). DNS queries go straight
 to the server, so the operating system's cache does not hide a slow resolver; on Linux with systemd-resolved
 the "system" server can be the local stub (`127.0.0.53`), so name a server explicitly to bypass it.
+On a network with IPv6, the dashboard tags every card with its IP version.
 HTTP targets are requested every `IntervalSeconds`: point them at sites you own or that expect monitoring
 traffic, or raise the interval.
+
+### IPv6
+
+Many connections are dual-stack, and IPv6 can break on its own: the router loses its prefix, the ISP's
+IPv6 path is down while IPv4 works, or the other way round. With `Ipv6` on `Auto` (the default), when this
+machine has a global IPv6 address at startup NetPulse adds three targets next to yours: `gateway6` (the
+IPv6 router), `2606:4700:4700::1111` (Cloudflare) and `2001:4860:4860::8888` (Google). `On` always adds
+them, `Off` never does, and nothing is added if your `Targets` already contain an IPv6 target.
+
+Outages are classified per IP version: when both IPv6 hosts are down while the IPv4 ones answer, the
+outage is reported as an Internet outage of the IPv6 path, not as two single-host problems.
+
+> Docker's default bridge network has no IPv6: use `--network host` (Linux) to monitor it.
 
 ### Custom targets
 
@@ -386,6 +431,7 @@ scrape_configs:
     scrape_interval: 30s
     static_configs:
       - targets: ["netpulse-host:5080"]
+    # With a dashboard password, also: authorization: { credentials: "<ApiToken>" }
 ```
 
 ## API
@@ -416,6 +462,9 @@ scrape_configs:
 | `GET /api/loadtest`                      | Sender run state and receiver status |
 | `POST /api/loadtest/start` `{"protocol":"Tcp","host":"...","port":5201,"durationSeconds":10,"targetMbps":0,"parallelStreams":4}` | Start a load test |
 | `POST /api/loadtest/stop`                | Stop the current load test |
+
+When a password is set, API calls need the session cookie or `Authorization: Bearer <ApiToken>`;
+without either they get `401`.
 
 `minutes` defaults to 15 and is clamped between 1 minute and 7 days. Reports and exports take either
 `days` (default 30, at most 366) or `from` and `to` as dates (`yyyy-MM-dd`, both inclusive, whole days in

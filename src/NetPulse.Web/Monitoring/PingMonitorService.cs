@@ -27,6 +27,8 @@ public sealed class PingMonitorService(
 {
     private CancellationToken _stopping;
 
+    private readonly HashSet<string> _missingGateways = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly OutageTracker _tracker = new(Math.Max(1, outageOptions.Value.ConsecutiveLosses));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -112,16 +114,25 @@ public sealed class PingMonitorService(
     /// <summary>Parses a target and replaces "gateway" with the current default router; null to skip it.</summary>
     private ProbeTarget? Resolve(string target)
     {
-        if (string.Equals(target, MonitorOptions.GatewayTarget, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(target, ProbeTarget.Gateway4, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(target, ProbeTarget.Gateway6, StringComparison.OrdinalIgnoreCase))
         {
-            var gateway = GatewayResolver.GetDefaultGateway();
+            var ipv6 = string.Equals(target, ProbeTarget.Gateway6, StringComparison.OrdinalIgnoreCase);
+            var gateway = GatewayResolver.GetDefaultGateway(
+                ipv6 ? System.Net.Sockets.AddressFamily.InterNetworkV6 : System.Net.Sockets.AddressFamily.InterNetwork);
             if (gateway is null)
             {
-                logger.LogWarning("No default gateway found, skipping gateway target");
+                // Logged once: a network without IPv6 would otherwise warn every cycle.
+                if (_missingGateways.Add(target))
+                {
+                    logger.LogWarning("No default {Family} gateway found, skipping {Target}", ipv6 ? "IPv6" : "IPv4", target);
+                }
+
                 return null;
             }
 
-            return ProbeTarget.Ping(MonitorOptions.GatewayTarget, gateway.ToString());
+            _missingGateways.Remove(target);
+            return ProbeTarget.Ping(target.ToLowerInvariant(), gateway.ToString());
         }
 
         if (!ProbeTarget.TryParse(target, out var parsed, out var error))

@@ -22,10 +22,19 @@ using NetPulse.Web.Monitoring;
 using NetPulse.Web.Notifications;
 using NetPulse.Web.Reports;
 using NetPulse.Web.Retention;
+using NetPulse.Web.Security;
 using NetPulse.Web.SpeedTest;
 using NetPulse.Web.Storage;
 
+if (args is [HashPasswordCommand.Name, ..])
+{
+    return HashPasswordCommand.Run();
+}
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Optional dashboard password (NetPulse:Auth); off unless configured.
+builder.AddDashboardAuth();
 
 builder.Services.Configure<MonitorOptions>(builder.Configuration.GetSection(MonitorOptions.SectionName));
 
@@ -65,7 +74,8 @@ builder.Services.AddSingleton(sp =>
         new ProbeTimeouts(
             TimeSpan.FromMilliseconds(Math.Max(100, options.TimeoutMs)),
             TimeSpan.FromMilliseconds(Math.Max(100, options.DnsTimeoutMs)),
-            TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))));
+            TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))),
+        new SystemHostResolver());
 });
 builder.Services.AddSingleton<ISampleStore>(sp =>
     new SqliteSampleStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
@@ -74,8 +84,9 @@ builder.Services.AddSingleton<ITargetStore>(sp =>
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<IOptions<MonitorOptions>>().Value;
+    // IPv6 next to IPv4: the IPv6 router and public hosts are added when the network has IPv6.
     return new TargetManager(
-        options.EffectiveTargets,
+        Ipv6Defaults.Apply(options.EffectiveTargets, options.Ipv6, GatewayResolver.HasGlobalIpv6Address()),
         sp.GetRequiredService<ITargetStore>(),
         sp.GetRequiredService<ISampleStore>(),
         Math.Max(0, options.MaxCustomTargets));
@@ -182,12 +193,15 @@ await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
 await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
 await app.Services.GetRequiredService<ILinkStore>().InitializeAsync();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
+app.MapDashboardAuth();
 
 // --- REST API -------------------------------------------------------------
 
-app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/healthz").AllowAnonymous();
 
 // Prometheus metrics (Grafana, Home Assistant): current state, latency stats over the last 5 minutes.
 app.MapGet("/metrics", async (
@@ -230,6 +244,12 @@ api.MapGet("/stats", async (ISampleStore store, int minutes = 15) =>
             {
                 target = g.Key,
                 kind = ProbeTarget.KindOf(g.Key).ToString().ToLowerInvariant(),
+                family = ProbeTarget.FamilyOf(g.Key) switch
+                {
+                    IpFamily.IPv4 => "ipv4",
+                    IpFamily.IPv6 => "ipv6",
+                    _ => null,
+                },
                 quality = s.Rate(QualityThresholds.ForTarget(g.Key)).ToString(),
                 stats = s,
             };
@@ -444,12 +464,13 @@ app.MapGet("/theme/{id}", (HttpContext http, string id, string? returnUrl) =>
         SameSite = SameSiteMode.Lax,
     });
     return Results.Redirect(ThemeCatalog.SafeReturnPath(returnUrl));
-}).ExcludeFromDescription();
+}).AllowAnonymous().ExcludeFromDescription();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+return 0;
 
 // Streams a CSV download named e.g. "netpulse-samples-2026-10-14_2026-11-13.csv".
 static IResult CsvDownload(HttpContext http, string? from, string? to, int? days, string name,

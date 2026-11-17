@@ -25,7 +25,7 @@
 
     <form class="add-target" @onsubmit="AddAsync">
         <input type="text" @bind="_input" @bind:event="oninput" maxlength="@TargetName.MaxInputLength"
-               placeholder="IP or host to ping, dns:example.com, or https://example.com"
+               placeholder="IP or host to ping, ping6:example.com, dns:example.com, or https://example.com"
                aria-label="New target" autocomplete="off" spellcheck="false" />
         <button type="submit" disabled="@(_busy || string.IsNullOrWhiteSpace(_input))">Add</button>
     </form>

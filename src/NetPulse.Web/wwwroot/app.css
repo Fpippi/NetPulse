@@ -198,6 +198,26 @@ button.primary:disabled { opacity: .45; cursor: default; }
     .theme-picker .label { display: none; }
 }
 
+/* Sign-out: same frame as the theme picker next to it. */
+.sign-out { margin: 0; }
+
+.sign-out button {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .3rem .45rem;
+    line-height: 0;
+    cursor: pointer;
+}
+
+.sign-out svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
+
+.sign-out button:hover { color: var(--text); border-color: var(--accent); }
+
+/* Sign-in page: one narrow card. */
+main.login { max-width: 28rem; padding-top: 3rem; }
+
 /* --- Layout and cards --------------------------------------------------- */
 
 main {
@@ -249,6 +269,9 @@ main > * { min-width: 0; }
     font-weight: 400;
     color: var(--muted);
 }
+
+/* IP version next to a target name when IPv4 and IPv6 are both monitored. */
+.card-head h2 small.family { font-family: var(--font-num); letter-spacing: .06em; }
 
 /* Status read-out: a coloured square and a word, no pill. */
 .badge {

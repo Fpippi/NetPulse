@@ -11,7 +11,8 @@ namespace NetPulse.Core.Probing;
 /// <remarks>
 /// Accepted forms:
 /// <list type="bullet">
-/// <item><c>1.1.1.1</c>, <c>example.com</c> — ping.</item>
+/// <item><c>1.1.1.1</c>, <c>2606:4700:4700::1111</c>, <c>example.com</c> — ping.</item>
+/// <item><c>ping6:example.com</c>, <c>ping4:example.com</c> — ping a host name over IPv6 or IPv4 only.</item>
 /// <item><c>dns:example.com</c> — resolve the name with the system's DNS server;
 ///   <c>dns:example.com@1.1.1.1</c> — with a specific server.</item>
 /// <item><c>https://example.com/</c>, <c>http://192.168.1.1/</c> — HTTP request.</item>
@@ -22,15 +23,53 @@ namespace NetPulse.Core.Probing;
 /// <param name="Host">Host to ping, name to resolve, or host of the URL.</param>
 /// <param name="DnsServer">DNS server to ask (DNS targets only); null means the system's server.</param>
 /// <param name="Url">URL to request (HTTP targets only).</param>
-public sealed record ProbeTarget(string Name, ProbeKind Kind, string Host, IPAddress? DnsServer = null, Uri? Url = null)
+/// <param name="Family">IP version to ping a host name over (<c>ping4:</c> / <c>ping6:</c>); Any otherwise.</param>
+public sealed record ProbeTarget(
+    string Name, ProbeKind Kind, string Host, IPAddress? DnsServer = null, Uri? Url = null, IpFamily Family = IpFamily.Any)
 {
     public const string DnsPrefix = "dns:";
+    public const string Ping4Prefix = "ping4:";
+    public const string Ping6Prefix = "ping6:";
+
+    /// <summary>Special targets resolved at runtime to the default IPv4 / IPv6 router.</summary>
+    public const string Gateway4 = "gateway";
+    public const string Gateway6 = "gateway6";
 
     /// <summary>Longest accepted URL, to keep target names readable and storage bounded.</summary>
     public const int MaxUrlLength = 512;
 
     /// <summary>A ping target for an already resolved address (used for the gateway).</summary>
     public static ProbeTarget Ping(string name, string host) => new(name, ProbeKind.Ping, host);
+
+    /// <summary>
+    /// Cheap classification of a (valid) target name by IP version: literal addresses, <c>ping4:</c> /
+    /// <c>ping6:</c>, the two gateways, URLs and DNS servers written as addresses. Host names are Any.
+    /// </summary>
+    public static IpFamily FamilyOf(string name)
+    {
+        if (string.Equals(name, Gateway6, StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith(Ping6Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return IpFamily.IPv6;
+        }
+
+        if (string.Equals(name, Gateway4, StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith(Ping4Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return IpFamily.IPv4;
+        }
+
+        var host = KindOf(name) switch
+        {
+            ProbeKind.Dns => name[(name.LastIndexOf('@') + 1)..],
+            ProbeKind.Http => Uri.TryCreate(name, UriKind.Absolute, out var uri) ? uri.Host.Trim('[', ']') : string.Empty,
+            _ => name,
+        };
+
+        return IPAddress.TryParse(host, out var ip) && (host.Contains(':') || host.Count(c => c == '.') == 3)
+            ? ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? IpFamily.IPv6 : IpFamily.IPv4
+            : IpFamily.Any;
+    }
 
     /// <summary>Cheap classification of a (valid) target name, e.g. to pick quality thresholds.</summary>
     public static ProbeKind KindOf(string name) =>
@@ -58,12 +97,32 @@ public sealed record ProbeTarget(string Name, ProbeKind Kind, string Host, IPAdd
     private static bool TryParsePing(string value, out ProbeTarget target, out string? error)
     {
         target = null!;
-        if (!TargetName.TryNormalizeHost(value, out var host, out error))
+        var family = value.StartsWith(Ping6Prefix, StringComparison.OrdinalIgnoreCase) ? IpFamily.IPv6
+            : value.StartsWith(Ping4Prefix, StringComparison.OrdinalIgnoreCase) ? IpFamily.IPv4
+            : IpFamily.Any;
+
+        if (family == IpFamily.Any)
         {
+            if (!TargetName.TryNormalizeHost(value, out var plain, out error))
+            {
+                return false;
+            }
+
+            target = new ProbeTarget(plain, ProbeKind.Ping, plain, Family: FamilyOf(plain));
+            return true;
+        }
+
+        var prefix = family == IpFamily.IPv6 ? Ping6Prefix : Ping4Prefix;
+        if (!TargetName.TryNormalizeHost(value[prefix.Length..], out var host, out _)
+            || IPAddress.TryParse(host, out _)
+            || host is Gateway4 or Gateway6)
+        {
+            error = $"'{value}': write a host name after '{prefix}', e.g. {prefix}example.com (addresses need no prefix).";
             return false;
         }
 
-        target = new ProbeTarget(host, ProbeKind.Ping, host);
+        target = new ProbeTarget(prefix + host, ProbeKind.Ping, host, Family: family);
+        error = null;
         return true;
     }
 

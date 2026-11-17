@@ -1,0 +1,57 @@
+@page "/login"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@using Microsoft.Extensions.Options
+@using NetPulse.Web.Security
+@inject IOptions<AuthOptions> Auth
+@inject NavigationManager Navigation
+
+@* Rendered statically (see App.razor): a plain form, no JavaScript, posted to /auth/login. *@
+<PageTitle>Sign in · NetPulse</PageTitle>
+
+<AppHeader Minimal="true" />
+
+<main class="login">
+    <section class="card">
+        <div class="card-head">
+            <h2>Sign in</h2>
+        </div>
+
+        <form class="add-target" method="post" action="auth/login">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@ThemeCatalog.SafeReturnPath(ReturnUrl)" />
+            @* Lets password managers file the password under a name. *@
+            <input type="text" name="username" value="netpulse" autocomplete="username" hidden />
+            <input type="password" name="password" placeholder="Password" aria-label="Password"
+                   autocomplete="current-password" required autofocus />
+            <button type="submit">Sign in</button>
+        </form>
+
+        @if (Message is { } message)
+        {
+            <p class="error" role="alert">@message</p>
+        }
+    </section>
+</main>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? Error { get; set; }
+
+    private string? Message => Error switch
+    {
+        "wrong" => "Wrong password.",
+        "wait" => "Too many attempts. Try again in a few minutes.",
+        _ => null,
+    };
+
+    protected override void OnInitialized()
+    {
+        if (!Auth.Value.Enabled)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+}

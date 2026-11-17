@@ -21,5 +21,11 @@ public sealed class IcmpPingProbe : IPingProbe
         {
             return PingResult.Failed(ex.InnerException?.Message ?? ex.Message);
         }
+        catch (NotSupportedException)
+        {
+            // An IPv6 target on a machine without IPv6 (or the other way round): a lost probe, not a crash
+            // that would take the whole monitoring cycle down with it.
+            return PingResult.Failed("This IP version is not available on this machine");
+        }
     }
 }
