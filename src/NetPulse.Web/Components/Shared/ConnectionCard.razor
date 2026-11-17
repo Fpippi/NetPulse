@@ -1,0 +1,73 @@
+@using NetPulse.Core.Connection
+
+@* How this machine reaches the router: Wi-Fi (with network and signal) or a cable. *@
+<section class="card connection">
+    <div class="card-head">
+        <h2>Connection</h2>
+        @if (Link is { Type: LinkType.WiFi } wifi && wifi.SignalDbm is not null)
+        {
+            <span class="badge @wifi.SignalQuality.ToString().ToLowerInvariant()">Signal @wifi.SignalQuality</span>
+        }
+        else
+        {
+            <span class="hint">@Hint</span>
+        }
+    </div>
+
+    @if (Link is null)
+    {
+        <p class="empty">Checking the network link…</p>
+    }
+    else
+    {
+        <dl class="stats">
+            <div><dt>Link</dt><dd>@Link.TypeLabel</dd></div>
+            @if (Link.Type == LinkType.WiFi)
+            {
+                <div><dt>Network</dt><dd class="text">@(Link.Ssid ?? "–")</dd></div>
+                <div>
+                    <dt>Signal</dt>
+                    <dd>
+                        @if (Link.SignalDbm is { } dbm)
+                        {
+                            @dbm.ToString(CultureInfo.InvariantCulture)<span class="unit">dBm</span>
+                        }
+                        else
+                        {
+                            @("–")
+                        }
+                    </dd>
+                </div>
+            }
+            <div>
+                <dt>Speed</dt>
+                <dd>
+                    @if (Link.SpeedMbps is { } speed)
+                    {
+                        @speed.ToString("0", CultureInfo.InvariantCulture)<span class="unit">Mbps</span>
+                    }
+                    else
+                    {
+                        @("–")
+                    }
+                </dd>
+            </div>
+            <div><dt>Interface</dt><dd class="text">@(string.IsNullOrEmpty(Link.Interface) ? "–" : Link.Interface)</dd></div>
+        </dl>
+    }
+</section>
+
+@code {
+    /// <summary>The latest reading of the link monitor; null before the first one.</summary>
+    [Parameter]
+    public LinkInfo? Link { get; set; }
+
+    private string Hint => Link?.Type switch
+    {
+        LinkType.Wired => "Cable: Wi-Fi is ruled out",
+        LinkType.WiFi => "Wi-Fi",
+        LinkType.Unknown when string.IsNullOrEmpty(Link?.Interface) => "No default route",
+        LinkType.Unknown => "Link type unknown (virtual interface?)",
+        _ => string.Empty,
+    };
+}
