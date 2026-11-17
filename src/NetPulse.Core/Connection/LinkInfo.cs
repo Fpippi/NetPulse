@@ -48,3 +48,26 @@ public sealed record LinkInfo(string Interface, LinkType Type, string? Ssid = nu
 
 /// <summary>A <see cref="LinkInfo"/> recorded at a point in time.</summary>
 public sealed record LinkSample(DateTimeOffset Timestamp, LinkInfo Link);
+
+/// <summary>Turns the link speed reported by the system into Mbps, dropping placeholder values.</summary>
+public static class LinkSpeed
+{
+    /// <summary>Nothing a home network negotiates comes close to 1 Tbit/s.</summary>
+    private const double MaxPlausibleMbps = 1_000_000;
+
+    /// <summary>
+    /// Mbps, or null when the speed is unknown. Linux reports an unknown speed (virtual interfaces,
+    /// some Wi-Fi drivers) as -1 in <c>/sys/class/net/X/speed</c>, which .NET reads as
+    /// 4,294,967,295 Mbps; that and other implausible values become null.
+    /// </summary>
+    public static double? FromBitsPerSecond(long bitsPerSecond)
+    {
+        if (bitsPerSecond <= 0)
+        {
+            return null;
+        }
+
+        var mbps = bitsPerSecond / 1_000_000d;
+        return mbps < MaxPlausibleMbps ? mbps : null;
+    }
+}

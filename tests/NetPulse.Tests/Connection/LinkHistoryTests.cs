@@ -99,4 +99,15 @@ public class LinkHistoryTests
 
         Assert.That(LinkDiagnosis.LocalOnWifi(outages, history), Is.EqualTo(1));
     }
+
+    [TestCase(1_000_000_000L, 1000d)]
+    [TestCase(866_700_000L, 866.7d)]
+    public void Link_speed_in_mbps(long bitsPerSecond, double mbps) =>
+        Assert.That(LinkSpeed.FromBitsPerSecond(bitsPerSecond), Is.EqualTo(mbps).Within(1e-9));
+
+    [TestCase(0L)]
+    [TestCase(-1L)]
+    [TestCase(4_294_967_295_000_000L)]
+    public void Unknown_link_speeds_are_null(long bitsPerSecond) =>
+        Assert.That(LinkSpeed.FromBitsPerSecond(bitsPerSecond), Is.Null);
 }
