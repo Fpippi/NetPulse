@@ -4,6 +4,7 @@
 @using NetPulse.Core.Targets
 @inject ISampleStore Store
 @inject TargetManager Targets
+@inject NetPulse.Web.Connection.LinkMonitor Link
 
 <PageTitle>NetPulse</PageTitle>
 
@@ -19,6 +20,8 @@
 </AppHeader>
 
 <main>
+    <ConnectionCard Link="Link.Current" />
+
     <TargetEditor OnChanged="LoadAsync" />
 
     @if (_series.Count == 0)

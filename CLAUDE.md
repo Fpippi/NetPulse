@@ -57,6 +57,10 @@ docker build -t netpulse .                 # container image
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets),
     `Ipv6Defaults` (adds `gateway6` + public IPv6 hosts per `Ipv6Mode`). `OutageClassifier` compares IPv6
     targets only with IPv6 targets and `gateway6`.
+  - `Connection/` — `LinkInfo` (`LinkType` Wired/WiFi/Unknown, SSID, signal dBm, speed), `WifiSignal` (rating,
+    Windows % → dBm), `WirelessParsers` (`/proc/net/wireless`, `iw dev X link`, `netsh wlan` in any language),
+    `LinkHistory` (link at a moment), `LinkDiagnosis` (Wi-Fi vs router vs ISP hint for an outage).
+  - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
     (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
@@ -75,6 +79,9 @@ docker build -t netpulse .                 # container image
   - `Notifications/` — `NotificationOptions`, `NotificationChannels` (builds the configured ones), `EmailChannel`
     (SMTP), `NotificationDispatcher` (publisher + `BackgroundService`: batches, delivers, retries; test endpoint).
     Published from `PingMonitorService`, `LanDiscovery` and `SpeedTestRunner`.
+  - `Connection/LinkDetector` (default-route interface, `/sys`, `iw`, `netsh`) + `LinkMonitor` (`BackgroundService`,
+    every 30 s, stores a `link_samples` row a minute via `Storage/SqliteLinkStore`); `Shared/ConnectionCard` on `/`,
+    Connection column on `/outages` and in the report.
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
