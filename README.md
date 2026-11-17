@@ -255,6 +255,8 @@ lists the latest checks of every device live (kept in memory until NetPulse rest
 If the page does not open on the phone at all, the phone cannot reach the computer: that already says the
 problem is the Wi-Fi or the router. NetPulse must listen on the network (`--urls http://0.0.0.0:5080`, the
 default in Docker); when it only listens on `localhost` the page says so instead of showing a code.
+In Docker on the default bridge network the container only knows its own internal address, so use
+`--network host` (Linux) or set `ClientCheck:Url` to the host's address.
 With a password, the phone signs in once and goes straight back to the check.
 
 ```json
