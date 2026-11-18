@@ -907,3 +907,29 @@ details.trace summary { cursor: pointer; }
 details.trace ol { margin: .4rem 0 0; padding-left: 1.6rem; font-variant-numeric: tabular-nums; }
 details.trace li { margin: .1rem 0; }
 details.trace li .hint { margin-left: .4rem; }
+
+/* Watched devices (Devices page) */
+.name-cell .watch {
+    background: none;
+    border: 0;
+    padding: .1rem .25rem;
+    color: var(--faint);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.name-cell .watch svg { fill: none; stroke: currentColor; stroke-width: 1.4; }
+.name-cell .watch:hover { color: var(--text); }
+.name-cell .watch.on { color: var(--accent); }
+.name-cell .watch.on circle { fill: currentColor; }
+
+.watched .card-head .windows button { padding: .2rem .55rem; }
+
+.watched-device { padding: .75rem 0; border-top: 1px solid var(--border); }
+.watched-device h3 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: .5rem; }
+.watched-device .dot:not(.online):not(.offline) { background: var(--faint); }
+.watched-summary { margin: .35rem 0 0; }
+.watched-pattern { margin: .35rem 0 0; color: var(--fair-text); }
+.poor-text { color: var(--poor-text); }
+.watched-device .events { margin-top: .5rem; }
+.watched-device .dot.offline { background: var(--poor); }

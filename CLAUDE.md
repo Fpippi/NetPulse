@@ -77,6 +77,9 @@ docker build -t netpulse .                 # container image
   - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
   - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; CSV endpoints in `Program.cs`.
   - `Discovery/LanDiscovery` + `LanDiscoveryService` — runs scans (periodic and "Scan now").
+    `Discovery/DeviceWatchService` pings watched devices (`Storage/SqliteDeviceWatchStore`: `watched_devices`,
+    `device_absences`) via Core `PresenceTracker` (wraps `OutageTracker`); `Shared/WatchedDevices` card on
+    `/devices` (reuses `OutageTimeline`), `AbsencePattern` finds the busiest two-hour window.
   - `LoadTest/` — `LoadTestReceiver` (opt-in `BackgroundService`, disabled by default; the target/agent),
     `LoadTestClient` (sender), `LoadTestManager` (orchestrates one run, live samples + `Changed` event).
   - `Notifications/` — `NotificationOptions`, `NotificationChannels` (builds the configured ones), `EmailChannel`

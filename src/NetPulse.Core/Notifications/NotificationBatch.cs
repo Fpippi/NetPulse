@@ -38,6 +38,8 @@ public static class NotificationBatch
         NotificationKind.NewDevice => $"{items.Count} new devices",
         NotificationKind.DeviceOffline => $"{items.Count} devices went offline",
         NotificationKind.DeviceOnline => $"{items.Count} devices are back online",
+        NotificationKind.WatchedDeviceLeft => $"{items.Count} watched devices dropped off",
+        NotificationKind.WatchedDeviceBack => $"{items.Count} watched devices are back",
         _ => $"{items.Count} network events",
     };
 }

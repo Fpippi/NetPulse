@@ -8,6 +8,12 @@ public enum NotificationKind
     NewDevice,
     DeviceOffline,
     DeviceOnline,
+
+    /// <summary>A device on the watch list stopped answering pings.</summary>
+    WatchedDeviceLeft,
+
+    /// <summary>A device on the watch list answers again.</summary>
+    WatchedDeviceBack,
     SpeedTest,
     Test,
 }
