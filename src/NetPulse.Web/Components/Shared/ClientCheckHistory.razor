@@ -1,0 +1,68 @@
+@implements IDisposable
+@using NetPulse.Core.ClientCheck
+@inject ClientCheckLog Log
+
+@* Checks run from other devices, newest first: the computer shows what the phone found, live. *@
+<section class="card check-history">
+    <div class="card-head">
+        <h2>Recent checks</h2>
+        <span class="hint">since NetPulse started</span>
+    </div>
+
+    @if (_entries.Count == 0)
+    {
+        <p class="empty">No checks yet. Results from every device show up here.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="devices">
+                <thead>
+                    <tr>
+                        <th scope="col">Time</th>
+                        <th scope="col">Device</th>
+                        <th scope="col">Result</th>
+                        <th scope="col">Median</th>
+                        <th scope="col">Loss</th>
+                        <th scope="col">Down / up</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in _entries)
+                    {
+                        <tr>
+                            <td class="mono">@e.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</td>
+                            <td>@(e.DeviceName ?? e.Client) <span class="hint mono">@(e.DeviceName is null ? null : e.Client)</span></td>
+                            <td class="name-cell"><span class="badge @e.Report.Severity.ToString().ToLowerInvariant()" title="@e.Report.Headline">@e.Report.Label</span></td>
+                            <td class="mono">@Number(e.Report.MedianMs, "0", " ms")</td>
+                            <td class="mono">@e.Report.Link.LossPercent.ToString("0.#", CultureInfo.InvariantCulture) %</td>
+                            <td class="mono">@Number(e.Report.DownloadMbps, "0", null) / @Number(e.Report.UploadMbps, "0", " Mbps")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<ClientCheckEntry> _entries = [];
+
+    protected override void OnInitialized()
+    {
+        _entries = Log.Recent;
+        Log.Changed += OnChanged;
+    }
+
+    private void OnChanged() =>
+        _ = InvokeAsync(() =>
+        {
+            _entries = Log.Recent;
+            StateHasChanged();
+        });
+
+    private static string Number(double? value, string format, string? unit) =>
+        value is { } v ? v.ToString(format, CultureInfo.InvariantCulture) + unit : "–";
+
+    public void Dispose() => Log.Changed -= OnChanged;
+}

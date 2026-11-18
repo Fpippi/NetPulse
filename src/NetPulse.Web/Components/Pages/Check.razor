@@ -1,0 +1,131 @@
+@page "/check"
+@using Microsoft.AspNetCore.Hosting.Server
+@using Microsoft.Extensions.Options
+@using NetPulse.Core.ClientCheck
+@using NetPulse.Core.Discovery
+@using NetPulse.Core.Qr
+@using NetPulse.Web.ClientCheck
+@inject IServer Server
+@inject IOptions<ClientCheckOptions> Options
+@inject ILanDeviceStore Devices
+
+@*
+    Rendered statically (see App.razor) with a small script: the measurements have to run in the
+    browser of the device being tested, and a Blazor circuit would add its own traffic and drop
+    with the Wi-Fi it is measuring. The list of recent checks is an interactive island.
+*@
+<PageTitle>Check · NetPulse</PageTitle>
+
+<AppHeader />
+
+<main class="check">
+    <section class="card check-run" id="client-check"
+             data-router="@(Options.Value.CheckRouter ? _gateway : null)"
+             data-internet="@Options.Value.InternetCheckUrl">
+        <div class="card-head">
+            <h2>Test this connection</h2>
+            <span class="hint mono">@_client@(_deviceName is null ? null : $" · {_deviceName}")</span>
+        </div>
+
+        @if (_isLocal)
+        {
+            <p class="card-note">
+                You are on the NetPulse computer, so this measures the computer itself.
+                Scan the code with your phone to test the phone's Wi-Fi instead.
+            </p>
+        }
+        else
+        {
+            <p class="card-note">
+                Measures this device's link to NetPulse (one hop over the Wi-Fi), then whether it reaches
+                the router and the Internet, and tells you where the problem is. It takes about 15 seconds.
+            </p>
+        }
+
+        <noscript><p class="error">The check runs in the browser and needs JavaScript.</p></noscript>
+
+        <button type="button" class="primary" data-action="start">Start the check</button>
+
+        <ol class="check-steps">
+            <li data-step="latency"><span>Round trips to NetPulse</span><output>–</output></li>
+            <li data-step="download"><span>Download from NetPulse</span><output>–</output></li>
+            <li data-step="upload"><span>Upload to NetPulse</span><output>–</output></li>
+            <li data-step="router"><span>Router @_gateway</span><output>@(Options.Value.CheckRouter && _gateway is not null ? "–" : "skipped")</output></li>
+            <li data-step="internet"><span>Internet</span><output>@(string.IsNullOrWhiteSpace(Options.Value.InternetCheckUrl) ? "skipped" : "–")</output></li>
+        </ol>
+
+        <div class="verdict" data-verdict hidden aria-live="polite">
+            <p class="verdict-head"><span class="badge" data-quality></span> <strong data-headline></strong></p>
+            <ul data-advice></ul>
+        </div>
+        <p class="error" data-error role="alert" hidden></p>
+    </section>
+
+    <section class="card check-qr">
+        <div class="card-head">
+            <h2>Open on your phone</h2>
+        </div>
+
+        @if (_qr is not null && _lanUrl.Url is { } url)
+        {
+            <a class="qr" href="@url" target="_top" aria-label="QR code for @url">
+                <svg viewBox="@QrSvg.ViewBox(_qr)" shape-rendering="crispEdges" role="img">
+                    <rect width="100%" height="100%" fill="#fff" />
+                    <path d="@QrSvg.PathData(_qr)" fill="#000" />
+                </svg>
+            </a>
+            <p class="qr-url mono">@url</p>
+            <p class="hint">
+                Point the phone's camera at the code; the phone must be on the same Wi-Fi.
+                If the page does not open at all, the phone cannot reach this computer: the problem is
+                the Wi-Fi or the router, not the Internet.
+            </p>
+        }
+        else if (_lanUrl.Problem == LanUrlProblem.LoopbackOnly)
+        {
+            <p class="error">NetPulse only listens on this computer (localhost), so a phone cannot open it.</p>
+            <p class="hint">
+                Start it with <code>--urls http://0.0.0.0:5080</code> (or set <code>ASPNETCORE_URLS</code>),
+                then reload this page. On Windows, allow the app through the firewall when asked.
+            </p>
+        }
+        else
+        {
+            <p class="error">This computer has no address on a local network, so there is nothing for a phone to open.</p>
+            <p class="hint">Set <code>NetPulse:ClientCheck:Url</code> if NetPulse is reached through another address.</p>
+        }
+    </section>
+
+    <ClientCheckHistory @rendermode="InteractiveServer" />
+</main>
+
+<script src="@Assets["check.js"]" defer></script>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private LanUrlResult _lanUrl = LanUrlResult.Failed(LanUrlProblem.NoLanAddress);
+    private QrCode? _qr;
+    private string? _gateway;
+    private string _client = "unknown";
+    private string? _deviceName;
+    private bool _isLocal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _lanUrl = ClientCheckEndpoints.ResolveLanUrl(Server, Options, "/check");
+        if (_lanUrl.Url is { } url && url.Length <= QrCode.Capacity(QrErrorCorrection.Medium))
+        {
+            _qr = QrCode.Encode(url);
+        }
+
+        _gateway = LocalNetwork.Detect()?.Gateway?.ToString();
+        if (HttpContext is not null)
+        {
+            _client = ClientCheckEndpoints.ClientAddress(HttpContext);
+            _isLocal = ClientCheckEndpoints.IsLocal(HttpContext);
+            _deviceName = await ClientCheckEndpoints.DeviceNameAsync(Devices, _client);
+        }
+    }
+}

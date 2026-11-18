@@ -44,6 +44,9 @@ or your ISP.
   networks, and outages are classified per IP version
 - **Wi-Fi or cable**: shows how the machine reaches the router (Wi-Fi network and signal, or wired) and, for
   every outage, the link it happened on, to tell Wi-Fi problems apart from router and ISP problems
+- **Check from your phone**: scan a QR code on the dashboard and test the phone's own connection (latency,
+  loss and speed to NetPulse, then the router and the Internet); it says whether the problem is the Wi-Fi,
+  the router, the provider or the phone itself
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
@@ -231,6 +234,42 @@ and the ISP report show, for each outage, how the machine was connected when it 
 In Docker on the default bridge network the container only sees a virtual interface, so the link type is
 *Unknown*: use `--network host` (Linux). History of the link follows `RetentionDays` of the samples.
 `GET /api/link?hours=24` returns the current link and its recent history.
+
+### Check from your phone
+
+NetPulse measures the connection of the machine it runs on. When it is the phone that says "connected,
+no Internet", open the **Check** page on the computer and scan the QR code with the phone (the code is
+generated locally and points to the computer's LAN address, e.g. `http://192.168.1.10:5080/check`).
+On the phone, **Start the check** measures, in about 15 seconds:
+
+1. 30 round trips to NetPulse (median, jitter, loss): one hop over the Wi-Fi, so anything slow or lost
+   here is the Wi-Fi itself;
+2. download and upload speed between the phone and NetPulse;
+3. whether the phone reaches the router (it loads the router's address; browsers cannot ping);
+4. whether the phone reaches the Internet (it loads `InternetCheckUrl`, nothing is read from it).
+
+NetPulse adds what it knows itself (whether *it* is online right now) and answers with one verdict:
+bad or weak Wi-Fi, the phone dropped off, the phone cannot reach the router, the Internet is down for
+everyone, only the phone has no Internet, or all good, with what to try next. The computer's Check page
+lists the latest checks of every device live (kept in memory until NetPulse restarts).
+
+If the page does not open on the phone at all, the phone cannot reach the computer: that already says the
+problem is the Wi-Fi or the router. NetPulse must listen on the network (`--urls http://0.0.0.0:5080`, the
+default in Docker); when it only listens on `localhost` the page says so instead of showing a code.
+In Docker on the default bridge network the container only knows its own internal address, so use
+`--network host` (Linux) or set `ClientCheck:Url` to the host's address.
+With a password, the phone signs in once and goes straight back to the check.
+
+```json
+"ClientCheck": {
+  "Url": "",                                            // address for phones, e.g. behind a reverse proxy
+  "InternetCheckUrl": "https://cloudflare.com/cdn-cgi/trace", // empty skips the step
+  "CheckRouter": true
+}
+```
+
+The check page is the only one with a script (`wwwroot/check.js`, no libraries): the measurements have to
+run in the phone's browser.
 
 ### Outages
 
@@ -491,6 +530,9 @@ scrape_configs:
 | `GET /api/devices/watched?days=7`        | Watched devices with their drop-offs, whether they answer now and the time-of-day pattern |
 | `PUT /api/devices/{key}/watch`           | Start watching a device (`DELETE` stops; the history is kept) |
 | `DELETE /api/devices/{key}`              | Forget a device (key = MAC address, or `ip:<address>`) |
+| `GET /api/check/ping`, `GET /api/check/download?bytes=N`, `POST /api/check/upload` | Used by the Check page to measure a device's link (download at most 64 MB, upload 16 MB) |
+| `POST /api/check/result` `{"roundTripsMs":[3.1,null],"downloadMbps":90,"uploadMbps":40,"router":"Reachable","internet":"Unreachable"}` | Verdict for a device's measurements (`null` = lost request) |
+| `GET /api/check/recent`                  | Latest checks from all devices |
 | `GET /api/loadtest`                      | Sender run state and receiver status |
 | `POST /api/loadtest/start` `{"protocol":"Tcp","host":"...","port":5201,"durationSeconds":10,"targetMbps":0,"parallelStreams":4}` | Start a load test |
 | `POST /api/loadtest/stop`                | Stop the current load test |
