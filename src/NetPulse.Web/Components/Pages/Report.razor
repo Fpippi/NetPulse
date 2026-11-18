@@ -15,6 +15,7 @@
 @inject IOptions<SpeedTestOptions> SpeedOptions
 @inject RetentionPolicy Retention
 @inject RetentionStatus RetentionStatus
+@inject ILogger<Report> Logger
 @implements IDisposable
 
 <PageTitle>Report · NetPulse</PageTitle>
@@ -371,6 +372,12 @@
             _report = await Reports.BuildAsync(period, _download, _upload);
             _traces = await Reports.GetTracesAsync(_report);
             _links = new LinkHistory(await LinkStore.GetSinceAsync(period.From - LinkHistory.MaxAge));
+        }
+        catch (Exception ex)
+        {
+            // An unhandled exception would end the circuit and leave a dead Generate button.
+            Logger.LogError(ex, "Could not build the report for {From:yyyy-MM-dd} – {To:yyyy-MM-dd}", period.From, period.To);
+            _error = "Could not build the report. The server log has the details.";
         }
         finally
         {
