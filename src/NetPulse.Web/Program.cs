@@ -133,6 +133,11 @@ builder.Services.AddSingleton<IHostNameResolver>(_ => new CompositeHostNameResol
 builder.Services.AddSingleton<LanScanner>();
 builder.Services.AddSingleton<LanDiscovery>();
 builder.Services.AddHostedService<LanDiscoveryService>();
+// Watched devices: pinged every few seconds, so drop-offs (a phone leaving the Wi-Fi) are recorded to the second.
+builder.Services.AddSingleton<IDeviceWatchStore>(sp =>
+    new SqliteDeviceWatchStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddSingleton<DeviceWatchService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DeviceWatchService>());
 
 // Speed tests against a public endpoint (scheduled + "Run now")
 builder.Services.Configure<SpeedTestOptions>(builder.Configuration.GetSection(SpeedTestOptions.SectionName));
@@ -192,6 +197,7 @@ var app = builder.Build();
 await app.Services.GetRequiredService<ISampleStore>().InitializeAsync();
 await app.Services.GetRequiredService<ITargetStore>().InitializeAsync();
 await app.Services.GetRequiredService<ILanDeviceStore>().InitializeAsync();
+await app.Services.GetRequiredService<IDeviceWatchStore>().InitializeAsync();
 await app.Services.GetRequiredService<IOutageStore>().InitializeAsync();
 await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
 await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
@@ -448,8 +454,48 @@ api.MapPut("/devices/{key}/label", async (ILanDeviceStore devices, string key, S
         : Results.NotFound();
 });
 
-api.MapDelete("/devices/{key}", async (ILanDeviceStore devices, string key) =>
-    await devices.DeleteDeviceAsync(key) ? Results.NoContent() : Results.NotFound());
+api.MapGet("/devices/watched", async (IDeviceWatchStore watch, DeviceWatchService watcher, int days = 7) =>
+{
+    var since = DateTimeOffset.UtcNow.AddDays(-Math.Clamp(days, 1, 366));
+    var absences = await watch.GetAbsencesSinceAsync(since);
+    var replying = watcher.Replying;
+    return Results.Ok((await watch.GetWatchedAsync()).Select(w =>
+    {
+        var own = absences.Where(a => string.Equals(a.DeviceKey, w.Key, StringComparison.OrdinalIgnoreCase)).ToList();
+        return new
+        {
+            w.Key,
+            w.Since,
+            replying = replying.TryGetValue(w.Key, out var r) ? r : (bool?)null,
+            pattern = AbsencePattern.Find(own, TimeZoneInfo.Local)?.Describe(),
+            absences = own.Select(a => new
+            {
+                a.Ip, a.Start, a.End, a.MissedPings, a.IsOngoing,
+                durationSeconds = Math.Round(a.Duration(DateTimeOffset.UtcNow).TotalSeconds),
+            }),
+        };
+    }));
+});
+
+api.MapPut("/devices/{key}/watch", async (ILanDeviceStore devices, IDeviceWatchStore watch, string key) =>
+{
+    if ((await devices.GetDevicesAsync()).All(d => !string.Equals(d.Key, key, StringComparison.OrdinalIgnoreCase)))
+    {
+        return Results.NotFound();
+    }
+
+    await watch.WatchAsync(key, DateTimeOffset.UtcNow);
+    return Results.NoContent();
+});
+
+api.MapDelete("/devices/{key}/watch", async (IDeviceWatchStore watch, string key) =>
+    await watch.UnwatchAsync(key) ? Results.NoContent() : Results.NotFound());
+
+api.MapDelete("/devices/{key}", async (ILanDeviceStore devices, IDeviceWatchStore watch, string key) =>
+{
+    await watch.UnwatchAsync(key);
+    return await devices.DeleteDeviceAsync(key) ? Results.NoContent() : Results.NotFound();
+});
 
 api.MapClientCheck();
 

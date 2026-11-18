@@ -1,0 +1,179 @@
+@implements IDisposable
+@using NetPulse.Core.Discovery
+@using NetPulse.Core.Outages
+@using NetPulse.Web.Discovery
+@inject IDeviceWatchStore WatchStore
+@inject DeviceWatchService Watcher
+
+@*
+    Devices on the watch list: pinged every few seconds, with every drop-off on a timeline and in a
+    list, and a hint when the drops cluster at one time of day.
+*@
+@if (_rows.Count > 0)
+{
+    <section class="card watched">
+        <div class="card-head">
+            <h2>Watched devices</h2>
+            <div class="windows">
+                @foreach (var days in WindowDays)
+                {
+                    <button type="button" class="@(days == _days ? "active" : null)" @onclick="() => SetWindowAsync(days)">@(days)d</button>
+                }
+            </div>
+        </div>
+
+        <p class="hint">
+            Pinged every @Watcher.Interval.TotalSeconds.ToString("0", CultureInfo.InvariantCulture) s;
+            @Misses missed pings in a row count as a drop-off.
+        </p>
+
+        <OutageTimeline Targets="_rows.Select(r => r.Name).ToList()" Outages="_timeline" From="_from" To="_now"
+                        WindowLabel="@($"{_days}d")" />
+
+        @foreach (var row in _rows)
+        {
+            <div class="watched-device">
+                <h3>
+                    <span class="dot @(row.Replying switch { true => "online", false => "offline", _ => null })"></span>
+                    @row.Name
+                    @if (row.Ip != row.Name)
+                    {
+                        <span class="hint mono">@row.Ip</span>
+                    }
+                </h3>
+                <p class="watched-summary">
+                    @if (row.Current is { } away)
+                    {
+                        <strong class="poor-text">Away for @DurationFormat.Format(away.Duration(_now))</strong>
+                    }
+                    else if (row.Replying == true)
+                    {
+                        <span>Answering</span>
+                    }
+                    else if (row.Replying == false)
+                    {
+                        <span>Missed the last ping</span>
+                    }
+                    else if (!row.Known)
+                    {
+                        <span class="hint">Not on the device list any more</span>
+                    }
+                    <span class="hint">
+                        · @row.Absences.Count @(row.Absences.Count == 1 ? "drop" : "drops") in @(_days)d,
+                        @DurationFormat.Format(row.Away) away in total
+                    </span>
+                </p>
+
+                @if (row.Pattern is { } pattern)
+                {
+                    <p class="watched-pattern">@pattern.Describe() Something on a schedule may be disturbing it.</p>
+                }
+
+                @if (row.Absences.Count > 0)
+                {
+                    <ul class="events">
+                        @foreach (var a in row.Absences.AsEnumerable().Reverse().Take(MaxListed))
+                        {
+                            <li>
+                                <span class="tag @(a.IsOngoing ? "offline" : "online")">@(a.IsOngoing ? "Away" : "Back")</span>
+                                <span>
+                                    @Local(a.Start)@(a.End is { } end ? $" → {Local(end)}" : " → now")
+                                </span>
+                                <span class="hint">@DurationFormat.Format(a.Duration(_now))</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private static readonly int[] WindowDays = [1, 7, 30];
+    private const int MaxListed = 10;
+
+    /// <summary>The device list, for names and current addresses.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LanDevice> Devices { get; set; } = [];
+
+    /// <summary>Bump to reload after the watch list changed.</summary>
+    [Parameter]
+    public int Version { get; set; }
+
+    [Parameter]
+    public int Misses { get; set; } = 3;
+
+    private sealed record Row(
+        string Key, string Name, string Ip, bool Known, bool? Replying, IReadOnlyList<DeviceAbsence> Absences,
+        DeviceAbsence? Current, TimeSpan Away, AbsencePattern? Pattern);
+
+    private int _days = 7;
+    private int _loadedVersion = -1;
+    private DateTimeOffset _now = DateTimeOffset.UtcNow;
+    private DateTimeOffset _from;
+    private List<Row> _rows = [];
+    private List<Outage> _timeline = [];
+
+    protected override void OnInitialized() => Watcher.Changed += OnWatcherChanged;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedVersion != Version)
+        {
+            _loadedVersion = Version;
+            await LoadAsync();
+        }
+    }
+
+    private void OnWatcherChanged() =>
+        _ = InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    private async Task SetWindowAsync(int days)
+    {
+        _days = days;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _now = DateTimeOffset.UtcNow;
+        _from = _now.AddDays(-_days);
+        var watched = await WatchStore.GetWatchedAsync();
+        var absences = await WatchStore.GetAbsencesSinceAsync(_from);
+        var replying = Watcher.Replying;
+
+        _rows = watched.Select(w =>
+        {
+            var device = Devices.FirstOrDefault(d => string.Equals(d.Key, w.Key, StringComparison.OrdinalIgnoreCase));
+            var own = absences.Where(a => string.Equals(a.DeviceKey, w.Key, StringComparison.OrdinalIgnoreCase)).ToList();
+            var away = TimeSpan.FromTicks(own.Sum(a => (Clamp(a.End ?? _now) - Clamp(a.Start)).Ticks));
+            return new Row(
+                w.Key,
+                device?.DisplayName ?? w.Key,
+                device?.Ip ?? own.LastOrDefault()?.Ip ?? "",
+                device is not null,
+                replying.TryGetValue(w.Key, out var r) ? r : null,
+                own,
+                own.LastOrDefault(a => a.IsOngoing),
+                away,
+                AbsencePattern.Find(own, TimeZoneInfo.Local));
+        }).ToList();
+
+        // The timeline draws outages; an absence is one, with the device name as the target.
+        _timeline = _rows
+            .SelectMany(row => row.Absences.Select(a => new Outage(row.Name, a.Start, a.LastMissed, a.End, a.MissedPings)))
+            .ToList();
+    }
+
+    private DateTimeOffset Clamp(DateTimeOffset t) => t < _from ? _from : t > _now ? _now : t;
+
+    private static string Local(DateTimeOffset t) =>
+        t.ToLocalTime().ToString("ddd dd MMM HH:mm:ss", CultureInfo.InvariantCulture);
+
+    public void Dispose() => Watcher.Changed -= OnWatcherChanged;
+}

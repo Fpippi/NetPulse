@@ -4,6 +4,8 @@
 @using NetPulse.Web.Discovery
 @inject ILanDeviceStore Store
 @inject LanDiscovery Discovery
+@inject IDeviceWatchStore WatchStore
+@inject Microsoft.Extensions.Options.IOptions<DiscoveryOptions> Options
 
 <PageTitle>Devices · NetPulse</PageTitle>
 
@@ -89,6 +91,16 @@
                                         <button type="button" class="edit" title="Rename @device.DisplayName"
                                                 aria-label="Rename @device.DisplayName"
                                                 @onclick="() => StartEdit(device)">✎</button>
+                                        var watched = _watched.Contains(device.Key);
+                                        <button type="button" class="watch @(watched ? "on" : null)" aria-pressed="@(watched ? "true" : "false")"
+                                                title="@(watched ? $"Stop watching {device.DisplayName}" : $"Watch {device.DisplayName}: ping it every few seconds and log when it drops off")"
+                                                @onclick="() => ToggleWatchAsync(device.Key)">
+                                            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                                                <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z" />
+                                                <circle cx="8" cy="8" r="2" />
+                                            </svg>
+                                            <span class="visually-hidden">@(watched ? "Watching" : "Watch")</span>
+                                        </button>
                                         @if (device.Label is not null && device.Hostname is not null
                                              && !string.Equals(device.Hostname, device.Label, StringComparison.OrdinalIgnoreCase))
                                         {
@@ -130,6 +142,8 @@
         }
     </section>
 
+    <WatchedDevices Devices="_devices" Version="_watchVersion" Misses="@Math.Max(1, Options.Value.WatchMissesToDrop)" />
+
     <section class="card">
         <div class="card-head">
             <h2>Recent activity</h2>
@@ -170,6 +184,8 @@
     private DateTimeOffset? _baseline;
     private string? _editingKey;
     private string _labelDraft = string.Empty;
+    private HashSet<string> _watched = new(StringComparer.OrdinalIgnoreCase);
+    private int _watchVersion;
 
     protected override async Task OnInitializedAsync()
     {
@@ -211,6 +227,7 @@
         _status = Discovery.Status;
         _devices = await Store.GetDevicesAsync();
         _events = await Store.GetEventsAsync(EventLimit);
+        _watched = new HashSet<string>((await WatchStore.GetWatchedAsync()).Select(w => w.Key), StringComparer.OrdinalIgnoreCase);
 
         // Devices found by the first scan are the baseline, not "new".
         _baseline = _devices.Count == 0 ? null : _devices.Min(d => d.FirstSeen);
@@ -223,8 +240,24 @@
         await Discovery.ScanAsync(CancellationToken.None);
     }
 
+    private async Task ToggleWatchAsync(string key)
+    {
+        if (_watched.Contains(key))
+        {
+            await WatchStore.UnwatchAsync(key);
+        }
+        else
+        {
+            await WatchStore.WatchAsync(key, DateTimeOffset.UtcNow);
+        }
+
+        _watchVersion++;
+        await LoadAsync();
+    }
+
     private async Task ForgetAsync(string key)
     {
+        await WatchStore.UnwatchAsync(key);
         await Store.DeleteDeviceAsync(key);
         await LoadAsync();
     }

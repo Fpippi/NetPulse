@@ -57,7 +57,8 @@ or your ISP.
 - **ISP report**: a printable report (save it as PDF from the browser) with Internet outages, downtime,
   availability and speed against your contract, plus **CSV and JSON export** of all raw data
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
-  when a new device joins or a known one goes offline
+  when a new device joins or a known one goes offline; **watch** a device (your phone) to ping it every
+  10 seconds and log every time it drops off the Wi-Fi, and at what time of day
 - **Cooperative throughput testing** (iperf-style): measure real throughput and UDP loss between two of your
   own machines — both ends opt in, with duration and bandwidth safety caps
 - **Notifications** on your phone or inbox (ntfy, Telegram, any webhook incl. Slack/Discord, e-mail) when a
@@ -398,6 +399,28 @@ Settings live in the `Discovery` section, e.g. `NetPulse__Discovery__IntervalSec
 
 The vendor list is `src/NetPulse.Core/Data/oui.txt`; refresh it with `python3 tools/update-oui.py`.
 
+#### Watching a device
+
+A scan every 5 minutes cannot tell when a phone drops off the Wi-Fi for a minute. Click the **eye** next to
+a device to watch it: NetPulse pings it every 10 seconds, and 3 missed pings in a row count as a
+**drop-off** that lasts until the next reply. The *Watched devices* card shows each drop on a timeline
+(1, 7 or 30 days) and in a list with start, end and duration, and points out when most drops start in the
+same two hours of the day (something on a schedule: a microwave, a neighbour's network, a power-saving
+setting). With notifications set up you get an alert when a watched device drops off and when it is back
+(`Notifications:Events:WatchedDevices`, on by default).
+
+Devices are followed by MAC address, so the address of the latest scan is pinged. Phones in deep sleep may
+skip a few pings: raise `WatchMissesToDrop` if a phone in a drawer shows short drops. A phone with a
+random MAC that changes per network appears as a new device and must be watched again.
+
+| Key                    | Default | Description                                         |
+|------------------------|---------|-----------------------------------------------------|
+| `WatchIntervalSeconds` | `10`    | Time between two pings of each watched device       |
+| `WatchMissesToDrop`    | `3`     | Missed pings in a row before it counts as a drop-off |
+| `WatchTimeoutMs`       | `1000`  | Ping timeout                                        |
+
+Drop-offs follow `EventRetentionDays`.
+
 ### Throughput testing
 
 > ⚠️ **Only run a throughput test against devices you own or have explicit permission to test, on your
@@ -442,7 +465,7 @@ as you like in the `Notifications` section:
 | `TelegramBotToken`, `TelegramChatId` | Create a bot with @BotFather, send it a message, then read the chat id from `https://api.telegram.org/bot<token>/getUpdates`. |
 | `WebhookUrl`                | Receives a JSON `POST` (`kind`, `severity`, `title`, `message`, `timestamp`); also carries `text` and `content`, so Slack and Discord incoming webhooks work directly. Handy for Home Assistant, n8n or Node-RED. |
 | `Smtp:Host`, `Port` (587), `EnableSsl` (true), `User`, `Password`, `From`, `To` | E-mail through any SMTP server; `To` is comma-separated. With Gmail use an app password. |
-| `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:SpeedTests` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day. |
+| `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:WatchedDevices` (true), `Events:SpeedTests` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day; watched devices (eye button on the Devices page) alert by default. |
 | `MinDownloadMbps`, `MinUploadMbps` | Alert when a speed test is below these (0 = only failed tests).         |
 | `BatchSeconds` (10)         | Events closer together are merged into one alert (an ISP outage takes down every public target at once). |
 | `RetryHours` (24)           | Alerts that cannot be delivered (the Internet is down, after all) are retried with backoff for this long. |
@@ -504,6 +527,8 @@ scrape_configs:
 | `GET /api/devices/events?limit=50`       | Latest device events (`New`, `Offline`, `Online`) |
 | `POST /api/devices/scan`                 | Scan the network now and return the new status |
 | `PUT /api/devices/{key}/label` `{"label":"NAS"}` | Set or clear a device's custom name |
+| `GET /api/devices/watched?days=7`        | Watched devices with their drop-offs, whether they answer now and the time-of-day pattern |
+| `PUT /api/devices/{key}/watch`           | Start watching a device (`DELETE` stops; the history is kept) |
 | `DELETE /api/devices/{key}`              | Forget a device (key = MAC address, or `ip:<address>`) |
 | `GET /api/check/ping`, `GET /api/check/download?bytes=N`, `POST /api/check/upload` | Used by the Check page to measure a device's link (download at most 64 MB, upload 16 MB) |
 | `POST /api/check/result` `{"roundTripsMs":[3.1,null],"downloadMbps":90,"uploadMbps":40,"router":"Reachable","internet":"Unreachable"}` | Verdict for a device's measurements (`null` = lost request) |

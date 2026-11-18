@@ -16,6 +16,7 @@ public sealed class DataRetentionService(
     ISpeedTestStore speedTests,
     ILanDeviceStore devices,
     ILinkStore links,
+    IDeviceWatchStore watch,
     SqliteMaintenance database,
     RetentionStatus status,
     ILogger<DataRetentionService> logger) : BackgroundService
@@ -100,7 +101,8 @@ public sealed class DataRetentionService(
         DataKind.Samples => await samples.PurgeOlderThanAsync(cutoff, ct) + await links.PurgeOlderThanAsync(cutoff, ct),
         DataKind.Outages => await outages.PurgeOlderThanAsync(cutoff, ct) + await traces.PurgeOlderThanAsync(cutoff, ct),
         DataKind.SpeedTests => await speedTests.PurgeOlderThanAsync(cutoff, ct),
-        DataKind.DeviceEvents => await devices.PurgeEventsOlderThanAsync(cutoff, ct),
+        DataKind.DeviceEvents => await devices.PurgeEventsOlderThanAsync(cutoff, ct)
+                                 + await watch.PurgeAbsencesOlderThanAsync(cutoff, ct),
         _ => 0,
     };
 }

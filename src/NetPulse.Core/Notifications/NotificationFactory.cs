@@ -39,6 +39,14 @@ public static class NotificationFactory
     /// A notification for a failed test, or for one slower than the given minimums (0 or null = no minimum);
     /// null when the test is fine.
     /// </summary>
+    /// <summary>A watched device dropped off (absence just started) or is back (absence ended).</summary>
+    public static Notification WatchedDevice(DeviceAbsence absence, string name, DateTimeOffset now) =>
+        absence.End is { } end
+            ? new(end, NotificationKind.WatchedDeviceBack, NotificationSeverity.Info,
+                $"{name} is back", $"{name} ({absence.Ip}) answers again after {DurationFormat.Format(absence.Duration(now))}.")
+            : new(absence.Start, NotificationKind.WatchedDeviceLeft, NotificationSeverity.Warning,
+                $"{name} dropped off the network", $"{name} ({absence.Ip}) stopped answering pings.");
+
     public static Notification? SpeedTest(SpeedTestResult result, double? minDownloadMbps, double? minUploadMbps)
     {
         if (!result.Success)
