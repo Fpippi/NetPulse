@@ -33,6 +33,11 @@ if (args is [HashPasswordCommand.Name, ..])
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Serve framework files such as _framework/blazor.web.js from the build output in every
+// environment, not only Development. Without them `dotnet run` outside Development renders the
+// pages but no button works. Published builds have the files on disk, so this does nothing there.
+builder.WebHost.UseStaticWebAssets();
+
 // Optional dashboard password (NetPulse:Auth); off unless configured.
 builder.AddDashboardAuth();
 
