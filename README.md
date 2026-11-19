@@ -49,6 +49,8 @@ or your ISP.
   the router, the provider or the phone itself
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
+- **Backup and restore**: download the whole database in one click and restore it on another machine,
+  without stopping monitoring
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
 - **Traceroute on outages**: when a public target goes down, the route is recorded so the report shows where
   the path broke (your router, the ISP's first hop, or beyond)
@@ -172,6 +174,30 @@ not the feature that produced it is still enabled. After a large clean-up (e.g. 
 the SQLite file is compacted once, so the space goes back to the disk. The **Stored data** card at the
 bottom of the Report page, and `GET /api/retention`, show the periods, what the last clean-up deleted and
 the database size.
+
+### Backup and restore
+
+The **Backup** card at the bottom of the Report page downloads the whole database (every sample, outage,
+speed test, device and setting stored by NetPulse) as one SQLite file, e.g.
+`netpulse-backup-2026-11-19-1530.db`. The copy is consistent (`VACUUM INTO` reads one snapshot) and is taken
+while monitoring keeps running.
+
+**Restore** a backup from the same card, for example to move NetPulse from a PC to a Raspberry Pi: pick the
+file, confirm, and every table is replaced in place, without a restart. Before that NetPulse:
+
+- refuses anything that is not an intact NetPulse database (SQLite header, `quick_check`, required tables);
+- saves the current data as `netpulse.before-restore.db` next to the database, so a wrong file can be undone
+  by restoring that one;
+- adds the tables and columns a backup from an older version lacks, as after an upgrade.
+
+From a script:
+
+```bash
+curl -o netpulse.db http://localhost:5080/api/backup
+curl --data-binary @netpulse.db http://localhost:5080/api/backup/restore
+```
+
+(add `-H "Authorization: Bearer <ApiToken>"` when the dashboard has a password). Files up to 4 GB are accepted.
 
 ### Target types
 
@@ -516,6 +542,8 @@ scrape_configs:
 | `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV (`samples.json` for JSON) |
 | `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV (`outages.json` for JSON) |
 | `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV (`speedtests.json` for JSON) |
+| `GET /api/backup`                       | The whole database as a SQLite file (consistent copy) |
+| `POST /api/backup/restore`               | Replace all data with the SQLite file in the request body; returns the samples restored and where the previous data was saved |
 | `GET /api/retention`                     | Retention period per kind of data, last clean-up and database size |
 | `GET /api/link?hours=24`                 | Current link (Wi-Fi/wired, network, signal, speed) and its history |
 | `GET /api/notifications`                 | Configured notification channels |
