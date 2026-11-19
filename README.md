@@ -54,6 +54,8 @@ or your ISP.
   the path broke (your router, the ISP's first hop, or beyond)
 - **Bufferbloat grade** (A+ to F): ping idle vs. during the download and upload, the hidden reason calls and
   games lag on a "fast" connection
+- **When is it bad?**: the last 7, 30 or 90 days folded onto one week, a weekday × hour heatmap of latency,
+  packet loss and download speed that shows at a glance whether the line slows down every evening
 - **ISP report**: a printable report (save it as PDF from the browser) with Internet outages, downtime,
   availability and speed against your contract, plus **CSV and JSON export** of all raw data
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
@@ -336,6 +338,22 @@ Settings live in the `SpeedTest` section, e.g. `NetPulse__SpeedTest__IntervalMin
 | `TimeoutSeconds`  | `120`                                              | A slower test is recorded as failed       |
 | `RetentionDays`   | `365`                                              | Older results are deleted automatically (0 = forever) |
 
+### Patterns: when is it bad?
+
+The **Patterns** page folds the last 7, 30 or 90 days onto a single week: one row per weekday, one cell per
+hour (server time). Every Friday from 21:00 to 22:00 of the period ends up in the same cell, so a
+connection that slows down every evening, or drops pings on Sunday afternoons, shows up as a dark stripe.
+
+- **Latency** (per target, the first Internet host by default) and **download speed** are compared with
+  your *typical* hour, the median of all hours: a line that is always fine stays pale, and twice the usual
+  latency or half the usual speed is the darkest step.
+- **Loss** uses absolute steps, from no loss to 5 % or more.
+- Hours with fewer than 30 probes, or without a speed test, are drawn as empty boxes. Speed tests run every
+  few hours, so the download map fills in over a few weeks.
+
+Above the map, a one-line verdict names the worst hour ("Slowest: Saturdays 20:00–21:00, 128 Mbps on
+average") or says that no hour stands out. Hover a cell for its numbers.
+
 ### Reports for your ISP
 
 The **Report** page summarizes a period (the last 30 days by default) in a form you can send to your
@@ -513,6 +531,7 @@ scrape_configs:
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
 | `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload` = contracted Mbps, optional) |
+| `GET /api/patterns?days=30&target=...`  | Weekday × hour heatmap: per cell samples, loss, average latency (of `target`) and average download; typical values |
 | `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV (`samples.json` for JSON) |
 | `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV (`outages.json` for JSON) |
 | `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV (`speedtests.json` for JSON) |
