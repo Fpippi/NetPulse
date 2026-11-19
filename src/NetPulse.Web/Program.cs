@@ -6,6 +6,7 @@ using NetPulse.Core.Metrics;
 using NetPulse.Core.Outages;
 using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Probing;
+using NetPulse.Core.PublicIp;
 using NetPulse.Core.Reports;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
@@ -21,6 +22,7 @@ using NetPulse.Web.Health;
 using NetPulse.Web.LoadTest;
 using NetPulse.Web.Monitoring;
 using NetPulse.Web.Notifications;
+using NetPulse.Web.PublicIp;
 using NetPulse.Web.Reports;
 using NetPulse.Web.Retention;
 using NetPulse.Web.Security;
@@ -180,6 +182,15 @@ builder.Services.AddSingleton<LinkDetector>();
 builder.Services.AddSingleton<LinkMonitor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LinkMonitor>());
 
+// Public IP history: one row per change, plus a daily carrier-grade NAT check.
+builder.Services.Configure<PublicIpOptions>(builder.Configuration.GetSection(PublicIpOptions.SectionName));
+builder.Services.AddSingleton<IPublicIpStore>(sp =>
+    new SqlitePublicIpStore(sp.GetRequiredService<IOptions<MonitorOptions>>().Value.DatabasePath));
+builder.Services.AddHttpClient(PublicIpMonitor.HttpClientName, client =>
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("NetPulse (+https://github.com/Fpippi/NetPulse)"));
+builder.Services.AddSingleton<PublicIpMonitor>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PublicIpMonitor>());
+
 // Cooperative load testing (sender + opt-in receiver)
 builder.Services.Configure<LoadTestServerOptions>(builder.Configuration.GetSection(LoadTestServerOptions.SectionName));
 builder.Services.AddSingleton<LoadTestClient>();
@@ -207,6 +218,7 @@ await app.Services.GetRequiredService<IOutageStore>().InitializeAsync();
 await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
 await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
 await app.Services.GetRequiredService<ILinkStore>().InitializeAsync();
+await app.Services.GetRequiredService<IPublicIpStore>().InitializeAsync();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -418,6 +430,31 @@ api.MapGet("/link", async (LinkMonitor monitor, ILinkStore store, int hours = 24
         signalQuality = link.SignalQuality,
         link.SpeedMbps,
     };
+});
+
+api.MapGet("/publicip", async (PublicIpMonitor monitor, IPublicIpStore store, IOutageStore outageStore, int days = 30) =>
+{
+    var since = DateTimeOffset.UtcNow.AddDays(-Math.Clamp(days, 1, 3650));
+    var changes = await store.GetSinceAsync(since);
+    var outages = changes.Count == 0 ? [] : await outageStore.GetSinceAsync(since - PublicIpChange.OutageWindow);
+    return Results.Ok(new
+    {
+        enabled = monitor.Enabled,
+        current = monitor.Current?.Address,
+        since = monitor.Current?.Timestamp,
+        monitor.LastChecked,
+        monitor.LastError,
+        cgnat = monitor.Cgnat is { } cgnat
+            ? new { cgnat.CheckedAt, behindCgnat = cgnat.BehindCgnat, hop = cgnat.CgnatHop?.Number, address = cgnat.CgnatHop?.Address, hopsAnswered = cgnat.Answered }
+            : null,
+        changes = changes.Select(c => new
+        {
+            c.Timestamp,
+            c.Address,
+            c.Previous,
+            afterOutage = c.Previous is null ? null : c.CausedBy(outages) is { } o ? new { o.Target, o.Start, o.End } : null,
+        }),
+    });
 });
 
 api.MapGet("/notifications", (NotificationDispatcher notifications) =>

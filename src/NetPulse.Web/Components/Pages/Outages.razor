@@ -3,6 +3,8 @@
 @using Microsoft.Extensions.Options
 @using NetPulse.Core.Connection
 @using NetPulse.Core.Outages
+@using NetPulse.Core.PublicIp
+@using NetPulse.Core.Discovery
 @using NetPulse.Core.Targets
 @using NetPulse.Web.Monitoring
 @using NetPulse.Core.Traceroute
@@ -12,6 +14,8 @@
 @inject TargetManager Targets
 @inject IOptions<OutageOptions> Options
 @inject IOptions<MonitorOptions> MonitorOptions
+@inject IPublicIpStore PublicIpStore
+@inject NetPulse.Web.PublicIp.PublicIpMonitor PublicIpMonitor
 
 <PageTitle>Outages · NetPulse</PageTitle>
 
@@ -55,7 +59,8 @@
         }
         else
         {
-            <OutageTimeline Targets="_targets" Outages="_outages" From="_from" To="_to" WindowLabel="@Label(_window)" />
+            <OutageTimeline Targets="_targets" Outages="_outages" From="_from" To="_to" WindowLabel="@Label(_window)"
+                            Markers="_ipMarkers" MarkersLabel="public IP" />
         }
 
         <div class="table-wrap">
@@ -85,6 +90,82 @@
             </table>
         </div>
     </section>
+
+    @if (PublicIpMonitor.Enabled)
+    {
+        <section class="card">
+            <div class="card-head">
+                <h2>Public IP</h2>
+                <span class="hint">
+                    @_ipHistory.RealChanges.Count() changes in the last @Label(_window)@(_ipAfterOutages > 0 ? $", {_ipAfterOutages} right after an outage" : "")
+                </span>
+            </div>
+
+            @if (PublicIpMonitor.Current is { } current)
+            {
+                <p class="public-ip">
+                    <strong>@current.Address</strong>
+                    <span class="hint" title="@Time(current.Timestamp)">since @RelativeTime.Format(current.Timestamp, _to)</span>
+                    @if (PublicIpMonitor.Cgnat is { BehindCgnat: true } cgnat)
+                    {
+                        <span class="badge fair" title="Hop @cgnat.CgnatHop!.Number answered from @cgnat.CgnatHop.Address">behind carrier-grade NAT</span>
+                    }
+                    else if (PublicIpMonitor.Cgnat is { Answered: > 0 })
+                    {
+                        <span class="badge good">no carrier-grade NAT</span>
+                    }
+                </p>
+                @if (PublicIpMonitor.Cgnat is { BehindCgnat: true })
+                {
+                    <p class="hint">
+                        Your provider shares this address with other customers (carrier-grade NAT): port forwarding,
+                        a home server or a VPN back home cannot be reached from the Internet. Many providers drop it on
+                        request, sometimes for a fee, or offer IPv6.
+                    </p>
+                }
+            }
+            else
+            {
+                <p class="empty">Not read yet@(PublicIpMonitor.LastError is { } error ? $": {error}" : ".")</p>
+            }
+
+            @if (_ipHistory.RealChanges.Any())
+            {
+                <div class="table-wrap">
+                    <table class="devices">
+                        <thead>
+                            <tr>
+                                <th scope="col">Changed</th>
+                                <th scope="col">From</th>
+                                <th scope="col">To</th>
+                                <th scope="col">Cause</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var change in _ipHistory.RealChanges.Reverse())
+                            {
+                                <tr>
+                                    <td>@Time(change.Timestamp)</td>
+                                    <td>@change.Previous</td>
+                                    <td>@change.Address</td>
+                                    <td>
+                                        @if (change.CausedBy(_outages) is { } cause)
+                                        {
+                                            <span>after the outage of @cause.Target at @cause.Start.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="hint">–</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
 
     <section class="card">
         <div class="card-head">
@@ -235,6 +316,12 @@
         _to = DateTimeOffset.UtcNow;
         _from = _to - _window;
         _outages = await Store.GetSinceAsync(_from);
+
+        _ipHistory = new PublicIpHistory(await PublicIpStore.GetSinceAsync(_from));
+        _ipAfterOutages = _ipHistory.AfterOutages(_outages);
+        _ipMarkers = _ipHistory.RealChanges
+            .Select(c => (c.Timestamp, $"{Time(c.Timestamp)}  public IP {c.Previous} → {c.Address}"))
+            .ToList();
         _traces = _outages.Count == 0
             ? TraceLookup.Empty
             : new TraceLookup(await TraceStore.GetSinceAsync(_outages.Min(o => o.Start)));
@@ -250,6 +337,9 @@
     }
 
     private LinkHistory _links = LinkHistory.Empty;
+    private PublicIpHistory _ipHistory = PublicIpHistory.Empty;
+    private int _ipAfterOutages;
+    private IReadOnlyList<(DateTimeOffset Time, string Tooltip)> _ipMarkers = [];
 
     /// <summary>A weak Wi-Fi signal is coloured as poor, so Wi-Fi trouble stands out in the history.</summary>
     private static string? LinkClass(LinkInfo link) => link.SignalQuality switch

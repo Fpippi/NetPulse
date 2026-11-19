@@ -15,6 +15,9 @@ public enum NotificationKind
     /// <summary>A device on the watch list answers again.</summary>
     WatchedDeviceBack,
     SpeedTest,
+
+    /// <summary>The public IP address changed (usually the modem reconnected).</summary>
+    PublicIpChanged,
     Test,
 }
 

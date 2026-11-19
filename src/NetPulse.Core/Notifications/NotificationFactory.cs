@@ -1,6 +1,7 @@
 using System.Globalization;
 using NetPulse.Core.Discovery;
 using NetPulse.Core.Outages;
+using NetPulse.Core.PublicIp;
 using NetPulse.Core.SpeedTest;
 
 namespace NetPulse.Core.Notifications;
@@ -22,6 +23,14 @@ public static class NotificationFactory
         $"{outage.Target} is back",
         $"{outage.Target} is back after {DurationFormat.Format(outage.Duration(now))} "
         + $"(down since {Time(outage.Start)}, {outage.LostSamples} lost).");
+
+    /// <summary>The public address changed; null for the first reading, which is not news.</summary>
+    public static Notification? PublicIpChanged(PublicIpChange change) => change.Previous is null
+        ? null
+        : new(change.Timestamp, NotificationKind.PublicIpChanged, NotificationSeverity.Info,
+            "Public IP changed",
+            $"Your public IP changed from {change.Previous} to {change.Address} at {Time(change.Timestamp)}. "
+            + "Update any DNS record or firewall rule that uses it.");
 
     /// <summary>Null for event kinds that are not worth a notification.</summary>
     public static Notification? Device(DeviceEvent e) => e.Kind switch

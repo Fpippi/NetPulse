@@ -17,6 +17,21 @@
             </svg>
         </div>
     }
+    @if (Markers.Count > 0)
+    {
+        <div class="timeline-row markers">
+            <span class="timeline-label" title="@MarkersLabel">@MarkersLabel</span>
+            <svg class="timeline-track" viewBox="0 0 @Width @Height" preserveAspectRatio="none">
+                <rect class="track" x="0" y="0" width="@Width" height="@Height" />
+                @foreach (var marker in _markers)
+                {
+                    <rect class="marker" x="@marker.X" y="0" width="@F(MarkerWidth)" height="@Height">
+                        <title>@marker.Tooltip</title>
+                    </rect>
+                }
+            </svg>
+        </div>
+    }
     <div class="timeline-row axis">
         <span class="timeline-label"></span>
         <div class="chart-axis">
@@ -48,6 +63,23 @@
     [Parameter]
     public string WindowLabel { get; set; } = "";
 
+    /// <summary>Optional events drawn as ticks on an extra row (e.g. public IP changes), with their tooltip.</summary>
+    [Parameter]
+    public IReadOnlyList<(DateTimeOffset Time, string Tooltip)> Markers { get; set; } = [];
+
+    /// <summary>Label of the marker row.</summary>
+    [Parameter]
+    public string MarkersLabel { get; set; } = "";
+
+    private const double MarkerWidth = 3;
+
+    private List<Marker> _markers = [];
+
+    private sealed record Marker(string X, string Tooltip);
+
+    // Invariant culture: SVG needs '.' as the decimal separator (e.g. on it-IT machines).
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
     private List<Row> _rows = [];
 
     private sealed record Row(string Target, IReadOnlyList<Bar> Bars);
@@ -56,9 +88,6 @@
 
     protected override void OnParametersSet()
     {
-        // Invariant culture: SVG needs '.' as the decimal separator (e.g. on it-IT machines).
-        static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
-
         _rows = Targets
             .Select(target => new Row(target, Outages
                 .Where(o => string.Equals(o.Target, target, StringComparison.OrdinalIgnoreCase))
@@ -71,6 +100,13 @@
                     return new Bar(F(x), F(width), o.IsOngoing, Tooltip(o));
                 })
                 .ToList()))
+            .ToList();
+
+        _markers = Markers
+            .Where(m => m.Time >= From && m.Time <= To)
+            .Select(m => new Marker(
+                F(Math.Clamp(ChartTimeAxis.ToX(m.Time, From, To, Width) - MarkerWidth / 2, 0, Width - MarkerWidth)),
+                m.Tooltip))
             .ToList();
     }
 
