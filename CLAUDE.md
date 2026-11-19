@@ -37,7 +37,8 @@ docker build -t netpulse .                 # container image
     `IHostResolver`; `gateway`/`gateway6`; `FamilyOf(name)`) / `dns:name[@server]` / `http(s)://` (`ProbeKind`); `DnsProbe` (raw UDP A query via `DnsWire`),
     `HttpProbe` (GET until headers), `TargetProbe` dispatches by kind with `ProbeTimeouts`.
     `Stats/QualityThresholds` gives each kind its own Good/Fair/Poor scale (`LatencyStats.Rate`).
-  - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`.
+  - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`, `SampleWindow`
+    (per-target cache of a sliding window: `/` reads only the samples stored since its last refresh).
   - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices);
     `RetentionPolicy` (days per `DataKind`, 0 = forever), `CompactionPolicy` (VACUUM after big deletes), `DataSize`.
   - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),

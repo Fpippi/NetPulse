@@ -22,7 +22,7 @@
 <main>
     <ConnectionCard Link="Link.Current" />
 
-    <TargetEditor OnChanged="LoadAsync" />
+    <TargetEditor OnChanged="ReloadAsync" />
 
     @if (_series.Count == 0)
     {
@@ -73,6 +73,9 @@
     private DateTimeOffset _to;
     private List<Series> _series = [];
 
+    /// <summary>Samples of the current window, cached between refreshes so each tick only reads the new ones.</summary>
+    private readonly SampleWindow _samples = new();
+
     /// <summary>True when IPv6 targets are monitored: then every card says which IP version it measures.</summary>
     private bool _dualStack;
 
@@ -86,7 +89,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAsync();
+        await ReloadAsync();
         _ = RefreshLoopAsync(_cts.Token);
     }
 
@@ -113,25 +116,44 @@
     private async Task SetWindowAsync(TimeSpan window)
     {
         _window = window;
-        await LoadAsync();
+        await ReloadAsync();
     }
 
+    /// <summary>Reads the whole window again: on start, when the window changes and when targets change.</summary>
+    private Task ReloadAsync()
+    {
+        _samples.Clear();
+        return LoadAsync();
+    }
+
+    /// <summary>
+    /// Reads only the samples stored since the last load (the 24h window holds about 17,000 samples per
+    /// target at the default 5 s interval) and drops those that slid out of the window.
+    /// </summary>
     private async Task LoadAsync()
     {
         _to = DateTimeOffset.UtcNow;
         _from = _to - _window;
-        var samples = await Store.GetSinceAsync(_from);
+
+        // A clock set back would hide new samples behind the cached ones: start over.
+        if (_samples.Latest > _to)
+        {
+            _samples.Clear();
+        }
+
+        var since = _samples.NextSince is { } next && next > _from ? next : _from;
+        _samples.Add(await Store.GetSinceAsync(since));
+        _samples.TrimBefore(_from);
         var monitored = new HashSet<string>(await Targets.GetEffectiveTargetsAsync(), StringComparer.OrdinalIgnoreCase);
 
         // Only show targets that are still monitored (a removed target may have a last in-flight sample).
-        _series = samples
-            .Where(s => monitored.Contains(s.Target))
-            .GroupBy(s => s.Target)
-            .OrderBy(g => g.Key)
-            .Select(g =>
+        _series = _samples.Targets
+            .Where(monitored.Contains)
+            .OrderBy(target => target)
+            .Select(target =>
             {
-                var list = g.ToList();
-                return new Series(g.Key, list, LatencyStats.From(list));
+                var list = _samples.For(target);
+                return new Series(target, list, LatencyStats.From(list));
             })
             .ToList();
         _dualStack = _series.Any(s => s.Family == IpFamily.IPv6);
