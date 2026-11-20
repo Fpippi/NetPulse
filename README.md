@@ -49,6 +49,8 @@ or your ISP.
   the router, the provider or the phone itself
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
+- **Public IP history**: every change of your public address, marked on the outage timeline and matched with
+  the outage that caused it (the modem reconnected), plus a daily check for carrier-grade NAT
 - **Backup and restore**: download the whole database in one click and restore it on another machine,
   without stopping monitoring
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
@@ -327,6 +329,31 @@ Settings live in the `Outages` section, e.g. `NetPulse__Outages__ConsecutiveLoss
 | `TraceRoute`        | `true`  | Traceroute towards a public target when its outage starts |
 | `TraceMaxHops`      | `20`    | Farthest hop the traceroute probes                  |
 
+#### Public IP
+
+NetPulse reads your public IP address every 5 minutes (from Cloudflare's free `1.1.1.1/cdn-cgi/trace`,
+reached by address so it works even when DNS does not) and stores one row per change. The **Public IP** card
+on the Outages page shows the current address, how long you have had it and every change in the window;
+changes are ticks on a `public IP` row of the timeline. A change that came within 15 minutes of the end of an
+outage is labelled with it ("after the outage of 1.1.1.1 at 18:53"): the modem reconnected and the ISP gave
+it a new address. Changes can also send a notification (`Events:PublicIp`), handy if you point a DNS name at
+your home.
+
+Once a day NetPulse also traces the first 4 hops towards 1.1.1.1. A hop in `100.64.0.0/10` means your ISP
+puts you behind **carrier-grade NAT**: your public address is shared with other customers, so port
+forwarding, a home server or a VPN back home cannot be reached from the Internet. The card says so.
+
+Settings live in the `PublicIp` section, e.g. `NetPulse__PublicIp__IntervalMinutes=10`:
+
+| Key               | Default                         | Description                                          |
+|-------------------|---------------------------------|------------------------------------------------------|
+| `Enabled`         | `true`                          | Read and store the public address                    |
+| `Url`             | `https://1.1.1.1/cdn-cgi/trace` | Cloudflare trace, or any URL returning the bare address (e.g. `https://api.ipify.org`) |
+| `IntervalMinutes` | `5`                             | How often the address is read                        |
+| `CgnatCheck`      | `true`                          | Daily traceroute of the first hops to spot carrier-grade NAT |
+
+The history holds one row per change, so it is tiny and kept forever.
+
 > Traceroute needs ICMP with a custom TTL. On Linux, if every trace shows no hop at all, give the process
 > raw-socket permission (`--cap-add NET_RAW` in Docker, or `setcap cap_net_raw+ep` on the binary).
 
@@ -509,7 +536,7 @@ as you like in the `Notifications` section:
 | `TelegramBotToken`, `TelegramChatId` | Create a bot with @BotFather, send it a message, then read the chat id from `https://api.telegram.org/bot<token>/getUpdates`. |
 | `WebhookUrl`                | Receives a JSON `POST` (`kind`, `severity`, `title`, `message`, `timestamp`); also carries `text` and `content`, so Slack and Discord incoming webhooks work directly. Handy for Home Assistant, n8n or Node-RED. |
 | `Smtp:Host`, `Port` (587), `EnableSsl` (true), `User`, `Password`, `From`, `To` | E-mail through any SMTP server; `To` is comma-separated. With Gmail use an app password. |
-| `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:WatchedDevices` (true), `Events:SpeedTests` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day; watched devices (eye button on the Devices page) alert by default. |
+| `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:WatchedDevices` (true), `Events:SpeedTests` (true), `Events:PublicIp` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day; watched devices (eye button on the Devices page) alert by default. |
 | `MinDownloadMbps`, `MinUploadMbps` | Alert when a speed test is below these (0 = only failed tests).         |
 | `BatchSeconds` (10)         | Events closer together are merged into one alert (an ISP outage takes down every public target at once). |
 | `RetryHours` (24)           | Alerts that cannot be delivered (the Internet is down, after all) are retried with backoff for this long. |
@@ -564,6 +591,7 @@ scrape_configs:
 | `GET /api/backup`                       | The whole database as a SQLite file (consistent copy) |
 | `POST /api/backup/restore`               | Replace all data with the SQLite file in the request body; returns the samples restored and where the previous data was saved |
 | `GET /api/retention`                     | Retention period per kind of data, last clean-up and database size |
+| `GET /api/publicip?days=30`             | Current public IP, carrier-grade NAT check and the changes in the period, each with the outage that caused it |
 | `GET /api/link?hours=24`                 | Current link (Wi-Fi/wired, network, signal, speed) and its history |
 | `GET /api/notifications`                 | Configured notification channels |
 | `POST /api/notifications/test`           | Send a test alert to every channel and report each result |

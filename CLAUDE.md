@@ -67,6 +67,9 @@ docker build -t netpulse .                 # container image
     Windows % → dBm), `WirelessParsers` (`/proc/net/wireless`, `iw dev X link`, `netsh wlan` in any language),
     `LinkHistory` (link at a moment), `LinkDiagnosis` (Wi-Fi vs router vs ISP hint for an outage).
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
+  - `PublicIp/` — `AddressScope` (Public / Private / CarrierGradeNat 100.64/10 / Local), `PublicIpResponse`
+    (Cloudflare trace `ip=` or bare address, public only), `PublicIpChange` (`CausedBy` outage within 15 min),
+    `PublicIpHistory`, `CgnatCheck` + `CgnatStatus` (100.64/10 hop among the first 4).
   - `Backup/BackupFile` — backup file name, SQLite header check, `Validate` (quick_check + required tables).
   - `Qr/` — `QrCode` (byte mode, versions 1–10, all ECC levels, checked against Nayuki's reference
     encoder), `QrSvg` (path data, quiet zone); `ReedSolomon` (GF(256)).
@@ -108,6 +111,9 @@ docker build -t netpulse .                 # container image
   - `ClientCheck/ClientCheckEndpoints` — `/api/check/*` (ping, download, upload, result); the `/check` page is
     static SSR (like `/login`, see `App.razor`) with `wwwroot/check.js`, the only script; `ClientCheckHistory`
     is an interactive island. Nav link uses `target="_top"` so the interactive router does a full load.
+  - `PublicIp/PublicIpMonitor` (`BackgroundService`, `NetPulse:PublicIp`): reads the address every 5 min, stores a
+    `public_ip_changes` row per change (`Storage/SqlitePublicIpStore`, kept forever), notifies, daily CGNAT trace;
+    Public IP card + `public IP` marker row of `OutageTimeline` on `/outages`, `/api/publicip`.
   - `Storage/DatabaseSchema` — `InitializeAsync` of every store (startup, and again after a restore).
   - `Backup/DatabaseBackup` — `VACUUM INTO` snapshot for `GET /api/backup`; restore validates the upload, saves
     `*.before-restore.db`, copies it over the live file with the SQLite backup API (no restart), re-runs

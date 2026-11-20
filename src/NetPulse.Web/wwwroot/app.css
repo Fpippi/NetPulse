@@ -774,6 +774,8 @@ code {
 .timeline-track .track { fill: color-mix(in srgb, var(--good) 22%, var(--card)); }
 .timeline-track .outage { fill: var(--poor); }
 .timeline-track .outage.ongoing { fill: var(--fair); }
+.timeline-track .marker { fill: var(--accent); }
+.timeline-row.markers .timeline-label { color: var(--muted); }
 
 .timeline-row.axis .chart-axis { padding-top: 0; }
 
@@ -785,6 +787,9 @@ code {
 .summary .poor { color: var(--poor-text); }
 
 .card.alert ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+
+.public-ip { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; margin: 0 0 .75rem; }
+.public-ip strong { font-family: var(--font-num); font-size: 1.4rem; }
 
 /* --- Speed tests -------------------------------------------------------- */
 

@@ -47,6 +47,7 @@ public sealed class NotificationOptions
         NotificationKind.DeviceOffline or NotificationKind.DeviceOnline => Events.DeviceOffline,
         NotificationKind.WatchedDeviceLeft or NotificationKind.WatchedDeviceBack => Events.WatchedDevices,
         NotificationKind.SpeedTest => Events.SpeedTests,
+        NotificationKind.PublicIpChanged => Events.PublicIp,
         _ => true,
     };
 }
@@ -67,6 +68,9 @@ public sealed class NotificationEvents
 
     /// <summary>A device on the watch list (Devices page) drops off or comes back.</summary>
     public bool WatchedDevices { get; set; } = true;
+
+    /// <summary>The public IP address changed.</summary>
+    public bool PublicIp { get; set; } = true;
 }
 
 /// <summary>E-mail through any SMTP server (your provider's, or Gmail with an app password).</summary>
