@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Appearance;
+using NetPulse.Core.Backup;
 using NetPulse.Core.Discovery;
 using NetPulse.Core.Notifications;
 using NetPulse.Core.Metrics;
@@ -11,6 +12,7 @@ using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
 using NetPulse.Core.Traceroute;
+using NetPulse.Web.Backup;
 using NetPulse.Web.ClientCheck;
 using NetPulse.Web.Components;
 using NetPulse.Web.Connection;
@@ -181,6 +183,10 @@ builder.Services.AddSingleton<LinkDetector>();
 builder.Services.AddSingleton<LinkMonitor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LinkMonitor>());
 
+// Backup and restore of the whole database, while NetPulse runs.
+builder.Services.AddSingleton<DatabaseSchema>();
+builder.Services.AddSingleton<DatabaseBackup>();
+
 // Cooperative load testing (sender + opt-in receiver)
 builder.Services.Configure<LoadTestServerOptions>(builder.Configuration.GetSection(LoadTestServerOptions.SectionName));
 builder.Services.AddSingleton<LoadTestClient>();
@@ -200,14 +206,7 @@ builder.Services.AddRazorComponents()
 
 var app = builder.Build();
 
-await app.Services.GetRequiredService<ISampleStore>().InitializeAsync();
-await app.Services.GetRequiredService<ITargetStore>().InitializeAsync();
-await app.Services.GetRequiredService<ILanDeviceStore>().InitializeAsync();
-await app.Services.GetRequiredService<IDeviceWatchStore>().InitializeAsync();
-await app.Services.GetRequiredService<IOutageStore>().InitializeAsync();
-await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
-await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
-await app.Services.GetRequiredService<ILinkStore>().InitializeAsync();
+await app.Services.GetRequiredService<DatabaseSchema>().InitializeAsync();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -416,6 +415,26 @@ foreach (var format in new[] { ExportFormat.Csv, ExportFormat.Json })
                 : WriteCsvAsync(stream, writer => CsvExport.WriteSpeedTestsAsync(writer, results)));
         }));
 }
+
+// --- Backup and restore ------------------------------------------------------
+// GET downloads a consistent copy of the database; POST replaces all data with the file in the body
+// (raw bytes, e.g. curl --data-binary @netpulse-backup.db). The previous data is kept next to the database.
+
+api.MapGet("/backup", async (DatabaseBackup backup, CancellationToken ct) =>
+{
+    var path = await backup.CreateSnapshotAsync(ct);
+    var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
+        FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+    return Results.File(stream, "application/vnd.sqlite3", BackupFile.FileName(DateTimeOffset.UtcNow, TimeZoneInfo.Local));
+});
+
+api.MapPost("/backup/restore", async (HttpRequest request, DatabaseBackup backup, CancellationToken ct) =>
+{
+    var result = await backup.RestoreAsync(request.Body, ct);
+    return result.Success
+        ? Results.Ok(new { result.Samples, result.From, result.To, result.SafetyCopy })
+        : Results.BadRequest(new { error = result.Error });
+}).WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(DatabaseBackup.MaxUploadBytes));
 
 api.MapGet("/retention", (RetentionPolicy policy, RetentionStatus status) =>
 {

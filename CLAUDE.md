@@ -67,6 +67,7 @@ docker build -t netpulse .                 # container image
     Windows % → dBm), `WirelessParsers` (`/proc/net/wireless`, `iw dev X link`, `netsh wlan` in any language),
     `LinkHistory` (link at a moment), `LinkDiagnosis` (Wi-Fi vs router vs ISP hint for an outage).
   - `Targets/` — `TargetName` (validation/normalization), `TargetManager` (configured + custom targets).
+  - `Backup/BackupFile` — backup file name, SQLite header check, `Validate` (quick_check + required tables).
   - `Qr/` — `QrCode` (byte mode, versions 1–10, all ECC levels, checked against Nayuki's reference
     encoder), `QrSvg` (path data, quiet zone); `ReedSolomon` (GF(256)).
   - `ClientCheck/` — check run from another device's browser: `LanUrl` (address phones open, from Kestrel
@@ -107,6 +108,10 @@ docker build -t netpulse .                 # container image
   - `ClientCheck/ClientCheckEndpoints` — `/api/check/*` (ping, download, upload, result); the `/check` page is
     static SSR (like `/login`, see `App.razor`) with `wwwroot/check.js`, the only script; `ClientCheckHistory`
     is an interactive island. Nav link uses `target="_top"` so the interactive router does a full load.
+  - `Storage/DatabaseSchema` — `InitializeAsync` of every store (startup, and again after a restore).
+  - `Backup/DatabaseBackup` — `VACUUM INTO` snapshot for `GET /api/backup`; restore validates the upload, saves
+    `*.before-restore.db`, copies it over the live file with the SQLite backup API (no restart), re-runs
+    `DatabaseSchema`. Backup card on `/report` (`InputFile`), `POST /api/backup/restore` (raw body, 4 GB limit).
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv|json`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
