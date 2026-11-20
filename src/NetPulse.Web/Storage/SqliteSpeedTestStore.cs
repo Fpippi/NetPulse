@@ -8,22 +8,15 @@ namespace NetPulse.Web.Storage;
 /// SQLite-backed speed test history. Uses the same database file as <see cref="SqliteSampleStore"/>;
 /// timestamps are Unix ms UTC.
 /// </summary>
-public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
+public sealed class SqliteSpeedTestStore(string databasePath) : SqliteStore(databasePath), ISpeedTestStore
 {
     private const string Columns =
         "timestamp, server, latency_ms, download_mbps, upload_mbps, download_bytes, upload_bytes, error, "
         + "idle_latency_ms, download_latency_ms, upload_latency_ms";
 
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
-
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -48,23 +41,6 @@ public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
         {
             await AddColumnIfMissingAsync(connection, "speed_tests", column, "REAL NULL", cancellationToken);
         }
-    }
-
-    // Lightweight migration: SQLite has no "ADD COLUMN IF NOT EXISTS".
-    private static async Task AddColumnIfMissingAsync(
-        SqliteConnection connection, string table, string column, string type, CancellationToken cancellationToken)
-    {
-        await using var columns = connection.CreateCommand();
-        columns.CommandText = $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = $name";
-        columns.Parameters.AddWithValue("$name", column);
-        if (await columns.ExecuteScalarAsync(cancellationToken) is not null)
-        {
-            return;
-        }
-
-        await using var alter = connection.CreateCommand();
-        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
-        await alter.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task AddAsync(SpeedTestResult result, CancellationToken cancellationToken = default)
@@ -141,12 +117,5 @@ public sealed class SqliteSpeedTestStore(string databasePath) : ISpeedTestStore
         double? Value(int i) => reader.IsDBNull(i) ? null : reader.GetDouble(i);
         var (idle, down, up) = (Value(8), Value(9), Value(10));
         return idle is null && down is null && up is null ? null : new Bufferbloat(idle, down, up);
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }

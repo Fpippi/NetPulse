@@ -7,18 +7,12 @@ namespace NetPulse.Web.Storage;
 /// SQLite-backed store for the targets added from the dashboard.
 /// Uses the same database file as <see cref="SqliteSampleStore"/>.
 /// </summary>
-public sealed class SqliteTargetStore(string databasePath) : ITargetStore
+public sealed class SqliteTargetStore(string databasePath) : SqliteStore(databasePath), ITargetStore
 {
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -69,12 +63,5 @@ public sealed class SqliteTargetStore(string databasePath) : ITargetStore
         command.CommandText = "DELETE FROM custom_targets WHERE target = $target";
         command.Parameters.AddWithValue("$target", target);
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }

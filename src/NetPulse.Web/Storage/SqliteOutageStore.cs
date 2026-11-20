@@ -8,18 +8,12 @@ namespace NetPulse.Web.Storage;
 /// SQLite-backed outage history. Uses the same database file as <see cref="SqliteSampleStore"/>;
 /// timestamps are Unix ms UTC and an open outage has a NULL <c>ended_at</c>.
 /// </summary>
-public sealed class SqliteOutageStore(string databasePath) : IOutageStore
+public sealed class SqliteOutageStore(string databasePath) : SqliteStore(databasePath), IOutageStore
 {
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -114,12 +108,5 @@ public sealed class SqliteOutageStore(string databasePath) : IOutageStore
         command.CommandText = "DELETE FROM outages WHERE ended_at IS NOT NULL AND ended_at < $before";
         command.Parameters.AddWithValue("$before", before.ToUnixTimeMilliseconds());
         return await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }

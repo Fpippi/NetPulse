@@ -5,18 +5,12 @@ using NetPulse.Core.Storage;
 namespace NetPulse.Web.Storage;
 
 /// <summary>SQLite-backed link history. Timestamps are stored as Unix milliseconds (UTC).</summary>
-public sealed class SqliteLinkStore(string databasePath) : ILinkStore
+public sealed class SqliteLinkStore(string databasePath) : SqliteStore(databasePath), ILinkStore
 {
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -89,12 +83,5 @@ public sealed class SqliteLinkStore(string databasePath) : ILinkStore
         command.CommandText = "DELETE FROM link_samples WHERE timestamp < $before";
         command.Parameters.AddWithValue("$before", before.ToUnixTimeMilliseconds());
         return await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }

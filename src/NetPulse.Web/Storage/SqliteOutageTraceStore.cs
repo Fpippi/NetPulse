@@ -9,20 +9,13 @@ namespace NetPulse.Web.Storage;
 /// SQLite-backed traceroutes, one per outage (same database file, Unix ms UTC). The hops are a small
 /// JSON array: they are only ever read together with their trace.
 /// </summary>
-public sealed class SqliteOutageTraceStore(string databasePath) : IOutageTraceStore
+public sealed class SqliteOutageTraceStore(string databasePath) : SqliteStore(databasePath), IOutageTraceStore
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
-
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -86,12 +79,5 @@ public sealed class SqliteOutageTraceStore(string databasePath) : IOutageTraceSt
         command.CommandText = "DELETE FROM outage_traces WHERE outage_started < $before";
         command.Parameters.AddWithValue("$before", before.ToUnixTimeMilliseconds());
         return await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }

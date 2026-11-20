@@ -8,18 +8,12 @@ namespace NetPulse.Web.Storage;
 /// SQLite-backed watch list and device absences, in the same database file as the other stores;
 /// timestamps are Unix ms UTC.
 /// </summary>
-public sealed class SqliteDeviceWatchStore(string databasePath) : IDeviceWatchStore
+public sealed class SqliteDeviceWatchStore(string databasePath) : SqliteStore(databasePath), IDeviceWatchStore
 {
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await ExecuteAsync("""
             CREATE TABLE IF NOT EXISTS watched_devices (
@@ -129,12 +123,5 @@ public sealed class SqliteDeviceWatchStore(string databasePath) : IDeviceWatchSt
         }
 
         return await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }
