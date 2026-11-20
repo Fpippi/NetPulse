@@ -1,0 +1,103 @@
+@* Download a backup of the database, or restore one in place (Report page). *@
+@using NetPulse.Web.Backup
+@inject DatabaseBackup Backup
+@inject ILogger<BackupCard> Logger
+
+<section class="card no-print backup">
+    <div class="card-head">
+        <h2>Backup</h2>
+        <span class="hint">Everything NetPulse stores, in one SQLite file</span>
+    </div>
+
+    <p>
+        @* A plain link: the browser downloads the file, no script needed. *@
+        <a class="button primary" href="api/backup" download>Download backup</a>
+        <span class="hint">A consistent copy taken while monitoring keeps running.</span>
+    </p>
+
+    <div class="restore">
+        <label class="restore-pick">
+            Restore from a backup
+            <InputFile OnChange="PickRestoreFile" accept=".db,.sqlite,application/vnd.sqlite3" disabled="@_restoring" />
+        </label>
+
+        @if (_restoreFile is { } file && !_restoring)
+        {
+            <p class="restore-confirm" role="alert">
+                Replace <strong>all</strong> data with <code>@file.Name</code> (@DataSize.Format(file.Size))?
+                The current data is saved next to the database first.
+                <span class="restore-actions">
+                    <button type="button" class="primary" @onclick="RestoreAsync">Restore</button>
+                    <button type="button" @onclick="() => _restoreFile = null">Cancel</button>
+                </span>
+            </p>
+        }
+
+        @if (_restoring)
+        {
+            <p class="scanning">Uploading and restoring @_restoreFile?.Name…</p>
+        }
+
+        @if (_restoreResult is { Success: false } failed)
+        {
+            <p class="error" role="alert">Nothing was restored: @failed.Error</p>
+        }
+        else if (_restoreResult is { } restored)
+        {
+            <p class="restore-done" role="status">
+                Restored @restored.Samples.ToString("N0", CultureInfo.InvariantCulture) samples@(restored.From is { } from && restored.To is { } to ? $" from {Time(from)} to {Time(to)}" : "").
+                The previous data is in <code>@restored.SafetyCopy</code>. Reload other open pages to see it.
+            </p>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>Called after a successful restore, before the card shows the result.</summary>
+    [Parameter]
+    public EventCallback OnRestored { get; set; }
+
+    private IBrowserFile? _restoreFile;
+    private bool _restoring;
+    private RestoreResult? _restoreResult;
+
+    private void PickRestoreFile(InputFileChangeEventArgs e)
+    {
+        _restoreFile = e.File;
+        _restoreResult = null;
+    }
+
+    private async Task RestoreAsync()
+    {
+        if (_restoreFile is not { } file)
+        {
+            return;
+        }
+
+        _restoring = true;
+        _restoreResult = null;
+        StateHasChanged();
+        try
+        {
+            await using var upload = file.OpenReadStream(DatabaseBackup.MaxUploadBytes);
+            _restoreResult = await Backup.RestoreAsync(upload);
+            if (_restoreResult.Success)
+            {
+                await OnRestored.InvokeAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Restore failed");
+            _restoreResult = RestoreResult.Failed(ex.Message);
+        }
+        finally
+        {
+            _restoring = false;
+            _restoreFile = null;
+        }
+    }
+
+    private static string Time(DateTimeOffset time) =>
+        time.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+}

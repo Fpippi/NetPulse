@@ -8,18 +8,12 @@ namespace NetPulse.Web.Storage;
 /// SQLite-backed device inventory and event history.
 /// Uses the same database file as <see cref="SqliteSampleStore"/>; timestamps are Unix ms UTC.
 /// </summary>
-public sealed class SqliteLanDeviceStore(string databasePath) : ILanDeviceStore
+public sealed class SqliteLanDeviceStore(string databasePath) : SqliteStore(databasePath), ILanDeviceStore
 {
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -48,23 +42,6 @@ public sealed class SqliteLanDeviceStore(string databasePath) : ILanDeviceStore
         await command.ExecuteNonQueryAsync(cancellationToken);
 
         await AddColumnIfMissingAsync(connection, "lan_devices", "label", "TEXT", cancellationToken);
-    }
-
-    // Lightweight migration: SQLite has no "ADD COLUMN IF NOT EXISTS".
-    private static async Task AddColumnIfMissingAsync(
-        SqliteConnection connection, string table, string column, string type, CancellationToken cancellationToken)
-    {
-        await using var columns = connection.CreateCommand();
-        columns.CommandText = $"SELECT 1 FROM pragma_table_info('{table}') WHERE name = $name";
-        columns.Parameters.AddWithValue("$name", column);
-        if (await columns.ExecuteScalarAsync(cancellationToken) is not null)
-        {
-            return;
-        }
-
-        await using var alter = connection.CreateCommand();
-        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
-        await alter.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<LanDevice>> GetDevicesAsync(CancellationToken cancellationToken = default)
@@ -226,12 +203,5 @@ public sealed class SqliteLanDeviceStore(string databasePath) : ILanDeviceStore
         command.CommandText = "DELETE FROM lan_devices WHERE key = $key";
         command.Parameters.AddWithValue("$key", key);
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }

@@ -85,11 +85,11 @@ docker build -t netpulse .                 # container image
     `OutageTracker`; open outages from a previous run are closed at startup.
   - `Monitoring/OutageTracer` — traceroute in the background when an outage starts (one at a time), stored by
     `Storage/SqliteOutageTraceStore` (hops as JSON); shown on `/outages`, in the report and `/api/outages`.
-  - `Health/` — `MonitorHealthCheck` (heartbeat) and `DatabaseHealthCheck` behind `/healthz`; `/metrics` in `Program.cs`.
+  - `Health/` — `MonitorHealthCheck` (heartbeat) and `DatabaseHealthCheck` behind `/healthz`; `HealthEndpoints` maps `/healthz` and `/metrics`.
   - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
   - `Reports/PatternService` — streams samples + speed tests into a `WeekHeatmap` (server time) for `/patterns`
     and `/api/patterns`; `Shared/WeekHeatmapChart` is a CSS-grid heatmap (no SVG).
-  - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; CSV endpoints in `Program.cs`.
+  - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; `ReportEndpoints` maps `/api/patterns`, `/api/report` and `/api/export/*`.
   - `Discovery/LanDiscovery` + `LanDiscoveryService` — runs scans (periodic and "Scan now").
     `Discovery/DeviceWatchService` pings watched devices (`Storage/SqliteDeviceWatchStore`: `watched_devices`,
     `device_absences`) via Core `PresenceTracker` (wraps `OutageTracker`); `Shared/WatchedDevices` card on
@@ -117,10 +117,14 @@ docker build -t netpulse .                 # container image
   - `Storage/DatabaseSchema` — `InitializeAsync` of every store (startup, and again after a restore).
   - `Backup/DatabaseBackup` — `VACUUM INTO` snapshot for `GET /api/backup`; restore validates the upload, saves
     `*.before-restore.db`, copies it over the live file with the SQLite backup API (no restart), re-runs
-    `DatabaseSchema`. Backup card on `/report` (`InputFile`), `POST /api/backup/restore` (raw body, 4 GB limit).
+    `DatabaseSchema`. `Shared/BackupCard` on `/report` (`InputFile`, next to `Shared/StoredDataCard`), `POST /api/backup/restore` (raw body, 4 GB limit).
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
-  - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv|json`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).
+  - `Program.cs` — DI and the pipeline only; each feature folder maps its own minimal API with a
+    `Map*Endpoints(this IEndpointRouteBuilder)` extension (`Monitoring/MonitoringEndpoints`: samples, stats, outages,
+    targets; `Discovery/DeviceEndpoints`, `SpeedTest/`, `Backup/`, `PublicIp/`, `Connection/LinkEndpoints`, …).
+    Stores are registered with `AddSqliteStore` and derive from `Storage/SqliteStore` (connection, data folder,
+    `AddColumnIfMissingAsync`). Blazor (Interactive Server).
   - `Components/` — dashboard; `Shared/AppHeader` (logo, `SiteNav`, `ThemePicker`) is the top bar of every page;
     themes are token blocks in `wwwroot/themes.css` (`html[data-theme]`, set from a cookie in `App.razor`
     via `GET /theme/{id}`, ids validated by `Core/Appearance/ThemeCatalog`); `app.css` only reads tokens.

@@ -1,22 +1,15 @@
-using Microsoft.Data.Sqlite;
 using NetPulse.Core.PublicIp;
 using NetPulse.Core.Storage;
 
 namespace NetPulse.Web.Storage;
 
 /// <summary>SQLite-backed public address history. Timestamps are stored as Unix milliseconds (UTC).</summary>
-public sealed class SqlitePublicIpStore(string databasePath) : IPublicIpStore
+public sealed class SqlitePublicIpStore(string databasePath) : SqliteStore(databasePath), IPublicIpStore
 {
-    private readonly string _connectionString =
-        new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        EnsureDirectory();
 
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -80,12 +73,5 @@ public sealed class SqlitePublicIpStore(string databasePath) : IPublicIpStore
         }
 
         return result;
-    }
-
-    private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
-    {
-        var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-        return connection;
     }
 }

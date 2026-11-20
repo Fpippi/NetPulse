@@ -1,0 +1,89 @@
+@* How long each kind of history is kept, and what the hourly clean-up last did (Report page). *@
+@using NetPulse.Web.Retention
+@inject RetentionPolicy Retention
+@inject RetentionStatus RetentionStatus
+@implements IDisposable
+
+<section class="card no-print stored-data">
+    <div class="card-head">
+        <h2>Stored data</h2>
+        <span class="hint">
+            @if (_retention.DatabaseBytes is { } bytes)
+            {
+                @($"Database {DataSize.Format(bytes)}")
+            }
+        </span>
+    </div>
+
+    <div class="table-wrap">
+        <table class="devices">
+            <thead>
+                <tr>
+                    <th scope="col">History</th>
+                    <th scope="col">Kept for</th>
+                    <th scope="col">Deleted at the last clean-up</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var kind in Enum.GetValues<DataKind>())
+                {
+                    <tr>
+                        <td>@KindLabel(kind)</td>
+                        <td>@Retention.Describe(kind)</td>
+                        <td>@(Retention.KeepsForever(kind) ? "–" : _retention.LastDeleted.GetValueOrDefault(kind).ToString("N0", CultureInfo.InvariantCulture))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p class="hint">
+        @if (_retention.Error is { } retentionError)
+        {
+            <span class="error">The last clean-up failed: @retentionError</span>
+        }
+        else if (_retention.LastRun is { } lastRun)
+        {
+            @($"Last clean-up {Time(lastRun)}. ")
+        }
+        @if (_retention.NextRun is { } nextRun)
+        {
+            @($"Next {Time(nextRun)}. ")
+        }
+        @if (_retention.LastCompaction is { } compacted)
+        {
+            @($"Database compacted {Time(compacted)}. ")
+        }
+        Old data is deleted every hour; change the periods with the <code>RetentionDays</code> settings (0 keeps forever).
+    </p>
+</section>
+
+@code {
+    private RetentionSnapshot _retention = RetentionSnapshot.Initial;
+
+    protected override void OnInitialized()
+    {
+        _retention = RetentionStatus.Current;
+        RetentionStatus.Changed += OnRetentionChanged;
+    }
+
+    private void OnRetentionChanged() => InvokeAsync(() =>
+    {
+        _retention = RetentionStatus.Current;
+        StateHasChanged();
+    });
+
+    public void Dispose() => RetentionStatus.Changed -= OnRetentionChanged;
+
+    private static string KindLabel(DataKind kind) => kind switch
+    {
+        DataKind.Samples => "Ping, DNS and HTTP samples, Wi-Fi/wired history",
+        DataKind.Outages => "Outages and their traceroutes",
+        DataKind.SpeedTests => "Speed tests",
+        DataKind.DeviceEvents => "Device events",
+        _ => kind.ToString(),
+    };
+
+    private static string Time(DateTimeOffset time) =>
+        time.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+}

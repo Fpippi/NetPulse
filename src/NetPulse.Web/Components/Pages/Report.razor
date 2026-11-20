@@ -4,21 +4,15 @@
 @using NetPulse.Core.Outages
 @using NetPulse.Core.Reports
 @using NetPulse.Core.Traceroute
-@using NetPulse.Web.Backup
 @using NetPulse.Web.Monitoring
 @using NetPulse.Web.Reports
-@using NetPulse.Web.Retention
 @using NetPulse.Web.SpeedTest
 @inject ReportService Reports
 @inject ILinkStore LinkStore
 @inject IOptions<MonitorOptions> MonitorOptions
 @inject IOptions<OutageOptions> OutageOptions
 @inject IOptions<SpeedTestOptions> SpeedOptions
-@inject RetentionPolicy Retention
-@inject RetentionStatus RetentionStatus
-@inject DatabaseBackup Backup
 @inject ILogger<Report> Logger
-@implements IDisposable
 
 <PageTitle>Report · NetPulse</PageTitle>
 
@@ -263,108 +257,9 @@
         </article>
     }
 
-    <section class="card no-print stored-data">
-        <div class="card-head">
-            <h2>Stored data</h2>
-            <span class="hint">
-                @if (_retention.DatabaseBytes is { } bytes)
-                {
-                    @($"Database {DataSize.Format(bytes)}")
-                }
-            </span>
-        </div>
+    <StoredDataCard />
 
-        <div class="table-wrap">
-            <table class="devices">
-                <thead>
-                    <tr>
-                        <th scope="col">History</th>
-                        <th scope="col">Kept for</th>
-                        <th scope="col">Deleted at the last clean-up</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var kind in Enum.GetValues<DataKind>())
-                    {
-                        <tr>
-                            <td>@KindLabel(kind)</td>
-                            <td>@Retention.Describe(kind)</td>
-                            <td>@(Retention.KeepsForever(kind) ? "–" : _retention.LastDeleted.GetValueOrDefault(kind).ToString("N0", CultureInfo.InvariantCulture))</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-
-        <p class="hint">
-            @if (_retention.Error is { } retentionError)
-            {
-                <span class="error">The last clean-up failed: @retentionError</span>
-            }
-            else if (_retention.LastRun is { } lastRun)
-            {
-                @($"Last clean-up {Time(lastRun)}. ")
-            }
-            @if (_retention.NextRun is { } nextRun)
-            {
-                @($"Next {Time(nextRun)}. ")
-            }
-            @if (_retention.LastCompaction is { } compacted)
-            {
-                @($"Database compacted {Time(compacted)}. ")
-            }
-            Old data is deleted every hour; change the periods with the <code>RetentionDays</code> settings (0 keeps forever).
-        </p>
-    </section>
-
-    <section class="card no-print backup">
-        <div class="card-head">
-            <h2>Backup</h2>
-            <span class="hint">Everything NetPulse stores, in one SQLite file</span>
-        </div>
-
-        <p>
-            @* A plain link: the browser downloads the file, no script needed. *@
-            <a class="button primary" href="api/backup" download>Download backup</a>
-            <span class="hint">A consistent copy taken while monitoring keeps running.</span>
-        </p>
-
-        <div class="restore">
-            <label class="restore-pick">
-                Restore from a backup
-                <InputFile OnChange="PickRestoreFile" accept=".db,.sqlite,application/vnd.sqlite3" disabled="@_restoring" />
-            </label>
-
-            @if (_restoreFile is { } file && !_restoring)
-            {
-                <p class="restore-confirm" role="alert">
-                    Replace <strong>all</strong> data with <code>@file.Name</code> (@DataSize.Format(file.Size))?
-                    The current data is saved next to the database first.
-                    <span class="restore-actions">
-                        <button type="button" class="primary" @onclick="RestoreAsync">Restore</button>
-                        <button type="button" @onclick="() => _restoreFile = null">Cancel</button>
-                    </span>
-                </p>
-            }
-
-            @if (_restoring)
-            {
-                <p class="scanning">Uploading and restoring @_restoreFile?.Name…</p>
-            }
-
-            @if (_restoreResult is { Success: false } failed)
-            {
-                <p class="error" role="alert">Nothing was restored: @failed.Error</p>
-            }
-            else if (_restoreResult is { } restored)
-            {
-                <p class="restore-done" role="status">
-                    Restored @restored.Samples.ToString("N0", CultureInfo.InvariantCulture) samples@(restored.From is { } from && restored.To is { } to ? $" from {Time(from)} to {Time(to)}" : "").
-                    The previous data is in <code>@restored.SafetyCopy</code>. Reload other open pages to see it.
-                </p>
-            }
-        </div>
-    </section>
+    <BackupCard OnRestored="GenerateAsync" />
 </main>
 
 @code {
@@ -382,72 +277,7 @@
     private string SpeedServer =>
         Uri.TryCreate(SpeedOptions.Value.UploadUrl, UriKind.Absolute, out var uri) ? uri.Host : "speed test server";
 
-    private RetentionSnapshot _retention = RetentionSnapshot.Initial;
-
-    private IBrowserFile? _restoreFile;
-    private bool _restoring;
-    private RestoreResult? _restoreResult;
-
-    private void PickRestoreFile(InputFileChangeEventArgs e)
-    {
-        _restoreFile = e.File;
-        _restoreResult = null;
-    }
-
-    private async Task RestoreAsync()
-    {
-        if (_restoreFile is not { } file)
-        {
-            return;
-        }
-
-        _restoring = true;
-        _restoreResult = null;
-        StateHasChanged();
-        try
-        {
-            await using var upload = file.OpenReadStream(DatabaseBackup.MaxUploadBytes);
-            _restoreResult = await Backup.RestoreAsync(upload);
-            if (_restoreResult.Success)
-            {
-                await GenerateAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Restore failed");
-            _restoreResult = RestoreResult.Failed(ex.Message);
-        }
-        finally
-        {
-            _restoring = false;
-            _restoreFile = null;
-        }
-    }
-
-    protected override Task OnInitializedAsync()
-    {
-        _retention = RetentionStatus.Current;
-        RetentionStatus.Changed += OnRetentionChanged;
-        return GenerateAsync();
-    }
-
-    private void OnRetentionChanged() => InvokeAsync(() =>
-    {
-        _retention = RetentionStatus.Current;
-        StateHasChanged();
-    });
-
-    public void Dispose() => RetentionStatus.Changed -= OnRetentionChanged;
-
-    private static string KindLabel(DataKind kind) => kind switch
-    {
-        DataKind.Samples => "Ping, DNS and HTTP samples, Wi-Fi/wired history",
-        DataKind.Outages => "Outages and their traceroutes",
-        DataKind.SpeedTests => "Speed tests",
-        DataKind.DeviceEvents => "Device events",
-        _ => kind.ToString(),
-    };
+    protected override Task OnInitializedAsync() => GenerateAsync();
 
     private async Task GenerateAsync()
     {
