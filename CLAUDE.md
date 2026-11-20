@@ -117,7 +117,7 @@ docker build -t netpulse .                 # container image
   - `Storage/DatabaseSchema` — `InitializeAsync` of every store (startup, and again after a restore).
   - `Backup/DatabaseBackup` — `VACUUM INTO` snapshot for `GET /api/backup`; restore validates the upload, saves
     `*.before-restore.db`, copies it over the live file with the SQLite backup API (no restart), re-runs
-    `DatabaseSchema`. Backup card on `/report` (`InputFile`), `POST /api/backup/restore` (raw body, 4 GB limit).
+    `DatabaseSchema`. `Shared/BackupCard` on `/report` (`InputFile`, next to `Shared/StoredDataCard`), `POST /api/backup/restore` (raw body, 4 GB limit).
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI and the pipeline only; each feature folder maps its own minimal API with a
