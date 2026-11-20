@@ -38,7 +38,9 @@ docker build -t netpulse .                 # container image
     `HttpProbe` (GET until headers), `TargetProbe` dispatches by kind with `ProbeTimeouts`.
     `Stats/QualityThresholds` gives each kind its own Good/Fair/Poor scale (`LatencyStats.Rate`).
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`, `SampleWindow`
-    (per-target cache of a sliding window: `/` reads only the samples stored since its last refresh).
+    (per-target cache of a sliding window: `/` reads only the samples stored since its last refresh),
+    `WeekHeatmap` + `WeekHeatmapBuilder` (samples and speed tests folded onto weekday × hour, levels 0–4
+    relative to the median hour, `Worst`).
   - `Storage/I*Store` — persistence abstractions (samples, targets, outages, speed tests, LAN devices);
     `RetentionPolicy` (days per `DataKind`, 0 = forever), `CompactionPolicy` (VACUUM after big deletes), `DataSize`.
   - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
@@ -68,6 +70,7 @@ docker build -t netpulse .                 # container image
   - `PublicIp/` — `AddressScope` (Public / Private / CarrierGradeNat 100.64/10 / Local), `PublicIpResponse`
     (Cloudflare trace `ip=` or bare address, public only), `PublicIpChange` (`CausedBy` outage within 15 min),
     `PublicIpHistory`, `CgnatCheck` + `CgnatStatus` (100.64/10 hop among the first 4).
+  - `Backup/BackupFile` — backup file name, SQLite header check, `Validate` (quick_check + required tables).
   - `Qr/` — `QrCode` (byte mode, versions 1–10, all ECC levels, checked against Nayuki's reference
     encoder), `QrSvg` (path data, quiet zone); `ReedSolomon` (GF(256)).
   - `ClientCheck/` — check run from another device's browser: `LanUrl` (address phones open, from Kestrel
@@ -76,7 +79,7 @@ docker build -t netpulse .                 # container image
   - `LoadTest/` — cooperative load-test logic: `LoadTestRequest` (validation + safety caps),
     `LoadTestStats`, `ThroughputSample`, `RatePacing` (bandwidth pacing), `LoadTestWire`
     (dependency-free binary framing). All pure and unit-tested; the sockets live in Web.
-- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`, `/report`, `/check` (phone check + QR)
+- `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`, `/patterns`, `/report`, `/check` (phone check + QR)
   (printable; `@media print` in `app.css`).
   - `Monitoring/PingMonitorService` — `BackgroundService` that probes all targets every N seconds and feeds
     `OutageTracker`; open outages from a previous run are closed at startup.
@@ -84,6 +87,8 @@ docker build -t netpulse .                 # container image
     `Storage/SqliteOutageTraceStore` (hops as JSON); shown on `/outages`, in the report and `/api/outages`.
   - `Health/` — `MonitorHealthCheck` (heartbeat) and `DatabaseHealthCheck` behind `/healthz`; `/metrics` in `Program.cs`.
   - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
+  - `Reports/PatternService` — streams samples + speed tests into a `WeekHeatmap` (server time) for `/patterns`
+    and `/api/patterns`; `Shared/WeekHeatmapChart` is a CSS-grid heatmap (no SVG).
   - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; CSV endpoints in `Program.cs`.
   - `Discovery/LanDiscovery` + `LanDiscoveryService` — runs scans (periodic and "Scan now").
     `Discovery/DeviceWatchService` pings watched devices (`Storage/SqliteDeviceWatchStore`: `watched_devices`,
@@ -109,6 +114,10 @@ docker build -t netpulse .                 # container image
   - `PublicIp/PublicIpMonitor` (`BackgroundService`, `NetPulse:PublicIp`): reads the address every 5 min, stores a
     `public_ip_changes` row per change (`Storage/SqlitePublicIpStore`, kept forever), notifies, daily CGNAT trace;
     Public IP card + `public IP` marker row of `OutageTimeline` on `/outages`, `/api/publicip`.
+  - `Storage/DatabaseSchema` — `InitializeAsync` of every store (startup, and again after a restore).
+  - `Backup/DatabaseBackup` — `VACUUM INTO` snapshot for `GET /api/backup`; restore validates the upload, saves
+    `*.before-restore.db`, copies it over the live file with the SQLite backup API (no restart), re-runs
+    `DatabaseSchema`. Backup card on `/report` (`InputFile`), `POST /api/backup/restore` (raw body, 4 GB limit).
   - `Storage/Sqlite*Store` — `Microsoft.Data.Sqlite`, raw SQL, timestamps as Unix ms UTC.
   - `Storage/SqliteTargetStore` — custom targets added from the dashboard (same database file).
   - `Program.cs` — DI, minimal API (`/api/samples`, `/api/stats`, `/api/outages`, `/api/speedtests`, `/api/report`, `/api/export/*.csv|json`, `/api/targets`, `/api/devices`, `/api/loadtest`), Blazor (Interactive Server).

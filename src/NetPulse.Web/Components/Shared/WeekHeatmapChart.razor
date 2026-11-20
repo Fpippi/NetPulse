@@ -1,0 +1,74 @@
+@* Dependency-free heatmap: one row per weekday, one cell per hour, darker where the metric is worse than usual. *@
+@using NetPulse.Core.Stats
+@using NetPulse.Web.Reports
+
+<div class="heatmap-wrap">
+    <div class="heatmap" role="table" aria-label="@MetricLabel by weekday and hour, local time">
+        <div class="heatmap-row axis" role="row">
+            <span class="heatmap-day" role="columnheader"></span>
+            @for (var hour = 0; hour < 24; hour++)
+            {
+                <span class="heatmap-hour" role="columnheader">@(hour % 3 == 0 ? hour.ToString("00", CultureInfo.InvariantCulture) : "")</span>
+            }
+        </div>
+        @foreach (var day in WeekHeatmap.Days)
+        {
+            <div class="heatmap-row" role="row">
+                <span class="heatmap-day" role="rowheader">@day.ToString()[..3]</span>
+                @for (var hour = 0; hour < 24; hour++)
+                {
+                    var cell = Heatmap[day, hour];
+                    var level = Heatmap.Level(cell, Metric);
+                    <span class="heatmap-cell @(level is { } l ? $"level-{l}" : "no-data")" role="cell" title="@Tooltip(cell)"></span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="heatmap-legend" aria-hidden="true">
+    <span>@(Metric == HeatmapMetric.Loss ? "No loss" : "As usual")</span>
+    @for (var level = 0; level <= WeekHeatmap.MaxLevel; level++)
+    {
+        <span class="heatmap-cell level-@level"></span>
+    }
+    <span>@(Metric switch { HeatmapMetric.Loss => "5 %+ lost", HeatmapMetric.Download => "half the speed", _ => "twice as slow" })</span>
+    <span class="heatmap-cell no-data"></span>
+    <span>not enough data</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public WeekHeatmap Heatmap { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public HeatmapMetric Metric { get; set; }
+
+    private string MetricLabel => Metric switch
+    {
+        HeatmapMetric.Loss => "Packet loss",
+        HeatmapMetric.Download => "Download speed",
+        _ => "Latency",
+    };
+
+    private string Tooltip(HeatmapCell cell)
+    {
+        var when = $"{cell.Day} {cell.Hour:00}:00–{(cell.Hour + 1) % 24:00}:00";
+        if (!cell.HasData(Metric))
+        {
+            return Metric == HeatmapMetric.Download
+                ? $"{when}: no speed test"
+                : $"{when}: not enough samples ({cell.Samples})";
+        }
+
+        return Metric switch
+        {
+            HeatmapMetric.Download =>
+                $"{when}: {PatternFormat.Mbps(cell.AvgDownloadMbps)} average download ({cell.SpeedTests} tests)",
+            HeatmapMetric.Loss =>
+                $"{when}: {PatternFormat.Percent(cell.LossPercent)} lost ({cell.Lost} of {cell.Samples})",
+            _ =>
+                $"{when}: {PatternFormat.Ms(cell.AvgLatencyMs)} average, {PatternFormat.Percent(cell.LossPercent)} lost ({cell.Samples} samples)",
+        };
+    }
+}

@@ -51,11 +51,15 @@ or your ISP.
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
 - **Public IP history**: every change of your public address, marked on the outage timeline and matched with
   the outage that caused it (the modem reconnected), plus a daily check for carrier-grade NAT
+- **Backup and restore**: download the whole database in one click and restore it on another machine,
+  without stopping monitoring
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
 - **Traceroute on outages**: when a public target goes down, the route is recorded so the report shows where
   the path broke (your router, the ISP's first hop, or beyond)
 - **Bufferbloat grade** (A+ to F): ping idle vs. during the download and upload, the hidden reason calls and
   games lag on a "fast" connection
+- **When is it bad?**: the last 7, 30 or 90 days folded onto one week, a weekday × hour heatmap of latency,
+  packet loss and download speed that shows at a glance whether the line slows down every evening
 - **ISP report**: a printable report (save it as PDF from the browser) with Internet outages, downtime,
   availability and speed against your contract, plus **CSV and JSON export** of all raw data
 - **LAN device discovery**: finds every device on your network (IP, MAC, vendor, host name) and tells you
@@ -174,6 +178,30 @@ not the feature that produced it is still enabled. After a large clean-up (e.g. 
 the SQLite file is compacted once, so the space goes back to the disk. The **Stored data** card at the
 bottom of the Report page, and `GET /api/retention`, show the periods, what the last clean-up deleted and
 the database size.
+
+### Backup and restore
+
+The **Backup** card at the bottom of the Report page downloads the whole database (every sample, outage,
+speed test, device and setting stored by NetPulse) as one SQLite file, e.g.
+`netpulse-backup-2026-11-19-1530.db`. The copy is consistent (`VACUUM INTO` reads one snapshot) and is taken
+while monitoring keeps running.
+
+**Restore** a backup from the same card, for example to move NetPulse from a PC to a Raspberry Pi: pick the
+file, confirm, and every table is replaced in place, without a restart. Before that NetPulse:
+
+- refuses anything that is not an intact NetPulse database (SQLite header, `quick_check`, required tables);
+- saves the current data as `netpulse.before-restore.db` next to the database, so a wrong file can be undone
+  by restoring that one;
+- adds the tables and columns a backup from an older version lacks, as after an upgrade.
+
+From a script:
+
+```bash
+curl -o netpulse.db http://localhost:5080/api/backup
+curl --data-binary @netpulse.db http://localhost:5080/api/backup/restore
+```
+
+(add `-H "Authorization: Bearer <ApiToken>"` when the dashboard has a password). Files up to 4 GB are accepted.
 
 ### Target types
 
@@ -363,6 +391,22 @@ Settings live in the `SpeedTest` section, e.g. `NetPulse__SpeedTest__IntervalMin
 | `TimeoutSeconds`  | `120`                                              | A slower test is recorded as failed       |
 | `RetentionDays`   | `365`                                              | Older results are deleted automatically (0 = forever) |
 
+### Patterns: when is it bad?
+
+The **Patterns** page folds the last 7, 30 or 90 days onto a single week: one row per weekday, one cell per
+hour (server time). Every Friday from 21:00 to 22:00 of the period ends up in the same cell, so a
+connection that slows down every evening, or drops pings on Sunday afternoons, shows up as a dark stripe.
+
+- **Latency** (per target, the first Internet host by default) and **download speed** are compared with
+  your *typical* hour, the median of all hours: a line that is always fine stays pale, and twice the usual
+  latency or half the usual speed is the darkest step.
+- **Loss** uses absolute steps, from no loss to 5 % or more.
+- Hours with fewer than 30 probes, or without a speed test, are drawn as empty boxes. Speed tests run every
+  few hours, so the download map fills in over a few weeks.
+
+Above the map, a one-line verdict names the worst hour ("Slowest: Saturdays 20:00–21:00, 128 Mbps on
+average") or says that no hour stands out. Hover a cell for its numbers.
+
 ### Reports for your ISP
 
 The **Report** page summarizes a period (the last 30 days by default) in a form you can send to your
@@ -540,9 +584,12 @@ scrape_configs:
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
 | `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload` = contracted Mbps, optional) |
+| `GET /api/patterns?days=30&target=...`  | Weekday × hour heatmap: per cell samples, loss, average latency (of `target`) and average download; typical values |
 | `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV (`samples.json` for JSON) |
 | `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV (`outages.json` for JSON) |
 | `GET /api/export/speedtests.csv?days=30` | Speed test results as CSV (`speedtests.json` for JSON) |
+| `GET /api/backup`                       | The whole database as a SQLite file (consistent copy) |
+| `POST /api/backup/restore`               | Replace all data with the SQLite file in the request body; returns the samples restored and where the previous data was saved |
 | `GET /api/retention`                     | Retention period per kind of data, last clean-up and database size |
 | `GET /api/publicip?days=30`             | Current public IP, carrier-grade NAT check and the changes in the period, each with the outage that caused it |
 | `GET /api/link?hours=24`                 | Current link (Wi-Fi/wired, network, signal, speed) and its history |

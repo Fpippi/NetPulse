@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using NetPulse.Core.Appearance;
+using NetPulse.Core.Backup;
 using NetPulse.Core.Discovery;
 using NetPulse.Core.Notifications;
 using NetPulse.Core.Metrics;
@@ -12,6 +13,7 @@ using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
 using NetPulse.Core.Traceroute;
+using NetPulse.Web.Backup;
 using NetPulse.Web.ClientCheck;
 using NetPulse.Web.Components;
 using NetPulse.Web.Connection;
@@ -163,6 +165,7 @@ builder.Services.AddHostedService<SpeedTestService>();
 
 // Reports and CSV/JSON export
 builder.Services.AddSingleton<ReportService>();
+builder.Services.AddSingleton<PatternService>();
 
 // Retention: one service deletes old data of every kind and compacts the database after large clean-ups.
 builder.Services.AddSingleton(sp => new RetentionPolicy(
@@ -191,6 +194,10 @@ builder.Services.AddHttpClient(PublicIpMonitor.HttpClientName, client =>
 builder.Services.AddSingleton<PublicIpMonitor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PublicIpMonitor>());
 
+// Backup and restore of the whole database, while NetPulse runs.
+builder.Services.AddSingleton<DatabaseSchema>();
+builder.Services.AddSingleton<DatabaseBackup>();
+
 // Cooperative load testing (sender + opt-in receiver)
 builder.Services.Configure<LoadTestServerOptions>(builder.Configuration.GetSection(LoadTestServerOptions.SectionName));
 builder.Services.AddSingleton<LoadTestClient>();
@@ -210,15 +217,7 @@ builder.Services.AddRazorComponents()
 
 var app = builder.Build();
 
-await app.Services.GetRequiredService<ISampleStore>().InitializeAsync();
-await app.Services.GetRequiredService<ITargetStore>().InitializeAsync();
-await app.Services.GetRequiredService<ILanDeviceStore>().InitializeAsync();
-await app.Services.GetRequiredService<IDeviceWatchStore>().InitializeAsync();
-await app.Services.GetRequiredService<IOutageStore>().InitializeAsync();
-await app.Services.GetRequiredService<IOutageTraceStore>().InitializeAsync();
-await app.Services.GetRequiredService<ISpeedTestStore>().InitializeAsync();
-await app.Services.GetRequiredService<ILinkStore>().InitializeAsync();
-await app.Services.GetRequiredService<IPublicIpStore>().InitializeAsync();
+await app.Services.GetRequiredService<DatabaseSchema>().InitializeAsync();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -332,6 +331,43 @@ api.MapPost("/speedtests/run", async (SpeedTestRunner runner, CancellationToken 
         ? Results.Ok(result)
         : Results.Conflict(new { error = "A speed test is already running." }));
 
+// --- Patterns: the last days folded onto one week (weekday x hour, server time) ---------------
+
+api.MapGet("/patterns", async (PatternService patterns, TargetManager targets, int days = 30, string? target = null,
+    CancellationToken ct = default) =>
+{
+    if (days < 1 || days > PatternService.PeriodDays[^1])
+    {
+        return Results.BadRequest(new { error = $"days must be between 1 and {PatternService.PeriodDays[^1]}." });
+    }
+
+    target ??= PatternService.DefaultTarget(await targets.GetEffectiveTargetsAsync(ct));
+    var heatmap = await patterns.BuildAsync(days, target, ct);
+    return Results.Ok(new
+    {
+        days,
+        target,
+        timeZone = TimeZoneInfo.Local.Id,
+        typical = new
+        {
+            latencyMs = heatmap.Typical(HeatmapMetric.Latency),
+            lossPercent = heatmap.Typical(HeatmapMetric.Loss),
+            downloadMbps = heatmap.Typical(HeatmapMetric.Download),
+        },
+        cells = heatmap.Cells.Select(c => new
+        {
+            day = c.Day.ToString(),
+            c.Hour,
+            c.Samples,
+            c.Lost,
+            c.LossPercent,
+            c.AvgLatencyMs,
+            c.SpeedTests,
+            c.AvgDownloadMbps,
+        }),
+    });
+});
+
 // --- Reports and CSV/JSON export -------------------------------------------
 // Period: ?days=30 (default), or ?from=yyyy-MM-dd&to=yyyy-MM-dd (whole days in the server's time zone).
 
@@ -390,6 +426,26 @@ foreach (var format in new[] { ExportFormat.Csv, ExportFormat.Json })
                 : WriteCsvAsync(stream, writer => CsvExport.WriteSpeedTestsAsync(writer, results)));
         }));
 }
+
+// --- Backup and restore ------------------------------------------------------
+// GET downloads a consistent copy of the database; POST replaces all data with the file in the body
+// (raw bytes, e.g. curl --data-binary @netpulse-backup.db). The previous data is kept next to the database.
+
+api.MapGet("/backup", async (DatabaseBackup backup, CancellationToken ct) =>
+{
+    var path = await backup.CreateSnapshotAsync(ct);
+    var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
+        FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+    return Results.File(stream, "application/vnd.sqlite3", BackupFile.FileName(DateTimeOffset.UtcNow, TimeZoneInfo.Local));
+});
+
+api.MapPost("/backup/restore", async (HttpRequest request, DatabaseBackup backup, CancellationToken ct) =>
+{
+    var result = await backup.RestoreAsync(request.Body, ct);
+    return result.Success
+        ? Results.Ok(new { result.Samples, result.From, result.To, result.SafetyCopy })
+        : Results.BadRequest(new { error = result.Error });
+}).WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(DatabaseBackup.MaxUploadBytes));
 
 api.MapGet("/retention", (RetentionPolicy policy, RetentionStatus status) =>
 {
