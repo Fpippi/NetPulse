@@ -161,6 +161,7 @@ builder.Services.AddHostedService<SpeedTestService>();
 
 // Reports and CSV/JSON export
 builder.Services.AddSingleton<ReportService>();
+builder.Services.AddSingleton<PatternService>();
 
 // Retention: one service deletes old data of every kind and compacts the database after large clean-ups.
 builder.Services.AddSingleton(sp => new RetentionPolicy(
@@ -319,6 +320,43 @@ api.MapPost("/speedtests/run", async (SpeedTestRunner runner, CancellationToken 
     await runner.RunAsync(ct) is { } result
         ? Results.Ok(result)
         : Results.Conflict(new { error = "A speed test is already running." }));
+
+// --- Patterns: the last days folded onto one week (weekday x hour, server time) ---------------
+
+api.MapGet("/patterns", async (PatternService patterns, TargetManager targets, int days = 30, string? target = null,
+    CancellationToken ct = default) =>
+{
+    if (days < 1 || days > PatternService.PeriodDays[^1])
+    {
+        return Results.BadRequest(new { error = $"days must be between 1 and {PatternService.PeriodDays[^1]}." });
+    }
+
+    target ??= PatternService.DefaultTarget(await targets.GetEffectiveTargetsAsync(ct));
+    var heatmap = await patterns.BuildAsync(days, target, ct);
+    return Results.Ok(new
+    {
+        days,
+        target,
+        timeZone = TimeZoneInfo.Local.Id,
+        typical = new
+        {
+            latencyMs = heatmap.Typical(HeatmapMetric.Latency),
+            lossPercent = heatmap.Typical(HeatmapMetric.Loss),
+            downloadMbps = heatmap.Typical(HeatmapMetric.Download),
+        },
+        cells = heatmap.Cells.Select(c => new
+        {
+            day = c.Day.ToString(),
+            c.Hour,
+            c.Samples,
+            c.Lost,
+            c.LossPercent,
+            c.AvgLatencyMs,
+            c.SpeedTests,
+            c.AvgDownloadMbps,
+        }),
+    });
+});
 
 // --- Reports and CSV/JSON export -------------------------------------------
 // Period: ?days=30 (default), or ?from=yyyy-MM-dd&to=yyyy-MM-dd (whole days in the server's time zone).

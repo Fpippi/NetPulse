@@ -828,6 +828,75 @@ code {
 .legend .download::before { background: var(--accent); }
 .legend .upload::before { background: var(--good); }
 
+/* --- Patterns (week heatmap) ------------------------------------------- */
+
+.pattern-controls { margin-bottom: .75rem; }
+
+.inline-field {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .8rem;
+    color: var(--muted);
+}
+
+.inline-field select {
+    background: var(--field);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .3rem .5rem;
+    font: inherit;
+}
+
+.pattern-verdict { margin: 0 0 .75rem; }
+
+.heatmap-wrap { overflow-x: auto; }
+
+.heatmap { display: grid; gap: 2px; min-width: 18rem; }
+
+.heatmap-row {
+    display: grid;
+    grid-template-columns: 2.5rem repeat(24, minmax(0, 1fr));
+    gap: 2px;
+    align-items: center;
+}
+
+.heatmap-day { font-size: .8rem; color: var(--muted); }
+
+.heatmap-hour {
+    font-family: var(--font-num);
+    font-size: .7rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.heatmap-cell {
+    display: block;
+    height: 1.4rem;
+    border-radius: var(--radius);
+}
+
+.heatmap-cell.level-0 { background: color-mix(in srgb, var(--good) 22%, var(--card)); }
+.heatmap-cell.level-1 { background: color-mix(in srgb, var(--fair) 45%, var(--card)); }
+.heatmap-cell.level-2 { background: color-mix(in srgb, var(--fair) 85%, var(--card)); }
+.heatmap-cell.level-3 { background: color-mix(in srgb, var(--poor) 70%, var(--card)); }
+.heatmap-cell.level-4 { background: var(--poor); }
+.heatmap-cell.no-data { background: transparent; border: 1px dashed var(--faint); }
+
+.heatmap-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem;
+    margin: .6rem 0;
+    font-size: .75rem;
+    color: var(--muted);
+}
+
+.heatmap-legend .heatmap-cell { width: 1rem; height: .8rem; }
+.heatmap-legend .no-data { margin-left: .75rem; }
+
 /* --- Report ------------------------------------------------------------- */
 
 .form-actions { display: flex; align-items: flex-end; }

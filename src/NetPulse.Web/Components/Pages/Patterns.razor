@@ -1,0 +1,137 @@
+@page "/patterns"
+@using NetPulse.Core.Stats
+@using NetPulse.Core.Targets
+@using NetPulse.Web.Reports
+@inject PatternService PatternData
+@inject TargetManager Targets
+
+<PageTitle>Patterns · NetPulse</PageTitle>
+
+<AppHeader>
+    <nav class="windows">
+        @foreach (var days in PatternService.PeriodDays)
+        {
+            <button class="@(days == _days ? "active" : null)" @onclick="() => SetDaysAsync(days)">@(days)d</button>
+        }
+    </nav>
+</AppHeader>
+
+<main>
+    <section class="card">
+        <div class="card-head">
+            <h2>When is it bad?</h2>
+            <span class="hint">The last @_days days folded onto one week, local time (@TimeZoneInfo.Local.StandardName).</span>
+        </div>
+
+        <div class="actions pattern-controls">
+            <nav class="windows" aria-label="Metric">
+                @foreach (var metric in Metrics)
+                {
+                    <button class="@(metric == _metric ? "active" : null)" @onclick="() => _metric = metric">@Label(metric)</button>
+                }
+            </nav>
+            @if (_metric != HeatmapMetric.Download && _targets.Count > 0)
+            {
+                <label class="inline-field">Target
+                    <select value="@_target" @onchange="SetTargetAsync">
+                        @foreach (var target in _targets)
+                        {
+                            <option value="@target">@target</option>
+                        }
+                    </select>
+                </label>
+            }
+        </div>
+
+        @if (_heatmap is null)
+        {
+            <p class="empty">Reading @_days days of measurements…</p>
+        }
+        else if (!_heatmap.HasData(_metric))
+        {
+            <p class="empty">
+                @(_metric == HeatmapMetric.Download
+                    ? "No speed test in this period yet. Scheduled tests fill the map over a few days."
+                    : "Not enough samples yet. Each hour needs a few minutes of measurements.")
+            </p>
+        }
+        else
+        {
+            <p class="pattern-verdict">@Verdict(_heatmap)</p>
+            <WeekHeatmapChart Heatmap="_heatmap" Metric="_metric" />
+            <p class="hint">
+                @(_metric == HeatmapMetric.Loss
+                    ? "Each cell is the share of lost probes in that hour, over all the weeks of the period."
+                    : "Each cell compares that hour with your typical hour (the median of all hours), so a line that is always fine stays pale.")
+                Hover a cell for its numbers.
+            </p>
+        }
+    </section>
+</main>
+
+@code {
+    private static readonly HeatmapMetric[] Metrics = [HeatmapMetric.Latency, HeatmapMetric.Loss, HeatmapMetric.Download];
+
+    private int _days = 30;
+    private HeatmapMetric _metric = HeatmapMetric.Latency;
+    private IReadOnlyList<string> _targets = [];
+    private string? _target;
+    private WeekHeatmap? _heatmap;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _targets = await Targets.GetEffectiveTargetsAsync();
+        _target = PatternService.DefaultTarget(_targets);
+        await LoadAsync();
+    }
+
+    private async Task SetDaysAsync(int days)
+    {
+        _days = days;
+        await LoadAsync();
+    }
+
+    private async Task SetTargetAsync(ChangeEventArgs e)
+    {
+        _target = e.Value?.ToString();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _heatmap = null;
+        StateHasChanged();
+        _heatmap = await PatternData.BuildAsync(_days, _target);
+    }
+
+    private string Verdict(WeekHeatmap heatmap)
+    {
+        var typical = heatmap.Typical(_metric);
+        var typicalText = _metric switch
+        {
+            HeatmapMetric.Download => $"Typical download: {PatternFormat.Mbps(typical)}",
+            HeatmapMetric.Loss => $"Typical loss: {PatternFormat.Percent(typical)}",
+            _ => $"Typical latency to {_target}: {PatternFormat.Ms(typical)}",
+        };
+
+        if (heatmap.Worst(_metric) is not { } worst)
+        {
+            return $"{typicalText}. No hour stands out: the connection behaves the same all week.";
+        }
+
+        var when = $"{worst.Day}s {worst.Hour:00}:00–{(worst.Hour + 1) % 24:00}:00";
+        return _metric switch
+        {
+            HeatmapMetric.Download => $"{typicalText}. Slowest: {when}, {PatternFormat.Mbps(worst.AvgDownloadMbps)} on average.",
+            HeatmapMetric.Loss => $"{typicalText}. Most loss: {when}, {PatternFormat.Percent(worst.LossPercent)} of probes lost.",
+            _ => $"{typicalText}. Slowest: {when}, {PatternFormat.Ms(worst.AvgLatencyMs)} on average.",
+        };
+    }
+
+    private static string Label(HeatmapMetric metric) => metric switch
+    {
+        HeatmapMetric.Loss => "Loss",
+        HeatmapMetric.Download => "Download",
+        _ => "Latency",
+    };
+}
