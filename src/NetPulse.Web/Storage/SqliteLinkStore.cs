@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using NetPulse.Core.Connection;
 using NetPulse.Core.Storage;
 
