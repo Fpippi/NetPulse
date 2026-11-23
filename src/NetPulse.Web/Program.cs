@@ -248,3 +248,6 @@ app.MapRazorComponents<App>()
 
 app.Run();
 return 0;
+
+// Lets the integration tests (WebApplicationFactory<Program>) start the app.
+public partial class Program;

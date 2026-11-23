@@ -130,7 +130,9 @@ docker build -t netpulse .                 # container image
     via `GET /theme/{id}`, ids validated by `Core/Appearance/ThemeCatalog`); `app.css` only reads tokens.
     `docs/dashboard.css`/`docs/themes.css` are copies for the static demo; `LatencyChart`/`ThroughputChart`/`SpeedChart`/`OutageTimeline` are dependency-free SVG charts;
     `TargetEditor` adds/removes custom targets.
-- `tests/NetPulse.Tests` — NUnit 4, constraint model (`Assert.That`).
+- `tests/NetPulse.Tests` — NUnit 4, constraint model (`Assert.That`); Core only.
+- `tests/NetPulse.Web.Tests` — NUnit integration tests of the Web host: `NetPulseFactory`
+  (`WebApplicationFactory<Program>`, temporary database, hosted services removed so no network).
 - `.github/workflows/release.yml` — on `v*` tags, self-contained single-file archives for win-x64,
   linux-x64 and linux-arm64 attached to a GitHub release.
 

@@ -192,7 +192,9 @@ file, confirm, and every table is replaced in place, without a restart. Before t
 - refuses anything that is not an intact NetPulse database (SQLite header, `quick_check`, required tables);
 - saves the current data as `netpulse.before-restore.db` next to the database, so a wrong file can be undone
   by restoring that one;
-- adds the tables and columns a backup from an older version lacks, as after an upgrade.
+- adds the tables and columns a backup from an older version lacks, as after an upgrade. If that fails (a file
+  that passes the checks but has tables NetPulse cannot use), the previous data is put back automatically and
+  nothing changes.
 
 From a script:
 
