@@ -140,6 +140,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DeviceWatchService
 // Speed tests against a public endpoint (scheduled + "Run now")
 builder.Services.Configure<SpeedTestOptions>(builder.Configuration.GetSection(SpeedTestOptions.SectionName));
 builder.Services.AddSqliteStore<ISpeedTestStore>(path => new SqliteSpeedTestStore(path));
+builder.Services.AddSqliteStore<IContractStore>(path => new SqliteContractStore(path));
 builder.Services.AddHttpClient(SpeedTestRunner.HttpClientName, client =>
         client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent))
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler

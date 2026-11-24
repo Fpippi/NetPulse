@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using NetPulse.Core.Reports;
+using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
@@ -50,15 +51,26 @@ public static class ReportEndpoints
 
         // Period of the report and the exports: ?days=30 (default), or ?from=yyyy-MM-dd&to=yyyy-MM-dd
         // (whole days in the server's time zone).
-        api.MapGet("/report", async (ReportService reports, string? from, string? to, int? days,
-            double? download, double? upload, CancellationToken ct) =>
+        // Contract speeds: ?download=&upload=&minDownload=&minUpload= (Mbps), or the saved contract when none is given.
+        api.MapGet("/report", async (ReportService reports, IContractStore contracts, string? from, string? to, int? days,
+            double? download, double? upload, double? minDownload, double? minUpload, CancellationToken ct) =>
         {
             if (!ReportPeriod.TryResolve(from, to, days, DateTimeOffset.UtcNow, TimeZoneInfo.Local, out var period, out var error))
             {
                 return Results.BadRequest(new { error });
             }
 
-            var report = await reports.BuildAsync(period, download, upload, ct);
+            ContractSpeeds contract;
+            if (download is null && upload is null && minDownload is null && minUpload is null)
+            {
+                contract = await contracts.GetAsync(ct);
+            }
+            else if (!ContractSpeeds.TryCreate(download, upload, minDownload, minUpload, out contract, out error))
+            {
+                return Results.BadRequest(new { error });
+            }
+
+            var report = await reports.BuildAsync(period, contract, ct);
             return Results.Ok(new
             {
                 report.From,

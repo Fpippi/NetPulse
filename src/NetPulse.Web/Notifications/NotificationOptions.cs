@@ -28,10 +28,13 @@ public sealed class NotificationOptions
     /// <summary>Which events send an alert.</summary>
     public NotificationEvents Events { get; set; } = new();
 
-    /// <summary>Speed tests below this download speed send an alert (0 = only failed tests).</summary>
+    /// <summary>
+    /// Speed tests below this download speed send an alert; 0 uses the guaranteed minimum of the contract
+    /// saved on the Speed page (no minimum there = only failed tests).
+    /// </summary>
     public double MinDownloadMbps { get; set; }
 
-    /// <summary>Speed tests below this upload speed send an alert (0 = only failed tests).</summary>
+    /// <summary>Speed tests below this upload speed send an alert; 0 uses the contract minimum, like the download.</summary>
     public double MinUploadMbps { get; set; }
 
     /// <summary>Events closer together than this are merged into one alert.</summary>

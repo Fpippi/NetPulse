@@ -48,6 +48,8 @@ docker build -t netpulse .                 # container image
   - `SpeedTest/` — `HttpSpeedTest` (latency/download/upload over `HttpClient`), `SpeedTestPlan`
     (validation), `TransferMeter` (Mbps with TCP warm-up skipped), `SpeedTestSchedule`, `SpeedTestSummary`;
     `LatencySampler` pings idle and while a transfer runs, `Bufferbloat` (medians + A+…F grade).
+    `ContractSpeeds` (advertised + guaranteed minimum, validation) and `ContractCheck` (≤ 5 % of tests below the
+    minimum, or half the advertised speed → `SpeedVersusContract` with verdict and 5th percentile).
   - `Reports/` — `IspReportBuilder` (→ `IspReport`), `ReportPeriod` (days or from/to dates), `Csv` +
     `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601), `JsonExport` (streamed arrays, same fields as CSV). `Outages/OutageClassifier` labels outages
     LocalNetwork / Internet / SingleHost / Unknown; `Stats/LatencyAccumulator` streams `LatencyStats`.
@@ -87,6 +89,8 @@ docker build -t netpulse .                 # container image
     `Storage/SqliteOutageTraceStore` (hops as JSON); shown on `/outages`, in the report and `/api/outages`.
   - `Health/` — `MonitorHealthCheck` (heartbeat) and `DatabaseHealthCheck` behind `/healthz`; `HealthEndpoints` maps `/healthz` and `/metrics`.
   - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
+    The contract is saved by `Storage/SqliteContractStore` (one row), edited in the Contract card on `/speed`,
+    `GET/PUT /api/contract`; it fills in `/report` and is the fallback alert threshold; `ContractFormat` words it.
   - `Reports/PatternService` — streams samples + speed tests into a `WeekHeatmap` (server time) for `/patterns`
     and `/api/patterns`; `Shared/WeekHeatmapChart` is a CSS-grid heatmap (no SVG).
   - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; `ReportEndpoints` maps `/api/patterns`, `/api/report` and `/api/export/*`.

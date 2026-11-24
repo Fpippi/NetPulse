@@ -7,12 +7,6 @@ namespace NetPulse.Core.Reports;
 /// <summary>Line quality of one target over the report period.</summary>
 public sealed record TargetReport(string Target, LatencyStats Latency, OutageSummary Outages);
 
-/// <summary>Measured speed compared with what the contract promises.</summary>
-/// <param name="ContractedMbps">Speed in the contract.</param>
-/// <param name="AveragePercent">Average measured speed as a share of the contracted one.</param>
-/// <param name="TestsBelowHalf">Tests that measured less than half the contracted speed.</param>
-public sealed record SpeedVersusContract(double ContractedMbps, double? AveragePercent, int TestsBelowHalf);
-
 /// <summary>
 /// Everything a customer needs to show their ISP: per-target latency, loss and availability,
 /// outages with their likely cause, and speed tests against the contracted speed.
@@ -83,8 +77,7 @@ public static class IspReportBuilder
     /// <param name="outages">Outages that overlap the period.</param>
     /// <param name="speedTests">Speed tests run in the period.</param>
     /// <param name="gatewayTarget">Name of the gateway target, used to classify outages.</param>
-    /// <param name="contractedDownloadMbps">Download speed in the contract, if known.</param>
-    /// <param name="contractedUploadMbps">Upload speed in the contract, if known.</param>
+    /// <param name="contract">Speeds in the contract (<see cref="ContractSpeeds.None"/> when unknown).</param>
     /// <param name="generatedAt">When the report is generated.</param>
     public static IspReport Build(
         DateTimeOffset from,
@@ -93,8 +86,7 @@ public static class IspReportBuilder
         IReadOnlyList<Outage> outages,
         IReadOnlyList<SpeedTestResult> speedTests,
         string gatewayTarget,
-        double? contractedDownloadMbps,
-        double? contractedUploadMbps,
+        ContractSpeeds contract,
         DateTimeOffset generatedAt)
     {
         if (to <= from)
@@ -122,7 +114,7 @@ public static class IspReportBuilder
             .OrderBy(o => o.Outage.Start)
             .ToList();
 
-        var ok = speedTests.Where(r => r.Success).ToList();
+        var versus = ContractCheck.Evaluate(contract, speedTests);
 
         return new IspReport(
             from,
@@ -132,21 +124,7 @@ public static class IspReportBuilder
             classified,
             speedTests,
             SpeedTestSummary.From(speedTests),
-            Compare(contractedDownloadMbps, ok.Select(r => r.DownloadMbps)),
-            Compare(contractedUploadMbps, ok.Select(r => r.UploadMbps)));
-    }
-
-    private static SpeedVersusContract? Compare(double? contracted, IEnumerable<double?> measured)
-    {
-        if (contracted is not > 0)
-        {
-            return null;
-        }
-
-        var values = measured.Where(v => v.HasValue).Select(v => v!.Value).ToList();
-        return new SpeedVersusContract(
-            contracted.Value,
-            values.Count == 0 ? null : 100.0 * values.Average() / contracted.Value,
-            values.Count(v => v < contracted.Value / 2));
+            versus.Download,
+            versus.Upload);
     }
 }

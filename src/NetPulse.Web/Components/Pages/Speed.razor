@@ -5,6 +5,7 @@
 @using NetPulse.Core.SpeedTest
 @using NetPulse.Web.SpeedTest
 @inject ISpeedTestStore Store
+@inject IContractStore Contracts
 @inject SpeedTestRunner Runner
 @inject IOptions<SpeedTestOptions> Options
 
@@ -100,6 +101,66 @@
 
     <section class="card">
         <div class="card-head">
+            <h2>Contract</h2>
+            <span class="hint">Last @Label(_window), against the speeds in your Internet contract</span>
+        </div>
+
+        @if (_contract.IsEmpty)
+        {
+            <p class="empty">
+                Enter the speeds in your contract to see whether the line keeps them. Many contracts state a
+                guaranteed minimum next to the advertised “up to” speed: that is the one that counts.
+            </p>
+        }
+        else
+        {
+            <dl class="contract-check">
+                @foreach (var (direction, check) in Checks())
+                {
+                    <div>
+                        <dt>
+                            @direction
+                            <span class="badge @ContractFormat.VerdictClass(check.Verdict)">@ContractFormat.Verdict(check.Verdict)</span>
+                        </dt>
+                        <dd>@ContractFormat.Describe(direction.ToLowerInvariant(), check)</dd>
+                    </div>
+                }
+            </dl>
+        }
+
+        <details class="contract-edit" open="@_contract.IsEmpty">
+            <summary>@(_contract.IsEmpty ? "Enter the contract" : "Edit the contract")</summary>
+            <form class="form-grid" @onsubmit="SaveContractAsync">
+                <label>Download (Mbps)
+                    <input type="number" min="0" step="any" @bind="_download" />
+                </label>
+                <label>Upload (Mbps)
+                    <input type="number" min="0" step="any" @bind="_upload" />
+                </label>
+                <label>Guaranteed minimum download (Mbps)
+                    <input type="number" min="0" step="any" @bind="_minDownload" />
+                </label>
+                <label>Guaranteed minimum upload (Mbps)
+                    <input type="number" min="0" step="any" @bind="_minUpload" />
+                </label>
+                <div class="form-actions">
+                    <button type="submit" class="primary">Save</button>
+                </div>
+            </form>
+            @if (_contractError is not null)
+            {
+                <p class="error" role="alert">@_contractError</p>
+            }
+            <p class="hint">
+                Leave a field empty if the contract does not state it. Without a guaranteed minimum, a test counts as
+                too slow below half the advertised speed. The contract also fills in the report and, unless alert
+                thresholds are configured, sends an alert for each test below the minimum.
+            </p>
+        </details>
+    </section>
+
+    <section class="card">
+        <div class="card-head">
             <h2>History</h2>
             <span class="hint">@_summary.Count tests@(_summary.Failed > 0 ? $", {_summary.Failed} failed" : "")</span>
         </div>
@@ -112,7 +173,8 @@
             <div><dt>Avg latency</dt><dd>@Ms(_summary.AvgLatencyMs)</dd></div>
         </dl>
 
-        <SpeedChart Results="_results" From="_from" To="_now" WindowLabel="@Label(_window)" />
+        <SpeedChart Results="_results" From="_from" To="_now" WindowLabel="@Label(_window)"
+                    DownloadThresholdMbps="@_check.Download?.ThresholdMbps" UploadThresholdMbps="@_check.Upload?.ThresholdMbps" />
 
         @if (_results.Count > 0)
         {
@@ -138,8 +200,8 @@
                                         <span class="tag offline" title="@result.Error">failed</span>
                                     }
                                 </td>
-                                <td>@Mbps(result.DownloadMbps)</td>
-                                <td>@Mbps(result.UploadMbps)</td>
+                                <td class="@Below(result.Success ? result.DownloadMbps : null, _check.Download)">@Mbps(result.DownloadMbps)</td>
+                                <td class="@Below(result.Success ? result.UploadMbps : null, _check.Upload)">@Mbps(result.UploadMbps)</td>
                                 <td>@Ms(result.LatencyMs)</td>
                                 <td>
                                     @if (result.Bufferbloat?.Grade is { } rowGrade)
@@ -174,10 +236,20 @@
     private IReadOnlyList<SpeedTestResult> _results = [];
     private SpeedTestSummary _summary = SpeedTestSummary.From([]);
     private bool _wasRunning;
+    private ContractSpeeds _contract = ContractSpeeds.None;
+    private ContractReport _check = ContractReport.Empty;
+    private double? _download;
+    private double? _upload;
+    private double? _minDownload;
+    private double? _minUpload;
+    private string? _contractError;
 
     protected override async Task OnInitializedAsync()
     {
         Runner.Changed += OnChanged;
+        _contract = await Contracts.GetAsync();
+        (_download, _upload, _minDownload, _minUpload) =
+            (_contract.DownloadMbps, _contract.UploadMbps, _contract.MinDownloadMbps, _contract.MinUploadMbps);
         await LoadAsync();
         _ = RefreshLoopAsync(_cts.Token);
     }
@@ -232,7 +304,36 @@
         _results = await Store.GetSinceAsync(_from);
         _latest = await Store.GetLatestAsync();
         _summary = SpeedTestSummary.From(_results);
+        _check = ContractCheck.Evaluate(_contract, _results);
     }
+
+    private async Task SaveContractAsync()
+    {
+        if (!ContractSpeeds.TryCreate(_download, _upload, _minDownload, _minUpload, out var contract, out _contractError))
+        {
+            return;
+        }
+
+        await Contracts.SaveAsync(contract);
+        _contract = contract;
+        _check = ContractCheck.Evaluate(_contract, _results);
+    }
+
+    private IEnumerable<(string Direction, SpeedVersusContract Check)> Checks()
+    {
+        if (_check.Download is { } down)
+        {
+            yield return ("Download", down);
+        }
+
+        if (_check.Upload is { } up)
+        {
+            yield return ("Upload", up);
+        }
+    }
+
+    private static string? Below(double? measured, SpeedVersusContract? check) =>
+        ContractFormat.IsBelow(measured, check) ? "below-contract" : null;
 
     private Task RunNowAsync()
     {

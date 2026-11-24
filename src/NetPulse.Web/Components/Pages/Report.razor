@@ -3,12 +3,14 @@
 @using NetPulse.Core.Connection
 @using NetPulse.Core.Outages
 @using NetPulse.Core.Reports
+@using NetPulse.Core.SpeedTest
 @using NetPulse.Core.Traceroute
 @using NetPulse.Web.Monitoring
 @using NetPulse.Web.Reports
 @using NetPulse.Web.SpeedTest
 @inject ReportService Reports
 @inject ILinkStore LinkStore
+@inject IContractStore Contracts
 @inject IOptions<MonitorOptions> MonitorOptions
 @inject IOptions<OutageOptions> OutageOptions
 @inject IOptions<SpeedTestOptions> SpeedOptions
@@ -25,7 +27,7 @@
     <section class="card no-print">
         <div class="card-head">
             <h2>Report settings</h2>
-            <span class="hint">Dates are whole days in the server's time zone.</span>
+            <span class="hint">Dates are whole days in the server's time zone. The speeds start from the contract saved on the <a href="speed">Speed</a> page.</span>
         </div>
 
         <form class="form-grid" @onsubmit="GenerateAsync">
@@ -40,6 +42,12 @@
             </label>
             <label>Contracted upload (Mbps, optional)
                 <input type="number" min="0" step="any" @bind="_upload" />
+            </label>
+            <label>Guaranteed minimum download (Mbps, optional)
+                <input type="number" min="0" step="any" @bind="_minDownload" />
+            </label>
+            <label>Guaranteed minimum upload (Mbps, optional)
+                <input type="number" min="0" step="any" @bind="_minUpload" />
             </label>
             <div class="form-actions">
                 <button type="submit" class="primary" disabled="@_busy">@(_busy ? "Generating…" : "Generate")</button>
@@ -208,15 +216,27 @@
                             Download min @Mbps(report.Speed.MinDownloadMbps), max @Mbps(report.Speed.MaxDownloadMbps);
                             upload min @Mbps(report.Speed.MinUploadMbps), max @Mbps(report.Speed.MaxUploadMbps).
                         </span>
-                        @if (report.Download is { } down)
-                        {
-                            <span>@down.TestsBelowHalf tests measured less than half the contracted download (@Mbps(down.ContractedMbps)).</span>
-                        }
-                        @if (report.Upload is { } up)
-                        {
-                            <span>@up.TestsBelowHalf tests measured less than half the contracted upload (@Mbps(up.ContractedMbps)).</span>
-                        }
                     </p>
+                    @if (report.Download is not null || report.Upload is not null)
+                    {
+                        <dl class="contract-check">
+                            @foreach (var (direction, check) in Checks(report))
+                            {
+                                <div>
+                                    <dt>
+                                        @direction
+                                        <span class="badge @ContractFormat.VerdictClass(check.Verdict)">@ContractFormat.Verdict(check.Verdict)</span>
+                                    </dt>
+                                    <dd>@ContractFormat.Describe(direction.ToLowerInvariant(), check)</dd>
+                                </div>
+                            }
+                        </dl>
+                        <p class="report-note">
+                            The contract is kept when no more than @ContractCheck.TolerancePercent.ToString(CultureInfo.InvariantCulture) %
+                            of the tests are below the guaranteed minimum (or, if the contract states none, below half the
+                            advertised speed), as in the measurements of most national regulators.
+                        </p>
+                    }
                     <div class="table-wrap">
                         <table class="devices summary">
                             <thead>
@@ -232,8 +252,8 @@
                                 {
                                     <tr>
                                         <td>@Time(test.Timestamp)@(test.Success ? "" : " (failed)")</td>
-                                        <td>@Mbps(test.DownloadMbps)</td>
-                                        <td>@Mbps(test.UploadMbps)</td>
+                                        <td class="@Below(test.Success ? test.DownloadMbps : null, report.Download)">@Mbps(test.DownloadMbps)</td>
+                                        <td class="@Below(test.Success ? test.UploadMbps : null, report.Upload)">@Mbps(test.UploadMbps)</td>
                                         <td>@Ms(test.LatencyMs)</td>
                                     </tr>
                                 }
@@ -269,6 +289,8 @@
     private DateOnly _to = DateOnly.FromDateTime(DateTime.Now);
     private double? _download;
     private double? _upload;
+    private double? _minDownload;
+    private double? _minUpload;
     private bool _busy;
     private string? _error;
     private IspReport? _report;
@@ -277,12 +299,19 @@
     private string SpeedServer =>
         Uri.TryCreate(SpeedOptions.Value.UploadUrl, UriKind.Absolute, out var uri) ? uri.Host : "speed test server";
 
-    protected override Task OnInitializedAsync() => GenerateAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var saved = await Contracts.GetAsync();
+        (_download, _upload, _minDownload, _minUpload) =
+            (saved.DownloadMbps, saved.UploadMbps, saved.MinDownloadMbps, saved.MinUploadMbps);
+        await GenerateAsync();
+    }
 
     private async Task GenerateAsync()
     {
         _error = null;
-        if (!ReportPeriod.TryResolve(Iso(_from), Iso(_to), null, DateTimeOffset.UtcNow, TimeZoneInfo.Local, out var period, out var error))
+        if (!ReportPeriod.TryResolve(Iso(_from), Iso(_to), null, DateTimeOffset.UtcNow, TimeZoneInfo.Local, out var period, out var error)
+            || !ContractSpeeds.TryCreate(_download, _upload, _minDownload, _minUpload, out var contract, out error))
         {
             _error = error;
             return;
@@ -291,7 +320,7 @@
         _busy = true;
         try
         {
-            _report = await Reports.BuildAsync(period, _download, _upload);
+            _report = await Reports.BuildAsync(period, contract);
             _traces = await Reports.GetTracesAsync(_report);
             _links = new LinkHistory(await LinkStore.GetSinceAsync(period.From - LinkHistory.MaxAge));
         }
@@ -345,6 +374,22 @@
         OutageCause.SingleHost => "Single host",
         _ => "Unknown",
     };
+
+    private static IEnumerable<(string Direction, SpeedVersusContract Check)> Checks(IspReport report)
+    {
+        if (report.Download is { } down)
+        {
+            yield return ("Download", down);
+        }
+
+        if (report.Upload is { } up)
+        {
+            yield return ("Upload", up);
+        }
+    }
+
+    private static string? Below(double? measured, SpeedVersusContract? check) =>
+        ContractFormat.IsBelow(measured, check) ? "below-contract" : null;
 
     private static string Contract(SpeedVersusContract? comparison) =>
         comparison?.AveragePercent is { } percent

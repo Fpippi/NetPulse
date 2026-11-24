@@ -26,6 +26,7 @@ public sealed class SpeedTestRunner(
     IHttpClientFactory httpClients,
     IPingProbe ping,
     ISpeedTestStore store,
+    IContractStore contracts,
     INotificationPublisher notifications,
     IOptions<NotificationOptions> notificationOptions,
     IOptions<SpeedTestOptions> options,
@@ -82,8 +83,13 @@ public sealed class SpeedTestRunner(
                 logger.LogWarning("Speed test against {Server} failed: {Error}", result.Server, result.Error);
             }
 
+            // The configured alert thresholds win; otherwise the guaranteed minimum of the contract applies.
+            var contract = await contracts.GetAsync(cancellationToken);
+            var alerts = notificationOptions.Value;
             var alert = NotificationFactory.SpeedTest(
-                result, notificationOptions.Value.MinDownloadMbps, notificationOptions.Value.MinUploadMbps);
+                result,
+                alerts.MinDownloadMbps > 0 ? alerts.MinDownloadMbps : contract.MinDownloadMbps,
+                alerts.MinUploadMbps > 0 ? alerts.MinUploadMbps : contract.MinUploadMbps);
             if (alert is not null)
             {
                 notifications.Publish(alert);
