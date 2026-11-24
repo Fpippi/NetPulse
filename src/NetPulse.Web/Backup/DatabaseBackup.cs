@@ -78,20 +78,27 @@ public sealed class DatabaseBackup(IOptions<MonitorOptions> options, DatabaseSch
             File.Delete(SafetyCopyPath);
             await VacuumIntoAsync(SafetyCopyPath, cancellationToken);
 
-            await using (var source = Open(candidate, SqliteOpenMode.ReadOnly))
-            await using (var live = Open(DatabasePath, SqliteOpenMode.ReadWriteCreate))
+            try
             {
-                await source.OpenAsync(cancellationToken);
-                await live.OpenAsync(cancellationToken);
-                source.BackupDatabase(live);
+                await CopyAsync(candidate, DatabasePath, cancellationToken);
+
+                // A backup from an older version lacks newer tables and columns: add them, as after an upgrade.
+                await schema.InitializeAsync(cancellationToken);
+
+                var (samples, from, to) = await CountSamplesAsync(cancellationToken);
+                logger.LogInformation("Database restored: {Samples} samples; previous data saved to {SafetyCopy}", samples, SafetyCopyPath);
+                return new RestoreResult(null, samples, from, to, SafetyCopyPath);
             }
-
-            // A backup from an older version lacks newer tables and columns: add them, as after an upgrade.
-            await schema.InitializeAsync(cancellationToken);
-
-            var (samples, from, to) = await CountSamplesAsync(cancellationToken);
-            logger.LogInformation("Database restored: {Samples} samples; previous data saved to {SafetyCopy}", samples, SafetyCopyPath);
-            return new RestoreResult(null, samples, from, to, SafetyCopyPath);
+            catch (Exception ex) when (ex is SqliteException or OperationCanceledException)
+            {
+                // The file passed the checks but NetPulse cannot use it (e.g. a table with other
+                // columns), or the restore was cancelled half-way: put the previous data back.
+                logger.LogWarning(ex, "Restore failed; putting back the previous data from {SafetyCopy}", SafetyCopyPath);
+                await RollBackAsync();
+                return ex is OperationCanceledException
+                    ? RestoreResult.Failed("The restore was cancelled. Your previous data was kept.")
+                    : RestoreResult.Failed($"This backup cannot be used by this version of NetPulse ({ex.Message}). Your previous data was kept.");
+            }
         }
         finally
         {
@@ -99,6 +106,27 @@ public sealed class DatabaseBackup(IOptions<MonitorOptions> options, DatabaseSch
             SqliteConnection.ClearAllPools();
             File.Delete(candidate);
         }
+    }
+
+    /// <summary>
+    /// Copies the safety copy back over the live database. Runs to the end even when the request is
+    /// cancelled: a half-restored database is worse than a late answer.
+    /// </summary>
+    private async Task RollBackAsync()
+    {
+        SqliteConnection.ClearAllPools();
+        await CopyAsync(SafetyCopyPath, DatabasePath, CancellationToken.None);
+        await schema.InitializeAsync(CancellationToken.None);
+    }
+
+    /// <summary>Replaces every page of <paramref name="target"/> with those of <paramref name="source"/> (SQLite online backup).</summary>
+    private static async Task CopyAsync(string source, string target, CancellationToken cancellationToken)
+    {
+        await using var from = Open(source, SqliteOpenMode.ReadOnly);
+        await using var to = Open(target, SqliteOpenMode.ReadWriteCreate);
+        await from.OpenAsync(cancellationToken);
+        await to.OpenAsync(cancellationToken);
+        from.BackupDatabase(to);
     }
 
     private static async Task<string?> SaveAsync(Stream upload, string path, CancellationToken cancellationToken)
