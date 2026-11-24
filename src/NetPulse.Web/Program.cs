@@ -96,6 +96,8 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.Configure<OutageOptions>(builder.Configuration.GetSection(OutageOptions.SectionName));
 builder.Services.AddSqliteStore<IOutageStore>(path => new SqliteOutageStore(path));
+builder.Services.Configure<DegradationOptions>(builder.Configuration.GetSection(DegradationOptions.SectionName));
+builder.Services.AddSqliteStore<IDegradationStore>(path => new SqliteDegradationStore(path));
 builder.Services.AddSqliteStore<IOutageTraceStore>(path => new SqliteOutageTraceStore(path));
 builder.Services.AddSingleton<ITraceProbe, IcmpTraceProbe>();
 builder.Services.AddSingleton<Tracer>();

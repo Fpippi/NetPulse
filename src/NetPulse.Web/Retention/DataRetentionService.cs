@@ -12,6 +12,7 @@ public sealed class DataRetentionService(
     RetentionPolicy policy,
     ISampleStore samples,
     IOutageStore outages,
+    IDegradationStore degradations,
     IOutageTraceStore traces,
     ISpeedTestStore speedTests,
     ILanDeviceStore devices,
@@ -99,7 +100,8 @@ public sealed class DataRetentionService(
     {
         // The Wi-Fi/wired history explains the samples, so it is kept just as long.
         DataKind.Samples => await samples.PurgeOlderThanAsync(cutoff, ct) + await links.PurgeOlderThanAsync(cutoff, ct),
-        DataKind.Outages => await outages.PurgeOlderThanAsync(cutoff, ct) + await traces.PurgeOlderThanAsync(cutoff, ct),
+        DataKind.Outages => await outages.PurgeOlderThanAsync(cutoff, ct) + await traces.PurgeOlderThanAsync(cutoff, ct)
+                            + await degradations.PurgeOlderThanAsync(cutoff, ct),
         DataKind.SpeedTests => await speedTests.PurgeOlderThanAsync(cutoff, ct),
         DataKind.DeviceEvents => await devices.PurgeEventsOlderThanAsync(cutoff, ct)
                                  + await watch.PurgeAbsencesOlderThanAsync(cutoff, ct),

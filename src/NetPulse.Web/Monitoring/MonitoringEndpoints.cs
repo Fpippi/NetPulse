@@ -84,6 +84,34 @@ public static class MonitoringEndpoints
             });
         });
 
+        // Degraded periods: the target answered, but with poor loss, latency or jitter.
+        api.MapGet("/degradations", async (IDegradationStore degradations, IOptions<DegradationOptions> options, int hours = 24) =>
+        {
+            var to = DateTimeOffset.UtcNow;
+            var from = to.AddHours(-Math.Clamp(hours, 1, 24 * 366));
+            var list = await degradations.GetSinceAsync(from);
+
+            return Results.Ok(new
+            {
+                from,
+                to,
+                enabled = options.Value.Enabled,
+                windowMinutes = Math.Max(1, options.Value.WindowMinutes),
+                periods = list.Select(d => new
+                {
+                    d.Target,
+                    d.Start,
+                    d.End,
+                    d.IsOngoing,
+                    reasons = Degradation.Describe(d.Reasons),
+                    d.WorstLossPercent,
+                    d.WorstAvgMs,
+                    d.WorstJitterMs,
+                    durationSeconds = Math.Round(d.Duration(to).TotalSeconds, 1),
+                }),
+            });
+        });
+
         api.MapGet("/targets", async (TargetManager targets) =>
             Results.Ok(await targets.GetTargetsAsync()));
 
