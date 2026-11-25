@@ -37,6 +37,8 @@ docker build -t netpulse .                 # container image
     `IHostResolver`; `gateway`/`gateway6`; `FamilyOf(name)`) / `dns:name[@server]` / `http(s)://` (`ProbeKind`); `DnsProbe` (raw UDP A query via `DnsWire`),
     `HttpProbe` (GET until headers), `TargetProbe` dispatches by kind with `ProbeTimeouts`.
     `Stats/QualityThresholds` gives each kind its own Good/Fair/Poor scale (`LatencyStats.Rate`).
+    `DnsComparison.cs`: `DnsResolver` (public list, `WithSystem`), `DnsComparer` (warm-up + cached rounds + random-label
+    lookups per resolver through an `ITargetProbe`, ranked by median, unreliable last), `DnsComparison` (`Verdict`).
   - `Stats/` — `LatencyStats` (avg/min/max/jitter/loss/quality), `ChartDownsampler`, `SampleWindow`
     (per-target cache of a sliding window: `/` reads only the samples stored since its last refresh),
     `WeekHeatmap` + `WeekHeatmapBuilder` (samples and speed tests folded onto weekday × hour, levels 0–4
@@ -95,6 +97,8 @@ docker build -t netpulse .                 # container image
   - `SpeedTest/` — `SpeedTestRunner` (one test at a time, `Changed` event), `SpeedTestService` (scheduler).
     The contract is saved by `Storage/SqliteContractStore` (one row), edited in the Contract card on `/speed`,
     `GET/PUT /api/contract`; it fills in `/report` and is the fallback alert threshold; `ContractFormat` words it.
+  - `Dns/DnsComparisonRunner` (on demand, one at a time, latest result in memory, `Changed`) + `DnsEndpoints`
+    (`GET /api/dns`, `POST /api/dns/compare`); *DNS resolvers* card on `/speed`.
   - `Reports/PatternService` — streams samples + speed tests into a `WeekHeatmap` (server time) for `/patterns`
     and `/api/patterns`; `Shared/WeekHeatmapChart` is a CSS-grid heatmap (no SVG).
   - `Reports/ReportService` — streams samples (`ISampleStore.StreamAsync`) into the report; `ReportEndpoints` maps `/api/patterns`, `/api/report` and `/api/export/*`.

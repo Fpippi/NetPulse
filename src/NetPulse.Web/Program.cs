@@ -7,6 +7,7 @@ using NetPulse.Core.Probing;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Targets;
 using NetPulse.Core.Traceroute;
+using NetPulse.Web.Dns;
 using NetPulse.Web.Backup;
 using NetPulse.Web.ClientCheck;
 using NetPulse.Web.Components;
@@ -82,6 +83,8 @@ builder.Services.AddSingleton(sp =>
             TimeSpan.FromMilliseconds(Math.Max(100, options.HttpTimeoutMs))),
         new SystemHostResolver());
 });
+builder.Services.AddSingleton(sp => new DnsComparisonRunner(
+    new DnsProbe(), DnsServerResolver.GetDefaultDnsServer, sp.GetRequiredService<ILogger<DnsComparisonRunner>>()));
 builder.Services.AddSqliteStore<ISampleStore>(path => new SqliteSampleStore(path));
 builder.Services.AddSqliteStore<ITargetStore>(path => new SqliteTargetStore(path));
 builder.Services.AddSingleton(sp =>
@@ -220,6 +223,7 @@ app.MapHealthEndpoints();
 var api = app.MapGroup("/api");
 api.MapMonitoringEndpoints();
 api.MapSpeedTestEndpoints();
+api.MapDnsEndpoints();
 api.MapReportEndpoints();
 api.MapBackupEndpoints();
 api.MapRetentionEndpoints();
