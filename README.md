@@ -460,10 +460,14 @@ The **Report** page summarizes a period (the last 30 days by default) in a form 
 provider. Pick the dates and, optionally, the contract speeds (filled in from the Speed page), then click
 **Print / Save as PDF**: the print stylesheet hides the dashboard and prints only the report.
 
-- **Summary**: number of Internet outages, total Internet downtime, average download and upload speed
-  (and the share of the contracted speed).
+- **Summary**: number of Internet outages, total Internet downtime, Internet degraded time (public hosts
+  answered badly while the router was fine), average download and upload speed (and the share of the
+  contracted speed).
 - **Latency, loss and availability** for every target: pings, average and maximum latency, jitter, packet
-  loss, outages, downtime and availability.
+  loss, outages, downtime, degraded time and availability.
+- **Degraded periods** with their reasons, worst values and likely cause: *Local network* when the router
+  was degraded at the same time, otherwise *Internet (ISP)*. Overlapping periods of different hosts count
+  once in the Internet degraded time.
 - **Outages** with their **likely cause**, judged by what else was down at the same time:
   *Local network* (the router did not answer either), *Internet (ISP)* (the router answered but every
   public host was down), *Single host* (only that host was down) or *Unknown* (the gateway is not

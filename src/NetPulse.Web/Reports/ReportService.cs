@@ -10,7 +10,11 @@ namespace NetPulse.Web.Reports;
 
 /// <summary>Loads the data of a period from the stores and turns it into reports and CSV files.</summary>
 public sealed class ReportService(
-    ISampleStore samples, IOutageStore outages, ISpeedTestStore speedTests, IOutageTraceStore traces)
+    ISampleStore samples,
+    IOutageStore outages,
+    ISpeedTestStore speedTests,
+    IOutageTraceStore traces,
+    IDegradationStore degradations)
 {
     /// <summary>Traceroutes taken for the outages of a report.</summary>
     public async Task<TraceLookup> GetTracesAsync(IspReport report, CancellationToken cancellationToken = default) =>
@@ -47,6 +51,7 @@ public sealed class ReportService(
             latency,
             await GetOutagesAsync(period, cancellationToken),
             (await speedTests.GetSinceAsync(period.From, cancellationToken)).Where(r => r.Timestamp < period.To).ToList(),
+            (await degradations.GetSinceAsync(period.From, cancellationToken)).Where(d => d.Start < period.To).ToList(),
             MonitorOptions.GatewayTarget,
             contract,
             DateTimeOffset.UtcNow);
