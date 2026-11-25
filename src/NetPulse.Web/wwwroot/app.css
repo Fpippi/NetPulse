@@ -861,6 +861,9 @@ code {
 
 td.below-contract { color: var(--poor-text); font-weight: 600; }
 
+.dns-verdict { margin: .5rem 0 .75rem; }
+.dns-verdict .hint { margin-left: .5rem; }
+
 /* --- Patterns (week heatmap) ------------------------------------------- */
 
 .pattern-controls { margin-bottom: .75rem; }

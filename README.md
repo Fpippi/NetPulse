@@ -56,6 +56,8 @@ or your ISP.
 - **Backup and restore**: download the whole database in one click and restore it on another machine,
   without stopping monitoring
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
+- **Which DNS is fastest?**: one click compares your resolver with Cloudflare, Google, Quad9 and OpenDNS
+  from your own network, on cached names and on fresh lookups
 - **Is the contract kept?**: enter the advertised and guaranteed minimum speeds once; NetPulse checks
   every test against them (at most 5 % of tests below the minimum, like regulator measurements)
 - **Traceroute on outages**: when a public target goes down, the route is recorded so the report shows where
@@ -412,6 +414,23 @@ For the selected window, NetPulse tells you per direction whether the contract w
 The saved contract also fills in the [report](#reports-for-your-isp) and, when `MinDownloadMbps` /
 `MinUploadMbps` are not configured, sends an [alert](#notifications) for each test below the minimum.
 
+#### DNS resolvers
+
+Every page load starts with a DNS lookup, and the resolver your router hands out is not always the fastest
+one from your line. **Compare** in the *DNS resolvers* card asks your resolver and four free public ones
+(Cloudflare 1.1.1.1, Google 8.8.8.8, Quad9 9.9.9.9, OpenDNS 208.67.222.222) the same questions over UDP:
+
+- one warm-up query per popular name (google.com, youtube.com, wikipedia.org…), not counted;
+- two rounds of the same names, which every resolver has **cached** (what most page loads hit);
+- one name with a random label under each domain, which the resolver has to **look up** at the domain's
+  own servers (a first visit).
+
+Resolvers run in parallel, the queries of each one after another, and are ranked by the median of all
+their answers; one failing more than 10 % of the queries goes last. The card says whether switching is
+worth it (5 ms or more faster than yours). A run sends about 160 tiny queries and takes a few seconds;
+the result is kept in memory until the next run or restart. If the system resolver is a local stub
+(e.g. systemd-resolved's 127.0.0.53) only the public resolvers are compared.
+
 #### Bufferbloat
 
 During each test NetPulse also pings `BufferbloatHost` (1.1.1.1 by default): ten times on the idle line,
@@ -632,6 +651,8 @@ scrape_configs:
 | `GET /api/degradations?hours=24`         | Degraded periods in the period, with their reasons and worst loss, latency and jitter |
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
+| `GET /api/dns`                           | The latest DNS resolver comparison (null until one ran) |
+| `POST /api/dns/compare`                  | Compare the DNS resolvers now and return the ranking (`409` if one is running) |
 | `GET /api/contract?days=30`              | The saved contract and how the tests of the period compare with it |
 | `PUT /api/contract`                      | Save the contract: `{"downloadMbps":100,"uploadMbps":20,"minDownloadMbps":40,"minUploadMbps":8}` (null or 0 = not set) |
 | `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload`/`minDownload`/`minUpload` = contract Mbps; the saved contract when none is given) |

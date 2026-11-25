@@ -8,6 +8,7 @@
 @inject IContractStore Contracts
 @inject SpeedTestRunner Runner
 @inject IOptions<SpeedTestOptions> Options
+@inject NetPulse.Web.Dns.DnsComparisonRunner Dns
 
 <PageTitle>Speed · NetPulse</PageTitle>
 
@@ -220,6 +221,65 @@
             </div>
         }
     </section>
+    <section class="card">
+        <div class="card-head">
+            <h2>DNS resolvers</h2>
+            <button type="button" class="primary" disabled="@Dns.IsRunning" @onclick="CompareDnsAsync">
+                @(Dns.IsRunning ? "Comparing…" : "Compare")
+            </button>
+        </div>
+
+        <p class="hint">
+            Every web page starts with a DNS lookup. NetPulse asks your resolver and the free public ones (Cloudflare, Google, Quad9, OpenDNS) the same
+            questions: popular names they all have cached, and random names they have to look up. A few kilobytes,
+            about ten seconds.
+        </p>
+
+        @if (Dns.Latest is { } dns)
+        {
+            <p class="dns-verdict"><strong>@dns.Verdict</strong> <span class="hint" title="@Time(dns.Timestamp)">@RelativeTime.Format(dns.Timestamp, _now)</span></p>
+            <div class="table-wrap">
+                <table class="devices summary">
+                    <thead>
+                        <tr>
+                            <th scope="col">Resolver</th>
+                            <th scope="col">Median</th>
+                            <th scope="col">Cached</th>
+                            <th scope="col">Lookup</th>
+                            <th scope="col">Failed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var score in dns.Ranking)
+                        {
+                            <tr class="@(score.IsReliable ? null : "offline")">
+                                <td>
+                                    @score.Resolver.Name <span class="hint">@score.Resolver.Address</span>
+                                    @if (score == dns.Fastest)
+                                    {
+                                        <span class="tag online">fastest</span>
+                                    }
+                                </td>
+                                <td>@Ms(score.MedianMs)</td>
+                                <td>@Ms(score.CachedMedianMs)</td>
+                                <td>@Ms(score.UncachedMedianMs)</td>
+                                <td>@score.Failed / @score.Queries</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="hint">
+                <em>Cached</em> is a name the resolver already knows (most page loads), <em>lookup</em> one it has to
+                ask the domain's servers for (a first visit). To switch, set the fastest resolver's address as DNS
+                server on your router, or on a single device.
+            </p>
+        }
+        else if (!Dns.IsRunning)
+        {
+            <p class="empty">Not compared yet. Press “Compare”.</p>
+        }
+    </section>
 </main>
 
 @code {
@@ -247,6 +307,7 @@
     protected override async Task OnInitializedAsync()
     {
         Runner.Changed += OnChanged;
+        Dns.Changed += OnDnsChanged;
         _contract = await Contracts.GetAsync();
         (_download, _upload, _minDownload, _minUpload) =
             (_contract.DownloadMbps, _contract.UploadMbps, _contract.MinDownloadMbps, _contract.MinUploadMbps);
@@ -335,6 +396,19 @@
     private static string? Below(double? measured, SpeedVersusContract? check) =>
         ContractFormat.IsBelow(measured, check) ? "below-contract" : null;
 
+    private void OnDnsChanged() => _ = InvokeAsync(() =>
+    {
+        _now = DateTimeOffset.UtcNow;
+        StateHasChanged();
+    });
+
+    private Task CompareDnsAsync()
+    {
+        // Runs in the background; the card updates through Dns.Changed.
+        _ = Task.Run(() => Dns.RunAsync());
+        return Task.CompletedTask;
+    }
+
     private Task RunNowAsync()
     {
         // Runs in the background; progress arrives through Runner.Changed.
@@ -369,6 +443,7 @@
     public void Dispose()
     {
         Runner.Changed -= OnChanged;
+        Dns.Changed -= OnDnsChanged;
         _cts.Cancel();
     }
 }
