@@ -20,5 +20,6 @@ public sealed class DatabaseSchema(IServiceProvider services)
         await services.GetRequiredService<ISpeedTestStore>().InitializeAsync(cancellationToken);
         await services.GetRequiredService<ILinkStore>().InitializeAsync(cancellationToken);
         await services.GetRequiredService<IPublicIpStore>().InitializeAsync(cancellationToken);
+        await services.GetRequiredService<IContractStore>().InitializeAsync(cancellationToken);
     }
 }

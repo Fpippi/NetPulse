@@ -56,6 +56,8 @@ or your ISP.
 - **Backup and restore**: download the whole database in one click and restore it on another machine,
   without stopping monitoring
 - **Scheduled speed tests**: download, upload and latency against a free public endpoint, with history
+- **Is the contract kept?**: enter the advertised and guaranteed minimum speeds once; NetPulse checks
+  every test against them (at most 5 % of tests below the minimum, like regulator measurements)
 - **Traceroute on outages**: when a public target goes down, the route is recorded so the report shows where
   the path broke (your router, the ISP's first hop, or beyond)
 - **Bufferbloat grade** (A+ to F): ping idle vs. during the download and upload, the hidden reason calls and
@@ -392,6 +394,24 @@ at a time. By default they use Cloudflare's free speed-test endpoint (`speed.clo
 HTTPS: latency is the median of a few empty requests, and the first 20% of each transfer is ignored as TCP
 warm-up.
 
+#### Contract speeds
+
+Enter the speeds of your Internet contract in the **Contract** card on the Speed page: the advertised
+("up to") download and upload and, where the contract states them, the **guaranteed minimum** speeds.
+Every field is optional and they are stored in the database.
+
+For the selected window, NetPulse tells you per direction whether the contract was **kept**:
+
+- A test is *too slow* below the guaranteed minimum or, when the contract states none, below half the
+  advertised speed. Too-slow tests are red in the table and the threshold is a dashed line on the chart.
+- The contract is **kept** when no more than **5 %** of the successful tests are too slow, i.e. the speed
+  that 95 % of the tests reached is at or above the threshold. This is the rule most national regulators
+  use for their certified measurements (e.g. AGCOM's in Italy).
+- With fewer than 10 tests there is no verdict yet.
+
+The saved contract also fills in the [report](#reports-for-your-isp) and, when `MinDownloadMbps` /
+`MinUploadMbps` are not configured, sends an [alert](#notifications) for each test below the minimum.
+
 #### Bufferbloat
 
 During each test NetPulse also pings `BufferbloatHost` (1.1.1.1 by default): ten times on the idle line,
@@ -437,7 +457,7 @@ average") or says that no hour stands out. Hover a cell for its numbers.
 ### Reports for your ISP
 
 The **Report** page summarizes a period (the last 30 days by default) in a form you can send to your
-provider. Pick the dates and, optionally, the download and upload speeds in your contract, then click
+provider. Pick the dates and, optionally, the contract speeds (filled in from the Speed page), then click
 **Print / Save as PDF**: the print stylesheet hides the dashboard and prints only the report.
 
 - **Summary**: number of Internet outages, total Internet downtime, average download and upload speed
@@ -449,7 +469,8 @@ provider. Pick the dates and, optionally, the download and upload speeds in your
   public host was down), *Single host* (only that host was down) or *Unknown* (the gateway is not
   monitored). Only Internet outages count toward the Internet downtime, and overlapping outages of
   different hosts count once.
-- **Speed tests**, with how many measured less than half the contracted speed.
+- **Speed tests**, and whether the contract was kept: how many tests were below the guaranteed minimum
+  (or half the advertised speed), the speed 95 % of the tests reached, and the verdict.
 - **How this was measured**: interval, timeout, outage threshold and speed test method.
 
 The page also links the raw data of the same period as **CSV** and **JSON**: ping samples, outages (with
@@ -564,7 +585,7 @@ as you like in the `Notifications` section:
 | `WebhookUrl`                | Receives a JSON `POST` (`kind`, `severity`, `title`, `message`, `timestamp`); also carries `text` and `content`, so Slack and Discord incoming webhooks work directly. Handy for Home Assistant, n8n or Node-RED. |
 | `Smtp:Host`, `Port` (587), `EnableSsl` (true), `User`, `Password`, `From`, `To` | E-mail through any SMTP server; `To` is comma-separated. With Gmail use an app password. |
 | `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:WatchedDevices` (true), `Events:SpeedTests` (true), `Events:PublicIp` (true), `Events:Degradation` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day; watched devices (eye button on the Devices page) alert by default. |
-| `MinDownloadMbps`, `MinUploadMbps` | Alert when a speed test is below these (0 = only failed tests).         |
+| `MinDownloadMbps`, `MinUploadMbps` | Alert when a speed test is below these (0 = the contract minimum from the Speed page, if any). |
 | `BatchSeconds` (10)         | Events closer together are merged into one alert (an ISP outage takes down every public target at once). |
 | `RetryHours` (24)           | Alerts that cannot be delivered (the Internet is down, after all) are retried with backoff for this long. |
 
@@ -611,7 +632,9 @@ scrape_configs:
 | `GET /api/degradations?hours=24`         | Degraded periods in the period, with their reasons and worst loss, latency and jitter |
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
-| `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload` = contracted Mbps, optional) |
+| `GET /api/contract?days=30`              | The saved contract and how the tests of the period compare with it |
+| `PUT /api/contract`                      | Save the contract: `{"downloadMbps":100,"uploadMbps":20,"minDownloadMbps":40,"minUploadMbps":8}` (null or 0 = not set) |
+| `GET /api/report?days=30&download=100&upload=20` | The ISP report as JSON (`download`/`upload`/`minDownload`/`minUpload` = contract Mbps; the saved contract when none is given) |
 | `GET /api/patterns?days=30&target=...`  | Weekday × hour heatmap: per cell samples, loss, average latency (of `target`) and average download; typical values |
 | `GET /api/export/samples.csv?days=7&target=...` | Ping samples as CSV (`samples.json` for JSON) |
 | `GET /api/export/outages.csv?days=30`    | Outages with their likely cause as CSV (`outages.json` for JSON) |

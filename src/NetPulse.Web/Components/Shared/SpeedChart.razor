@@ -11,6 +11,14 @@ else
         <span class="chart-max">@_scaleMbps.ToString("0", CultureInfo.InvariantCulture) Mbps</span>
         <svg class="chart speed" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img"
              aria-label="Download and upload speed over time">
+            @if (_downloadThresholdY is { } downY)
+            {
+                <line class="threshold download" x1="0" x2="@Width" y1="@downY" y2="@downY" />
+            }
+            @if (_uploadThresholdY is { } upY)
+            {
+                <line class="threshold upload" x1="0" x2="@Width" y1="@upY" y2="@upY" />
+            }
             <polyline class="line download" points="@_download" />
             <polyline class="line upload" points="@_upload" />
         </svg>
@@ -28,6 +36,10 @@ else
     <div class="legend">
         <span class="download">Download</span>
         <span class="upload">Upload</span>
+        @if (_downloadThresholdY is not null || _uploadThresholdY is not null)
+        {
+            <span class="threshold">Contract threshold</span>
+        }
     </div>
 }
 
@@ -47,10 +59,19 @@ else
     [Parameter]
     public string WindowLabel { get; set; } = "";
 
+    /// <summary>Contract threshold drawn as a dashed line (the guaranteed minimum or half the advertised speed).</summary>
+    [Parameter]
+    public double? DownloadThresholdMbps { get; set; }
+
+    [Parameter]
+    public double? UploadThresholdMbps { get; set; }
+
     private List<Point> _points = [];
     private string _download = "";
     private string _upload = "";
     private double _scaleMbps;
+    private string? _downloadThresholdY;
+    private string? _uploadThresholdY;
 
     private sealed record Point(string? DownloadStyle, string? UploadStyle, string Tooltip);
 
@@ -63,7 +84,10 @@ else
             return;
         }
 
-        var max = ok.SelectMany(r => new[] { r.DownloadMbps ?? 0, r.UploadMbps ?? 0 }).Max();
+        var max = ok.SelectMany(r => new[] { r.DownloadMbps ?? 0, r.UploadMbps ?? 0 })
+            .Append(DownloadThresholdMbps ?? 0)
+            .Append(UploadThresholdMbps ?? 0)
+            .Max();
         _scaleMbps = Math.Max(1, max * 1.15);
 
         // Invariant culture: SVG and CSS need '.' as the decimal separator (e.g. on it-IT machines).
@@ -71,6 +95,9 @@ else
 
         double X(SpeedTestResult r) => ChartTimeAxis.ToX(r.Timestamp, From, To, Width);
         double Y(double mbps) => Height - mbps / _scaleMbps * Height;
+
+        _downloadThresholdY = DownloadThresholdMbps is > 0 and var down ? F(Y(down)) : null;
+        _uploadThresholdY = UploadThresholdMbps is > 0 and var up ? F(Y(up)) : null;
 
         _download = string.Join(' ', ok.Where(r => r.DownloadMbps.HasValue).Select(r => $"{F(X(r))},{F(Y(r.DownloadMbps!.Value))}"));
         _upload = string.Join(' ', ok.Where(r => r.UploadMbps.HasValue).Select(r => $"{F(X(r))},{F(Y(r.UploadMbps!.Value))}"));

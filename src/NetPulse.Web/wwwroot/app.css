@@ -840,6 +840,26 @@ code {
 
 .legend .download::before { background: var(--accent); }
 .legend .upload::before { background: var(--good); }
+.legend .threshold::before { background: none; border-top: 2px dashed var(--muted); height: 0; }
+
+/* --- Contract check (Speed page and report) ---------------------------- */
+
+.chart.speed .threshold {
+    stroke-width: 1.5;
+    stroke-dasharray: 6 4;
+    opacity: .7;
+    vector-effect: non-scaling-stroke;
+}
+
+.contract-check { display: grid; gap: .6rem; margin: 0 0 .75rem; }
+.contract-check dt { font-weight: 600; }
+.contract-check dt .badge { margin-left: .5rem; font-weight: 500; }
+.contract-check dd { margin: .15rem 0 0; color: var(--muted); }
+
+.contract-edit summary { cursor: pointer; color: var(--muted); }
+.contract-edit[open] summary { margin-bottom: .6rem; }
+
+td.below-contract { color: var(--poor-text); font-weight: 600; }
 
 /* --- Patterns (week heatmap) ------------------------------------------- */
 

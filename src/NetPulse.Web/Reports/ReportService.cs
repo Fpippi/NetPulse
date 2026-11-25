@@ -1,5 +1,6 @@
 using NetPulse.Core.Outages;
 using NetPulse.Core.Reports;
+using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Stats;
 using NetPulse.Core.Storage;
 using NetPulse.Core.Traceroute;
@@ -23,8 +24,7 @@ public sealed class ReportService(
     /// </summary>
     public async Task<IspReport> BuildAsync(
         ReportPeriod period,
-        double? contractedDownloadMbps,
-        double? contractedUploadMbps,
+        ContractSpeeds contract,
         CancellationToken cancellationToken = default)
     {
         var accumulators = new Dictionary<string, LatencyAccumulator>(StringComparer.OrdinalIgnoreCase);
@@ -48,8 +48,7 @@ public sealed class ReportService(
             await GetOutagesAsync(period, cancellationToken),
             (await speedTests.GetSinceAsync(period.From, cancellationToken)).Where(r => r.Timestamp < period.To).ToList(),
             MonitorOptions.GatewayTarget,
-            contractedDownloadMbps,
-            contractedUploadMbps,
+            contract,
             DateTimeOffset.UtcNow);
     }
 

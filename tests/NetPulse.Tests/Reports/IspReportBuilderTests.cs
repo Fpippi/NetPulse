@@ -25,7 +25,7 @@ public class IspReportBuilderTests
         new(From.AddDays(1), "speed.example", 10, down, up, 1, 1, error);
 
     private static IspReport Build(IReadOnlyList<Outage> outages, IReadOnlyList<SpeedTestResult> speed, double? down = null, double? up = null) =>
-        IspReportBuilder.Build(From, To, Latency, outages, speed, "gateway", down, up, To);
+        IspReportBuilder.Build(From, To, Latency, outages, speed, "gateway", new ContractSpeeds(down, up, null, null), To);
 
     [Test]
     public void Lists_the_gateway_first_then_targets_alphabetically_including_ones_with_only_outages()
@@ -53,8 +53,8 @@ public class IspReportBuilderTests
     {
         var report = Build([], [Speed(100, 20), Speed(40, 10), Speed(0, 0, "timeout")], down: 100, up: 20);
 
-        Assert.That(report.Download, Is.EqualTo(new SpeedVersusContract(100, 70, 1)));
-        Assert.That(report.Upload, Is.EqualTo(new SpeedVersusContract(20, 75, 0)));
+        Assert.That(report.Download, Is.EqualTo(new SpeedVersusContract(100, null, 2, 70, 1, 1, 40, ContractVerdict.NotEnoughTests)));
+        Assert.That(report.Upload, Is.EqualTo(new SpeedVersusContract(20, null, 2, 75, 0, 0, 10, ContractVerdict.NotEnoughTests)));
         Assert.That(report.Speed.Failed, Is.EqualTo(1));
     }
 
@@ -70,6 +70,6 @@ public class IspReportBuilderTests
     [Test]
     public void Rejects_an_empty_period()
     {
-        Assert.That(() => IspReportBuilder.Build(To, From, Latency, [], [], "gateway", null, null, To), Throws.ArgumentException);
+        Assert.That(() => IspReportBuilder.Build(To, From, Latency, [], [], "gateway", ContractSpeeds.None, To), Throws.ArgumentException);
     }
 }
