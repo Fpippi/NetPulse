@@ -2,6 +2,7 @@
 @implements IDisposable
 @using Microsoft.Extensions.Options
 @using NetPulse.Core.Connection
+@using NetPulse.Core.Notifications
 @using NetPulse.Core.Outages
 @using NetPulse.Core.PublicIp
 @using NetPulse.Core.Discovery
@@ -9,6 +10,8 @@
 @using NetPulse.Web.Monitoring
 @using NetPulse.Core.Traceroute
 @inject IOutageStore Store
+@inject IDegradationStore DegradationStore
+@inject IOptions<DegradationOptions> DegradationOptions
 @inject IOutageTraceStore TraceStore
 @inject ILinkStore LinkStore
 @inject TargetManager Targets
@@ -31,7 +34,7 @@
 </AppHeader>
 
 <main>
-    @if (_outages.Any(o => o.IsOngoing))
+    @if (_outages.Any(o => o.IsOngoing) || _degradations.Any(d => d.IsOngoing))
     {
         <section class="card alert" role="alert">
             <ul>
@@ -41,6 +44,14 @@
                         <strong>@outage.Target is unreachable</strong>
                         since @outage.Start.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)
                         (@DurationFormat.Format(outage.Duration(_to)), @outage.LostSamples lost pings).
+                    </li>
+                }
+                @foreach (var period in _degradations.Where(d => d.IsOngoing))
+                {
+                    <li>
+                        <strong>@period.Target is degraded</strong>
+                        since @period.Start.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture):
+                        @Degradation.Describe(period.Reasons) (@NotificationFactory.Values(period)).
                     </li>
                 }
             </ul>
@@ -59,8 +70,15 @@
         }
         else
         {
-            <OutageTimeline Targets="_targets" Outages="_outages" From="_from" To="_to" WindowLabel="@Label(_window)"
-                            Markers="_ipMarkers" MarkersLabel="public IP" />
+            <OutageTimeline Targets="_targets" Outages="_outages" Degradations="_degradations" From="_from" To="_to"
+                            WindowLabel="@Label(_window)" Markers="_ipMarkers" MarkersLabel="public IP" />
+            <div class="legend timeline-legend">
+                <span class="outage">Outage</span>
+                @if (DegradationOptions.Value.Enabled)
+                {
+                    <span class="degraded">Degraded</span>
+                }
+            </div>
         }
 
         <div class="table-wrap">
@@ -71,6 +89,7 @@
                         <th scope="col">Outages</th>
                         <th scope="col">Downtime</th>
                         <th scope="col">Longest</th>
+                        <th scope="col">Degraded</th>
                         <th scope="col">Availability</th>
                     </tr>
                 </thead>
@@ -83,6 +102,7 @@
                             <td>@summary.Count</td>
                             <td>@(summary.Count == 0 ? "–" : DurationFormat.Format(summary.Downtime))</td>
                             <td>@(summary.Longest is { } longest ? DurationFormat.Format(longest) : "–")</td>
+                            <td>@DegradedTime(target)</td>
                             <td><span class="@AvailabilityClass(summary)">@Percent(summary.AvailabilityPercent)</span></td>
                         </tr>
                     }
@@ -158,6 +178,61 @@
                                             <span class="hint">–</span>
                                         }
                                     </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+
+    @if (DegradationOptions.Value.Enabled)
+    {
+        <section class="card">
+            <div class="card-head">
+                <h2>Degraded periods</h2>
+                <span class="hint">@_degradations.Count in the last @Label(_window)</span>
+            </div>
+
+            <p class="hint">
+                The target answered, but badly: over @DegradationOptions.Value.WindowMinutes minutes the packet loss,
+                latency or jitter was in the poor range, so calls stutter and pages load slowly. Pings lost during an
+                outage do not count.
+            </p>
+
+            @if (_degradations.Count == 0)
+            {
+                <p class="empty">No degraded periods in this period.</p>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="devices">
+                        <thead>
+                            <tr>
+                                <th scope="col">Target</th>
+                                <th scope="col">Started</th>
+                                <th scope="col">Duration</th>
+                                <th scope="col">Why</th>
+                                <th scope="col">Worst</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var period in _degradations.OrderByDescending(d => d.Start))
+                            {
+                                <tr>
+                                    <td>@period.Target</td>
+                                    <td>@Time(period.Start)</td>
+                                    <td>
+                                        @DurationFormat.Format(period.Duration(_to))
+                                        @if (period.IsOngoing)
+                                        {
+                                            <span class="tag fair">ongoing</span>
+                                        }
+                                    </td>
+                                    <td>@Degradation.Describe(period.Reasons)</td>
+                                    <td class="hint">@NotificationFactory.Values(period)</td>
                                 </tr>
                             }
                         </tbody>
@@ -272,6 +347,7 @@
     private DateTimeOffset _from;
     private DateTimeOffset _to;
     private IReadOnlyList<Outage> _outages = [];
+    private IReadOnlyList<Degradation> _degradations = [];
     private TraceLookup _traces = TraceLookup.Empty;
     private List<string> _targets = [];
 
@@ -316,6 +392,7 @@
         _to = DateTimeOffset.UtcNow;
         _from = _to - _window;
         _outages = await Store.GetSinceAsync(_from);
+        _degradations = await DegradationStore.GetSinceAsync(_from);
 
         _ipHistory = new PublicIpHistory(await PublicIpStore.GetSinceAsync(_from));
         _ipAfterOutages = _ipHistory.AfterOutages(_outages);
@@ -333,7 +410,7 @@
         // Monitored targets first, then targets that are gone but had outages in the window.
         _targets = TargetList.Merge(
             await Targets.GetEffectiveTargetsAsync(),
-            _outages.Select(o => o.Target).ToList()).ToList();
+            _outages.Select(o => o.Target).Concat(_degradations.Select(d => d.Target)).ToList()).ToList();
     }
 
     private LinkHistory _links = LinkHistory.Empty;
@@ -348,6 +425,20 @@
         ConnectionQuality.Fair => "fair",
         _ => null,
     };
+
+    /// <summary>Total degraded time of a target within the window.</summary>
+    private string DegradedTime(string target)
+    {
+        var total = _degradations
+            .Where(d => string.Equals(d.Target, target, StringComparison.OrdinalIgnoreCase))
+            .Aggregate(TimeSpan.Zero, (sum, d) =>
+            {
+                var start = d.Start < _from ? _from : d.Start;
+                var end = d.End ?? _to;
+                return end > start ? sum + (end - start) : sum;
+            });
+        return total == TimeSpan.Zero ? "–" : DurationFormat.Format(total);
+    }
 
     private OutageSummary Summary(string target) => OutageSummary.From(
         _outages.Where(o => string.Equals(o.Target, target, StringComparison.OrdinalIgnoreCase)), _from, _to);

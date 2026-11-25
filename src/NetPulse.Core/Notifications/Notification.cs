@@ -18,6 +18,12 @@ public enum NotificationKind
 
     /// <summary>The public IP address changed (usually the modem reconnected).</summary>
     PublicIpChanged,
+
+    /// <summary>A target answers, but with poor loss, latency or jitter.</summary>
+    DegradationStarted,
+
+    /// <summary>A degraded target is fine again.</summary>
+    DegradationEnded,
     Test,
 }
 

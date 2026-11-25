@@ -581,6 +581,7 @@ table.devices {
 .tag.self, .tag.router { color: var(--muted); }
 .tag.online { color: var(--good-text); }
 .tag.offline { color: var(--poor-text); }
+.tag.fair { color: var(--fair-text); }
 
 .events {
     list-style: none;
@@ -774,6 +775,9 @@ code {
 .timeline-track .track { fill: color-mix(in srgb, var(--good) 22%, var(--card)); }
 .timeline-track .outage { fill: var(--poor); }
 .timeline-track .outage.ongoing { fill: var(--fair); }
+.timeline-track .degraded { fill: var(--fair); opacity: .85; }
+.timeline-legend .outage::before { background: var(--poor); }
+.timeline-legend .degraded::before { background: var(--fair); }
 .timeline-track .marker { fill: var(--accent); }
 .timeline-row.markers .timeline-label { color: var(--muted); }
 

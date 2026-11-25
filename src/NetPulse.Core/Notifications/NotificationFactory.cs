@@ -24,6 +24,39 @@ public static class NotificationFactory
         $"{outage.Target} is back after {DurationFormat.Format(outage.Duration(now))} "
         + $"(down since {Time(outage.Start)}, {outage.LostSamples} lost).");
 
+    public static Notification DegradationStarted(Degradation period) => new(
+        period.Start,
+        NotificationKind.DegradationStarted,
+        NotificationSeverity.Warning,
+        $"{period.Target} is degraded",
+        $"{period.Target} answers, but badly since {Time(period.Start)}: {Degradation.Describe(period.Reasons)} "
+        + $"({Values(period)}).");
+
+    public static Notification DegradationEnded(Degradation period, DateTimeOffset now) => new(
+        period.End ?? now,
+        NotificationKind.DegradationEnded,
+        NotificationSeverity.Info,
+        $"{period.Target} is fine again",
+        $"{period.Target} was degraded for {DurationFormat.Format(period.Duration(now))} "
+        + $"(since {Time(period.Start)}; worst {Values(period)}).");
+
+    /// <summary>Worst values of a degraded period, e.g. "loss 12 %, avg 180 ms, jitter 35 ms".</summary>
+    public static string Values(Degradation period)
+    {
+        var parts = new List<string> { $"loss {period.WorstLossPercent.ToString("0", CultureInfo.InvariantCulture)} %" };
+        if (period.WorstAvgMs is { } avg)
+        {
+            parts.Add($"avg {avg.ToString("0", CultureInfo.InvariantCulture)} ms");
+        }
+
+        if (period.WorstJitterMs is { } jitter)
+        {
+            parts.Add($"jitter {jitter.ToString("0", CultureInfo.InvariantCulture)} ms");
+        }
+
+        return string.Join(", ", parts);
+    }
+
     /// <summary>The public address changed; null for the first reading, which is not news.</summary>
     public static Notification? PublicIpChanged(PublicIpChange change) => change.Previous is null
         ? null

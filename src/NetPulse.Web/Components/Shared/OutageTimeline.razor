@@ -1,4 +1,5 @@
-@* Dependency-free SVG timeline: one row per target, a red bar for each outage in the window. *@
+@* Dependency-free SVG timeline: one row per target, a red bar for each outage in the window and a
+   lower, amber bar for each degraded period. *@
 @using NetPulse.Core.Outages
 
 <div class="timeline" role="img" aria-label="Outages per target over the last @WindowLabel">
@@ -8,6 +9,12 @@
             <span class="timeline-label" title="@row.Target">@row.Target</span>
             <svg class="timeline-track" viewBox="0 0 @Width @Height" preserveAspectRatio="none">
                 <rect class="track" x="0" y="0" width="@Width" height="@Height" />
+                @foreach (var bar in row.Degraded)
+                {
+                    <rect class="degraded" x="@bar.X" y="@F(Height / 2.0)" width="@bar.Width" height="@F(Height / 2.0)">
+                        <title>@bar.Tooltip</title>
+                    </rect>
+                }
                 @foreach (var bar in row.Bars)
                 {
                     <rect class="@(bar.Ongoing ? "outage ongoing" : "outage")" x="@bar.X" y="0" width="@bar.Width" height="@Height">
@@ -63,6 +70,10 @@
     [Parameter]
     public string WindowLabel { get; set; } = "";
 
+    /// <summary>Degraded periods (poor quality while the target answered), drawn under the outages.</summary>
+    [Parameter]
+    public IReadOnlyList<Degradation> Degradations { get; set; } = [];
+
     /// <summary>Optional events drawn as ticks on an extra row (e.g. public IP changes), with their tooltip.</summary>
     [Parameter]
     public IReadOnlyList<(DateTimeOffset Time, string Tooltip)> Markers { get; set; } = [];
@@ -82,24 +93,23 @@
 
     private List<Row> _rows = [];
 
-    private sealed record Row(string Target, IReadOnlyList<Bar> Bars);
+    private sealed record Row(string Target, IReadOnlyList<Bar> Bars, IReadOnlyList<Bar> Degraded);
 
     private sealed record Bar(string X, string Width, bool Ongoing, string Tooltip);
 
     protected override void OnParametersSet()
     {
         _rows = Targets
-            .Select(target => new Row(target, Outages
-                .Where(o => string.Equals(o.Target, target, StringComparison.OrdinalIgnoreCase))
-                .Select(o =>
-                {
-                    var x1 = ChartTimeAxis.ToX(o.Start, From, To, Width);
-                    var x2 = ChartTimeAxis.ToX(o.End ?? To, From, To, Width);
-                    var width = Math.Max(MinBarWidth, x2 - x1);
-                    var x = Math.Min(x1, Width - width);
-                    return new Bar(F(x), F(width), o.IsOngoing, Tooltip(o));
-                })
-                .ToList()))
+            .Select(target => new Row(
+                target,
+                Outages
+                    .Where(o => string.Equals(o.Target, target, StringComparison.OrdinalIgnoreCase))
+                    .Select(o => BarFor(o.Start, o.End, Tooltip(o)))
+                    .ToList(),
+                Degradations
+                    .Where(d => string.Equals(d.Target, target, StringComparison.OrdinalIgnoreCase))
+                    .Select(d => BarFor(d.Start, d.End, Tooltip(d)))
+                    .ToList()))
             .ToList();
 
         _markers = Markers
@@ -108,6 +118,22 @@
                 F(Math.Clamp(ChartTimeAxis.ToX(m.Time, From, To, Width) - MarkerWidth / 2, 0, Width - MarkerWidth)),
                 m.Tooltip))
             .ToList();
+    }
+
+    private Bar BarFor(DateTimeOffset start, DateTimeOffset? end, string tooltip)
+    {
+        var x1 = ChartTimeAxis.ToX(start, From, To, Width);
+        var x2 = ChartTimeAxis.ToX(end ?? To, From, To, Width);
+        var width = Math.Max(MinBarWidth, x2 - x1);
+        var x = Math.Min(x1, Width - width);
+        return new Bar(F(x), F(width), end is null, tooltip);
+    }
+
+    private string Tooltip(Degradation period)
+    {
+        var start = period.Start.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        var duration = DurationFormat.Format(period.Duration(To));
+        return $"{start}  degraded{(period.IsOngoing ? ", ongoing" : "")} for {duration}: {Degradation.Describe(period.Reasons)}";
     }
 
     private string Tooltip(Outage outage)
