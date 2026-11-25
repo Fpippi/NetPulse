@@ -24,8 +24,16 @@ public class IspReportBuilderTests
     private static SpeedTestResult Speed(double down, double up, string? error = null) =>
         new(From.AddDays(1), "speed.example", 10, down, up, 1, 1, error);
 
-    private static IspReport Build(IReadOnlyList<Outage> outages, IReadOnlyList<SpeedTestResult> speed, double? down = null, double? up = null) =>
-        IspReportBuilder.Build(From, To, Latency, outages, speed, "gateway", new ContractSpeeds(down, up, null, null), To);
+    private static IspReport Build(
+        IReadOnlyList<Outage> outages,
+        IReadOnlyList<SpeedTestResult> speed,
+        double? down = null,
+        double? up = null,
+        IReadOnlyList<Degradation>? degradations = null) =>
+        IspReportBuilder.Build(From, To, Latency, outages, speed, degradations ?? [], "gateway", new ContractSpeeds(down, up, null, null), To);
+
+    private static Degradation Degraded(string target, double fromHour, double? toHour) =>
+        new(target, From.AddHours(fromHour), toHour is { } end ? From.AddHours(end) : null, DegradationReasons.Loss, 10, 30, 5);
 
     [Test]
     public void Lists_the_gateway_first_then_targets_alphabetically_including_ones_with_only_outages()
@@ -68,8 +76,44 @@ public class IspReportBuilderTests
     }
 
     [Test]
+    public void Degraded_periods_of_public_hosts_count_as_internet_and_are_merged()
+    {
+        // 10:00-11:00 on both public hosts (one incident) and 20:00-21:00 while the router was degraded too.
+        var report = Build([], [], degradations: [
+            Degraded("1.1.1.1", 10, 11), Degraded("8.8.8.8", 10.5, 11.5),
+            Degraded("gateway", 20, 21), Degraded("1.1.1.1", 20.5, 21.5)]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Degradations, Has.Count.EqualTo(4));
+            Assert.That(report.InternetDegradations.Select(d => d.Period.Target), Is.EqualTo(new[] { "1.1.1.1", "8.8.8.8" }));
+            Assert.That(report.InternetDegradedTime, Is.EqualTo(TimeSpan.FromHours(1.5)));
+            Assert.That(report.Degradations.Count(d => d.Cause == OutageCause.LocalNetwork), Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public void Degraded_time_per_target_is_clipped_to_the_period()
+    {
+        var report = Build([], [], degradations: [Degraded("1.1.1.1", -2, 1), Degraded("1.1.1.1", 239, null), Degraded("nas", 5, 6)]);
+
+        Assert.That(report.Targets.Single(t => t.Target == "1.1.1.1").DegradedTime, Is.EqualTo(TimeSpan.FromHours(2)));
+        Assert.That(report.Targets.Single(t => t.Target == "nas").DegradedTime, Is.EqualTo(TimeSpan.FromHours(1)));
+        Assert.That(report.Targets.Single(t => t.Target == "gateway").DegradedTime, Is.EqualTo(TimeSpan.Zero));
+    }
+
+    [Test]
+    public void Periods_outside_the_report_are_left_out()
+    {
+        var report = Build([], [], degradations: [Degraded("1.1.1.1", -5, -1), Degraded("1.1.1.1", 241, 242)]);
+
+        Assert.That(report.Degradations, Is.Empty);
+        Assert.That(report.InternetDegradedTime, Is.EqualTo(TimeSpan.Zero));
+    }
+
+    [Test]
     public void Rejects_an_empty_period()
     {
-        Assert.That(() => IspReportBuilder.Build(To, From, Latency, [], [], "gateway", ContractSpeeds.None, To), Throws.ArgumentException);
+        Assert.That(() => IspReportBuilder.Build(To, From, Latency, [], [], [], "gateway", ContractSpeeds.None, To), Throws.ArgumentException);
     }
 }

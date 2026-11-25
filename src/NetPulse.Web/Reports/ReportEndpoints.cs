@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using NetPulse.Core.Outages;
 using NetPulse.Core.Reports;
 using NetPulse.Core.SpeedTest;
 using NetPulse.Core.Stats;
@@ -80,6 +81,19 @@ public static class ReportEndpoints
                 outages = report.Outages.Select(o => new { o.Outage.Target, o.Outage.Start, o.Outage.End, o.Outage.LostSamples, o.Cause }),
                 internetOutages = report.InternetOutages.Count,
                 internetDowntimeSeconds = Math.Round(report.InternetDowntime.TotalSeconds),
+                degradations = report.Degradations.Select(d => new
+                {
+                    d.Period.Target,
+                    d.Period.Start,
+                    d.Period.End,
+                    reasons = Degradation.Describe(d.Period.Reasons),
+                    d.Period.WorstLossPercent,
+                    d.Period.WorstAvgMs,
+                    d.Period.WorstJitterMs,
+                    d.Cause,
+                }),
+                internetDegradations = report.InternetDegradations.Count,
+                internetDegradedSeconds = Math.Round(report.InternetDegradedTime.TotalSeconds),
                 speed = report.Speed,
                 report.Download,
                 report.Upload,

@@ -1,6 +1,7 @@
 @page "/report"
 @using Microsoft.Extensions.Options
 @using NetPulse.Core.Connection
+@using NetPulse.Core.Notifications
 @using NetPulse.Core.Outages
 @using NetPulse.Core.Reports
 @using NetPulse.Core.SpeedTest
@@ -95,6 +96,10 @@
                         <dd>@(report.InternetOutages.Count == 0 ? "–" : DurationFormat.Format(report.InternetDowntime))</dd>
                     </div>
                     <div>
+                        <dt>Internet degraded</dt>
+                        <dd>@(report.InternetDegradations.Count == 0 ? "–" : DurationFormat.Format(report.InternetDegradedTime))</dd>
+                    </div>
+                    <div>
                         <dt>Avg download</dt>
                         <dd>@Mbps(report.Speed.AvgDownloadMbps)<small>@Contract(report.Download)</small></dd>
                     </div>
@@ -106,7 +111,8 @@
                 <p class="report-note">
                     An <strong>Internet outage</strong> is a period in which the router answered but every monitored
                     public host was unreachable, so the problem was beyond the local network. Overlapping outages of
-                    different hosts count once.
+                    different hosts count once. <strong>Internet degraded</strong> is the time the public hosts answered,
+                    but with poor packet loss, latency or jitter, while the router answered well.
                 </p>
             </section>
 
@@ -124,6 +130,7 @@
                                 <th scope="col">Loss</th>
                                 <th scope="col">Outages</th>
                                 <th scope="col">Downtime</th>
+                                <th scope="col">Degraded</th>
                                 <th scope="col">Availability</th>
                             </tr>
                         </thead>
@@ -139,6 +146,7 @@
                                     <td>@target.Latency.LossPercent.ToString("0.00", CultureInfo.InvariantCulture) %</td>
                                     <td>@target.Outages.Count</td>
                                     <td>@(target.Outages.Count == 0 ? "–" : DurationFormat.Format(target.Outages.Downtime))</td>
+                                    <td>@(target.DegradedTime == TimeSpan.Zero ? "–" : DurationFormat.Format(target.DegradedTime))</td>
                                     <td>@Percent(target.Outages.AvailabilityPercent)</td>
                                 </tr>
                             }
@@ -199,6 +207,54 @@
                     {
                         <p class="report-note">@LinkNote(report)</p>
                     }
+                }
+            </section>
+
+            <section>
+                <h3>Degraded periods</h3>
+                @if (report.Degradations.Count == 0)
+                {
+                    <p class="empty">No degraded periods in this period.</p>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table class="devices">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Started</th>
+                                    <th scope="col">Duration</th>
+                                    <th scope="col">Target</th>
+                                    <th scope="col">Why</th>
+                                    <th scope="col">Worst</th>
+                                    <th scope="col">Likely cause</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (period, cause) in report.Degradations.Take(MaxRows))
+                                {
+                                    <tr>
+                                        <td>@Time(period.Start)</td>
+                                        <td>@DurationFormat.Format(period.Duration(report.To))@(period.IsOngoing ? " (ongoing)" : "")</td>
+                                        <td>@period.Target</td>
+                                        <td>@Degradation.Describe(period.Reasons)</td>
+                                        <td>@NotificationFactory.Values(period)</td>
+                                        <td><span class="cause @cause.ToString().ToLowerInvariant()">@CauseLabel(cause)</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (report.Degradations.Count > MaxRows)
+                    {
+                        <p class="hint">Showing the first @MaxRows of @report.Degradations.Count degraded periods.</p>
+                    }
+                    <p class="report-note">
+                        A <strong>degraded period</strong> is a stretch of at least a few minutes in which a target answered,
+                        but with packet loss, latency or jitter in the poor range: the line worked, yet calls stuttered
+                        and pages loaded slowly. When the router was degraded at the same time the cause is the local
+                        network; otherwise it was beyond it.
+                    </p>
                 }
             </section>
 

@@ -52,7 +52,8 @@ docker build -t netpulse .                 # container image
     `LatencySampler` pings idle and while a transfer runs, `Bufferbloat` (medians + A+…F grade).
     `ContractSpeeds` (advertised + guaranteed minimum, validation) and `ContractCheck` (≤ 5 % of tests below the
     minimum, or half the advertised speed → `SpeedVersusContract` with verdict and 5th percentile).
-  - `Reports/` — `IspReportBuilder` (→ `IspReport`), `ReportPeriod` (days or from/to dates), `Csv` +
+  - `Reports/` — `IspReportBuilder` (→ `IspReport`; degraded periods → `ClassifiedDegradation`, local if the
+    gateway was degraded too, `InternetDegradedTime` merged like `InternetDowntime`; `TargetReport.DegradedTime`), `ReportPeriod` (days or from/to dates), `Csv` +
     `CsvExport` (RFC 4180, invariant numbers, UTC ISO 8601), `JsonExport` (streamed arrays, same fields as CSV). `Outages/OutageClassifier` labels outages
     LocalNetwork / Internet / SingleHost / Unknown; `Stats/LatencyAccumulator` streams `LatencyStats`.
   - `Notifications/` — `Notification` (+ `INotificationPublisher`, `INotificationChannel`), `NotificationFactory`

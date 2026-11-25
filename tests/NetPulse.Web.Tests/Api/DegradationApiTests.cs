@@ -68,6 +68,29 @@ public class DegradationApiTests
     }
 
     [Test]
+    public async Task The_report_counts_internet_degraded_time()
+    {
+        var store = _factory.Services.GetRequiredService<IDegradationStore>();
+        var start = DateTimeOffset.UtcNow.AddDays(-1);
+        await store.SaveAsync([
+            new Degradation("1.1.1.1", start, start.AddMinutes(30), DegradationReasons.Loss, 12, 40, 5),
+            new Degradation("8.8.8.8", start.AddMinutes(10), start.AddMinutes(40), DegradationReasons.Loss, 9, 40, 5),
+            new Degradation("gateway", start.AddHours(5), start.AddHours(5).AddMinutes(10), DegradationReasons.Jitter, 0, 5, 40),
+        ]);
+
+        var json = await _client.GetFromJsonAsync<JsonElement>("/api/report?days=7");
+        var html = await _client.GetStringAsync("/report");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(json.GetProperty("degradations").GetArrayLength(), Is.EqualTo(3));
+            Assert.That(json.GetProperty("internetDegradations").GetInt32(), Is.EqualTo(2));
+            Assert.That(json.GetProperty("internetDegradedSeconds").GetDouble(), Is.EqualTo(2400));
+            Assert.That(html, Does.Contain("Internet degraded").And.Contain("Degraded periods"));
+        });
+    }
+
+    [Test]
     public async Task The_outages_page_shows_degraded_periods()
     {
         var store = _factory.Services.GetRequiredService<IDegradationStore>();
