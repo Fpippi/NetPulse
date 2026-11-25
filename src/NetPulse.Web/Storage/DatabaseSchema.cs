@@ -15,6 +15,7 @@ public sealed class DatabaseSchema(IServiceProvider services)
         await services.GetRequiredService<ILanDeviceStore>().InitializeAsync(cancellationToken);
         await services.GetRequiredService<IDeviceWatchStore>().InitializeAsync(cancellationToken);
         await services.GetRequiredService<IOutageStore>().InitializeAsync(cancellationToken);
+        await services.GetRequiredService<IDegradationStore>().InitializeAsync(cancellationToken);
         await services.GetRequiredService<IOutageTraceStore>().InitializeAsync(cancellationToken);
         await services.GetRequiredService<ISpeedTestStore>().InitializeAsync(cancellationToken);
         await services.GetRequiredService<ILinkStore>().InitializeAsync(cancellationToken);

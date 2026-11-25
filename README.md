@@ -49,6 +49,8 @@ or your ISP.
   the router, the provider or the phone itself
 - **Outage detection**: N lost pings in a row become an outage, shown on a per-target timeline with
   downtime and availability — so you can tell a router problem (the gateway goes down too) from an ISP one
+- **Degraded periods**: minutes in which a target answered, but with poor loss, latency or jitter, shown
+  next to the outages and sent as alerts — the line "works" but calls stutter
 - **Public IP history**: every change of your public address, marked on the outage timeline and matched with
   the outage that caused it (the modem reconnected), plus a daily check for carrier-grade NAT
 - **Backup and restore**: download the whole database in one click and restore it on another machine,
@@ -333,6 +335,29 @@ Settings live in the `Outages` section, e.g. `NetPulse__Outages__ConsecutiveLoss
 | `TraceRoute`        | `true`  | Traceroute towards a public target when its outage starts |
 | `TraceMaxHops`      | `20`    | Farthest hop the traceroute probes                  |
 
+#### Degraded periods
+
+A line can answer every ping and still be bad: 10 % packet loss or 300 ms of latency make video calls
+stutter without a single outage. NetPulse rates the probes of the last `WindowMinutes` (5 by default) of
+each target with the same Good / Fair / Poor thresholds as the dashboard (each probe kind has its own: ping,
+DNS, HTTP). When the window is **Poor** a **degraded period** starts, labelled with the reasons: *packet
+loss* (5 % or more), *high latency* (average at or above the poor limit, 150 ms for a ping) or *high jitter*
+(30 ms for a ping). It ends once the window has stayed better than Poor for another full window, so a line
+hovering around a limit gives one long period instead of dozens of short ones.
+
+Pings lost during an outage do not count: the outage already reports them. Degraded periods appear as amber
+bars under the outages on the timeline, with their total per target and a table with the worst loss,
+latency and jitter of each. They send an alert when they start and end (`Events:Degradation`), and are kept
+as long as outages.
+
+Settings live in the `Degradation` section, e.g. `NetPulse__Degradation__WindowMinutes=10`:
+
+| Key             | Default | Description                                                 |
+|-----------------|---------|-------------------------------------------------------------|
+| `Enabled`       | `true`  | Look for degraded periods                                   |
+| `WindowMinutes` | `5`     | Length of the window that is rated, and of the calm needed to end a period |
+| `MinSamples`    | `10`    | Fewest probes a window needs to be rated                    |
+
 #### Public IP
 
 NetPulse reads your public IP address every 5 minutes (from Cloudflare's free `1.1.1.1/cdn-cgi/trace`,
@@ -559,7 +584,7 @@ as you like in the `Notifications` section:
 | `TelegramBotToken`, `TelegramChatId` | Create a bot with @BotFather, send it a message, then read the chat id from `https://api.telegram.org/bot<token>/getUpdates`. |
 | `WebhookUrl`                | Receives a JSON `POST` (`kind`, `severity`, `title`, `message`, `timestamp`); also carries `text` and `content`, so Slack and Discord incoming webhooks work directly. Handy for Home Assistant, n8n or Node-RED. |
 | `Smtp:Host`, `Port` (587), `EnableSsl` (true), `User`, `Password`, `From`, `To` | E-mail through any SMTP server; `To` is comma-separated. With Gmail use an app password. |
-| `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:WatchedDevices` (true), `Events:SpeedTests` (true), `Events:PublicIp` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day; watched devices (eye button on the Devices page) alert by default. |
+| `Events:Outages` (true), `Events:NewDevices` (true), `Events:DeviceOffline` (false), `Events:WatchedDevices` (true), `Events:SpeedTests` (true), `Events:PublicIp` (true), `Events:Degradation` (true) | Which events send an alert. Devices going offline is off by default: phones come and go all day; watched devices (eye button on the Devices page) alert by default. |
 | `MinDownloadMbps`, `MinUploadMbps` | Alert when a speed test is below these (0 = the contract minimum from the Speed page, if any). |
 | `BatchSeconds` (10)         | Events closer together are merged into one alert (an ISP outage takes down every public target at once). |
 | `RetryHours` (24)           | Alerts that cannot be delivered (the Internet is down, after all) are retried with backoff for this long. |
@@ -604,6 +629,7 @@ scrape_configs:
 | `GET /api/samples?minutes=15&target=...` | Raw samples, optionally for one target |
 | `GET /api/stats?minutes=60`              | Aggregated stats and quality per target |
 | `GET /api/outages?hours=24`              | Outages in the period, with a downtime/availability summary per target and the traceroute taken when each started |
+| `GET /api/degradations?hours=24`         | Degraded periods in the period, with their reasons and worst loss, latency and jitter |
 | `GET /api/speedtests?days=7`             | Speed test results in the period, summary and scheduler status |
 | `POST /api/speedtests/run`               | Run a speed test now and return its result (`409` if one is running) |
 | `GET /api/contract?days=30`              | The saved contract and how the tests of the period compare with it |

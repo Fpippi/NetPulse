@@ -11,6 +11,31 @@ public class NotificationFactoryTests
     private static readonly DateTimeOffset T0 = new(2026, 11, 16, 9, 0, 0, TimeSpan.Zero);
 
     [Test]
+    public void Degradation_start_names_the_reasons_and_worst_values()
+    {
+        var period = new Degradation("1.1.1.1", T0, null, DegradationReasons.Loss | DegradationReasons.Latency, 12.4, 181.6, 22);
+
+        var n = NotificationFactory.DegradationStarted(period);
+
+        Assert.That(n.Kind, Is.EqualTo(NotificationKind.DegradationStarted));
+        Assert.That(n.Severity, Is.EqualTo(NotificationSeverity.Warning));
+        Assert.That(n.Title, Is.EqualTo("1.1.1.1 is degraded"));
+        Assert.That(n.Message, Does.Contain("packet loss, high latency").And.Contain("loss 12 %, avg 182 ms, jitter 22 ms"));
+    }
+
+    [Test]
+    public void Degradation_end_reports_the_duration()
+    {
+        var period = new Degradation("1.1.1.1", T0, T0.AddMinutes(12), DegradationReasons.Jitter, 0, 20, 45);
+
+        var n = NotificationFactory.DegradationEnded(period, T0.AddMinutes(20));
+
+        Assert.That(n.Kind, Is.EqualTo(NotificationKind.DegradationEnded));
+        Assert.That(n.Timestamp, Is.EqualTo(T0.AddMinutes(12)));
+        Assert.That(n.Message, Does.Contain("12 min"));
+    }
+
+    [Test]
     public void Outage_start_is_a_problem()
     {
         var n = NotificationFactory.OutageStarted(new Outage("1.1.1.1", T0, T0.AddSeconds(10), null, 3));

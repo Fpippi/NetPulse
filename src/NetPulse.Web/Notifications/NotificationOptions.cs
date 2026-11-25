@@ -51,6 +51,7 @@ public sealed class NotificationOptions
         NotificationKind.WatchedDeviceLeft or NotificationKind.WatchedDeviceBack => Events.WatchedDevices,
         NotificationKind.SpeedTest => Events.SpeedTests,
         NotificationKind.PublicIpChanged => Events.PublicIp,
+        NotificationKind.DegradationStarted or NotificationKind.DegradationEnded => Events.Degradation,
         _ => true,
     };
 }
@@ -74,6 +75,9 @@ public sealed class NotificationEvents
 
     /// <summary>The public IP address changed.</summary>
     public bool PublicIp { get; set; } = true;
+
+    /// <summary>A target answers, but with poor loss, latency or jitter for minutes (and when it is fine again).</summary>
+    public bool Degradation { get; set; } = true;
 }
 
 /// <summary>E-mail through any SMTP server (your provider's, or Gmail with an app password).</summary>

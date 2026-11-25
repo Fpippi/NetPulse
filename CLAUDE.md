@@ -45,6 +45,8 @@ docker build -t netpulse .                 # container image
     `RetentionPolicy` (days per `DataKind`, 0 = forever), `CompactionPolicy` (VACUUM after big deletes), `DataSize`.
   - `Outages/` — `OutageTracker` (N consecutive lost pings → `Outage`, ends at the next reply),
     `OutageSummary` (downtime/availability over a window), `DurationFormat`.
+    `DegradationTracker` (sliding window rated with `QualityThresholds`; Poor → `Degradation` with
+    `DegradationReasons` flags, ends after a full non-Poor window; losses of an outage run are excluded).
   - `SpeedTest/` — `HttpSpeedTest` (latency/download/upload over `HttpClient`), `SpeedTestPlan`
     (validation), `TransferMeter` (Mbps with TCP warm-up skipped), `SpeedTestSchedule`, `SpeedTestSummary`;
     `LatencySampler` pings idle and while a transfer runs, `Bufferbloat` (medians + A+…F grade).
@@ -84,7 +86,9 @@ docker build -t netpulse .                 # container image
 - `src/NetPulse.Web` — ASP.NET Core host. Pages: `/` (latency), `/speed`, `/outages`, `/devices` (LAN devices), `/loadtest`, `/patterns`, `/report`, `/check` (phone check + QR)
   (printable; `@media print` in `app.css`).
   - `Monitoring/PingMonitorService` — `BackgroundService` that probes all targets every N seconds and feeds
-    `OutageTracker`; open outages from a previous run are closed at startup.
+    `OutageTracker` and `DegradationTracker` (`DegradationOptions`, `Storage/SqliteDegradationStore`, open
+    periods re-saved every minute so a crash closes them at `updated_at`); open outages/periods from a previous
+    run are closed at startup. Degraded periods: amber bars on `OutageTimeline`, card on `/outages`, `/api/degradations`.
   - `Monitoring/OutageTracer` — traceroute in the background when an outage starts (one at a time), stored by
     `Storage/SqliteOutageTraceStore` (hops as JSON); shown on `/outages`, in the report and `/api/outages`.
   - `Health/` — `MonitorHealthCheck` (heartbeat) and `DatabaseHealthCheck` behind `/healthz`; `HealthEndpoints` maps `/healthz` and `/metrics`.
